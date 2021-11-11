@@ -19,25 +19,57 @@ contract MerchantRepublic {
     ///
     uint256 silverValidityPeriod;
 `
-    function propose();
+    function propose(
+                    address[] memory targets, uint[] memory values, string[] memory signatures,
+                    bytes[] memory calldatas, string memory description, bytes32[] guilds
+                    )
+        public
+        returns (uint)
+        {}
 
-    function cancel();
+    function cancel(uint256 proposalId)
+        external
+    {
+    }
 
-    function getActions();
+    function getActions(uint256 proposalId);
+        external
+    {
+    }
 
-    function getReceipts();
+    function getReceipt(uint256 proposalId, address voter)
+        external
+    {
+    }
 
-    function castVote();
+    function castVote(uint256 proposalId, uint8 support)
+        external
+    {
+    }
 
-    function castVoteWithReason();
+    function castVoteWithReason(uint256 proposalId, uint8 support, string calldata reason)
+        external
+    {
+    }
 
-    function castVoteBySig();
+    function castVoteBySig(uint proposalId, uint8 support, uint8 v, bytes32 r, bytes32 s)
+        external
+    {
+    }
 
-    function _castVote();
+    function _castVote(address voter, uint proposalId, uint8 support)
+        internal
+        returns (uint96);
+    {
+    }
 
-    function _initialise();
+    function _initialise() external
+    {
+    }
 
-    function _issueSilver();
+    function _issueSilver() public
+        {
+        }
 
     function _setVotingDelay(uint newVotingDelay) external {
     }
