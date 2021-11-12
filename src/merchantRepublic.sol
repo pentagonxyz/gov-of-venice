@@ -3,22 +3,26 @@ pragma solidity ^0.8.9;
 
 contract MerchantRepublic {
 
-    /// @notice Silver is sent to other commoners to generate gravitas in a particular Guild.
-    /// Gravitas is different for every guild and it's up to the guild to define how silver
-    /// is translated to gravitas.
-    struct commoner {
-        uint256 silver,
-        mapping(address => uint256) gravitas
+/// TODO: How to reset syste, reset silver(claps) after X period
+
+
+
+    mapping(address => uint256) addressToSilver;
+
+    ///
+    uint64 tokensToSilverRatio;
+
+
+    ///
+    uint64 silverValidityPeriod;
+
+    function silverBalance()
+        external
+        view
+        returns(uint256)
+    {
     }
-    ///
-    mapping(address => commoner) addressToCommoners;
-
-    ///
-    uint256 tokensToSilverRatio;
-
-    ///
-    uint256 silverValidityPeriod;
-`
+// https://medium.com/@novablitz/storing-structs-is-costing-you-gas-774da988895e`
     function propose(
                     address[] memory targets, uint[] memory values, string[] memory signatures,
                     bytes[] memory calldatas, string memory description, bytes32[] guilds
@@ -63,13 +67,17 @@ contract MerchantRepublic {
     {
     }
 
-    function _initialise() external
+    function _initialise()
+        external
+        auth
     {
     }
 
-    function _issueSilver() public
-        {
-        }
+    function _issueSilver()
+        public
+    {
+    }
+
 
     function _setVotingDelay(uint newVotingDelay) external {
     }
@@ -115,5 +123,4 @@ contract MerchantRepublic {
 
     function getChainId() internal pure returns (uint) {
     }
-
 }
