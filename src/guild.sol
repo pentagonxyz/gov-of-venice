@@ -102,9 +102,12 @@ contract  Guild {
     struct guildMember{
         address[] chainOfResponsibility,
         uint8 absenceCounter,
-        uint32 lastClaimTimestamp
+        uint32 lastClaimTimestamp,
+        uint32 joinEpoch
     }
     mapping(address => uint48) addressToGravitas;
+
+    uint32[] epochs;
 
     struct Guild {
         bytes32 name,
@@ -187,17 +190,21 @@ contract  Guild {
     uint256 public absenceThreshold;
 
     uint256 guildBudget;
+    `
+    uint256 guildBudgetPeriod;
 
     uint256 guildMemberReward;
 
     uint256 guildBudgetPeriod;
 
     /// must have gravitas(in the specific guild) > threshold
+    /// epoch[n] =  block.timestamp
+    /// with every new Member, we log at which epoch it joined.
+    /// We know that between epoch[n] and
     function joinGuild()
         external
     {
     }
-
     function isGuildMember(address commoneer)
         external
         view
@@ -217,7 +224,12 @@ contract  Guild {
         auth
     {
     }
-
+    function inviteGuildsToProposal(uint256 guildId, uint256 proposalId, string reason)
+        external
+        auth
+    {
+    }
+/// ----------------
     function voteForGuildMaster(address support)
         external
         auth
@@ -229,8 +241,6 @@ contract  Guild {
     {
     }
 
-    function voteOnProposal(uint256 proposalId)
-
     // invoke _burn to remove the Guild ERC1155 from the member
     function _banishGuildMember(address guildMemberAddress)
         private
@@ -241,9 +251,14 @@ contract  Guild {
     function claimReward() external
     {
     }
-
+    // Simple power law based on index
+    // loop over the address array of chainOfResponsibility
+    // send over the reward weighted by the invert power law of their index
+    // As addresses are entered serially, the first addresses will get higher rewards
+    // than others
     function _rewardChainOfResponsibility(address guildMemberAddress)
         private
+        returns(bool)
     {
     }
     /// Member Reward: R
@@ -252,13 +267,15 @@ contract  Guild {
     /// Total Budger for period P: B
     /// Total period: P
     /// Period unit (e.g seconds): U
-    /// B = R*N + 2R*1 ==> R = B / (2+N) for period P
-    /// Reward per unit of period = B / ( 2 + N ) * (1/U)
-    function calculateMemberReward()
+    /// reward = (block.timestamp = guildMember.joinEpoch)^2*reward_per_epoch*gravitas_multiplier
+
+    function calculateMemberReward(address member)
         public
     {
-    }
 
+    }
+    /// It is called if a member doesn't vote for X amount of times
+    /// If gravitas < threshold, it is automatically removed from the guild
     function _slashGuildMember(address guildMemberAddress)
         private
     {
@@ -272,11 +289,6 @@ contract  Guild {
         external
         view
         returns (Receipt memory)
-    {
-    }
-    function inviteGuildsToProposal(uint256 guildId, uint256 proposalId, string reason)
-        external
-        auth
     {
     }
 
