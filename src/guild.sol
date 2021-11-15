@@ -6,7 +6,7 @@ interface ConstitutionI{};
 interface merchantRepublicI{};
 
 
-contract GuildCouncil is ERC1155{
+contract GuildCouncil {
 
     constructor() public
 
@@ -35,7 +35,7 @@ contract GuildCouncil is ERC1155{
         returns(bool success)
     {
     }
-
+    // If guildMembersCount = 0, then automatically call guildVerdict with a `pass`.
     function _callGuildToVote(uint256 guildId, uint256 proposalId)
         internal
     {
@@ -65,51 +65,21 @@ contract GuildCouncil is ERC1155{
     {
     }
 
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 id,
-        uint256 amount,
-        bytes memory data
-    )
-        public
-        override
-    {
-        require(nftTransfers == true, "ERC1155-transfers-disabled");
-        require(
-            from == _msgSender() || isApprovedForAll(from, _msgSender()),
-            "ERC1155: caller is not owner nor approved"
-        );
-        _safeTransferFrom(from, to, id, amount, data);
-    }
-    function safeBatchTransferFrom(
-        address from,
-        address to,
-        uint256[] memory ids,
-        uint256[] memory amounts,
-        bytes memory data
-    ) public override {
-        require(nftTransfers == true, "ERC1155-transfers-disabled");
-        require(
-            from == _msgSender() || isApprovedForAll(from, _msgSender()),
-            "ERC1155: transfer caller is not owner nor approved"
-        );
-        _safeBatchTransferFrom(from, to, ids, amounts, data);
-    }
 }
 
-contract  Guild {
+contract  Guild is ERC1155{
     struct guildMember{
         address[] chainOfResponsibility,
         uint8 absenceCounter,
         uint32 lastClaimTimestamp,
-        uint32 joinEpoch
+        uint32 joinEpoch,
+        uint32 addressListIndex
     }
     mapping(address => uint48) addressToGravitas;
 
     uint32[] epochs;
 
-    struct Guild {
+    struct Guildbook{
         bytes32 name,
         uint8 id,
         uint48 gravitasThreshold
@@ -128,9 +98,11 @@ contract  Guild {
 
     mapping(address => guildMember) public addressToGuildMember;
 
-    mapping(address => ) private voted;
+    address[] addressList;
 
-    bool private activeVote;
+    mapping(address => bool) private voted;
+
+   bool private activeVote;
 
     // if timestamp + votingPeriod >= block.timestamp, that means an active vote
     // is underway. the vote can be either for electing master or banishing a member
@@ -201,10 +173,56 @@ contract  Guild {
     /// epoch[n] =  block.timestamp
     /// with every new Member, we log at which epoch it joined.
     /// We know that between epoch[n] and
-    function joinGuild()
+
+    // require msg.sender = guildMasterAddress
+    modifier guildMaster(){
+    }
+    // require balanceOf guildmember NFT = 1
+    modifier guildMember()
+
+
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 id,
+        uint256 amount,
+        bytes memory data
+    )
+        public
+        override
+    {
+        require(nftTransfers == true, "ERC1155-transfers-disabled");
+        require(
+            from == _msgSender() || isApprovedForAll(from, _msgSender()),
+            "ERC1155: caller is not owner nor approved"
+        );
+        _safeTransferFrom(from, to, id, amount, data);
+    }
+    function safeBatchTransferFrom(
+        address from,
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        bytes memory data
+    ) public override {
+        require(nftTransfers == true, "ERC1155-transfers-disabled");
+        require(
+            from == _msgSender() || isApprovedForAll(from, _msgSender()),
+            "ERC1155: transfer caller is not owner nor approved"
+        );
+        _safeBatchTransferFrom(from, to, ids, amounts, data);
+    }
+// Mint an erc1155 for the new member
+
+// Add address to list of addresses
+// create guildMebmer struct
+// adr ->  guildMember
+
+function joinGuild()
         external
     {
     }
+    // Check if commoner has an NFT
     function isGuildMember(address commoneer)
         external
         view
@@ -235,6 +253,11 @@ contract  Guild {
         auth
     {
     }
+    // burn a guildMember NFT, mint a guildMsater NFT
+    function guildMasterAcceptanceCeremony()
+        external
+    {
+    }
 
     function voteToBanishGuildMember(address guildMemberAddress)
         external
@@ -248,7 +271,9 @@ contract  Guild {
     }
 
     /// if msg.sender has nft, then reward
-    function claimReward() external
+    function claimReward()
+        external
+        auth
     {
     }
     // Simple power law based on index
