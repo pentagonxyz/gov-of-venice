@@ -22,6 +22,49 @@ contract MerchantRepublic {
     {
     }
 // https://medium.com/@novablitz/storing-structs-is-costing-you-gas-774da988895e`
+// ~~~~~~~~ PROPOSAL LIFECYCLE ~~~~~~~~~~~~~~~~
+
+    /**
+      * @notice Queues a proposal of state succeeded
+      * @param proposalId The id of the proposal to queue
+      */
+    function queue(uint proposalId) external {
+        require(state(proposalId) == ProposalState.Succeeded, "GovernorBravo::queue: proposal can only be queued if it is succeeded");
+        Proposal storage proposal = proposals[proposalId];
+        uint eta = add256(block.timestamp, timelock.delay());
+        for (uint i = 0; i < proposal.targets.length; i++) {
+            queueOrRevertInternal(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], eta);
+        }
+        proposal.eta = eta;
+        emit ProposalQueued(proposalId, eta);
+    }
+
+    function queueOrRevertInternal(address target,
+                                   uint value,
+                                   string memory signature,
+                                   bytes memory data,
+                                   uint eta)
+                                   internal
+    {
+        require(!timelock.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))),
+                "GovernorBravo::queueOrRevertInternal: identical proposal action already queued at eta");
+        timelock.queueTransaction(target, value, signature, data, eta);
+    }
+
+    /**
+      * @notice Executes a queued proposal if eta has passed
+      * @param proposalId The id of the proposal to execute
+      */
+    function execute(uint proposalId) external payable {
+        require(state(proposalId) == ProposalState.Queued, "GovernorBravo::execute: proposal can only be executed if it is queued");
+        Proposal storage proposal = proposals[proposalId];
+        proposal.executed = true;
+        for (uint i = 0; i < proposal.targets.length; i++) {
+            timelock.executeTransaction.value(proposal.values[i])(proposal.targets[i], proposal.values[i],
+                                              proposal.signatures[i], proposal.calldatas[i], proposal.eta);
+        }
+        emit ProposalExecuted(proposalId);
+
     function propose(
                     address[] memory targets, uint[] memory values, string[] memory signatures,
                     bytes[] memory calldatas, string memory description, bytes32[] guilds
@@ -34,6 +77,8 @@ contract MerchantRepublic {
         external
     {
     }
+
+// ~~~~~~~~~~~~~~~~~~~~~
 
     function getActions(uint256 proposalId);
         external
