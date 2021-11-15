@@ -3,18 +3,17 @@ pragma solidity ^0.8.9;
 
 contract MerchantRepublic {
 
-/// TODO: How to reset syste, reset silver(claps) after X period
-
-
-
-    mapping(address => uint256) addressToSilver;
-
-    ///
-    uint64 tokensToSilverRatio;
-
+    // silver = balanceOf$TOKENS[address]*tokensToSilverRatio
+    // addressToSilver["0x..34"] = [block.timestamp, silver]
+    // silver is valid for block.timestamp + SeasonLengthInSeconds
+    mapping(address => uint256[]) addressToSilver;
 
     ///
-    uint64 silverValidityPeriod;
+    uint32 tokensToSilverRatio;
+
+    ///
+    ///
+    uint48 SeasonLengthInSeconds;
 
     function silverBalance()
         external
@@ -57,7 +56,7 @@ contract MerchantRepublic {
     }
 
     function castVoteBySig(uint proposalId, uint8 support, uint8 v, bytes32 r, bytes32 s)
-        external
+        externali
     {
     }
 
@@ -72,12 +71,13 @@ contract MerchantRepublic {
         auth
     {
     }
-
-    function _issueSilver()
+    // Issue silver based on tokens at the time of invocation
+    // set flag for this season
+    function issueSilver()
         public
     {
-    }
 
+    }
 
     function _setVotingDelay(uint newVotingDelay) external {
     }

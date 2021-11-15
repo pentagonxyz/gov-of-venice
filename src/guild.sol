@@ -213,7 +213,6 @@ contract  Guild is ERC1155{
         _safeBatchTransferFrom(from, to, ids, amounts, data);
     }
 // Mint an erc1155 for the new member
-
 // Add address to list of addresses
 // create guildMebmer struct
 // adr ->  guildMember
@@ -265,6 +264,9 @@ function joinGuild()
     }
 
     // invoke _burn to remove the Guild ERC1155 from the member
+    // delete guildMember struct
+    // remove addr from list and move last item of list in it's place
+    // burn erc1155
     function _banishGuildMember(address guildMemberAddress)
         private
     {
