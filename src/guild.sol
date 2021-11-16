@@ -40,7 +40,7 @@ contract GuildCouncil {
     // If guildMembersCount = 0, then automatically call guildVerdict with a `pass`.
     // guildAddress = guilds[guildId]
     // activeGuildVotes[proposalid] = guildAddress
-    function _callGuildsToVote(uint256[] guildId, uint256[] proposalId)
+    function _callGuildsToVote(uint256[] guildId, uint256 proposalId)
         internal
     {
     }
@@ -89,6 +89,13 @@ contract  Guild is ERC1155{
     event GravitasChanged(address indexed commoner, uint256 oldGravitas, uint256 newGravitas);
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    enum ProposalState {
+        Pending,
+        Defeated,
+        Succeeded,
+        Expired
+    }
 
     struct guildMember{
         address[] chainOfResponsibility,
