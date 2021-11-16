@@ -8,9 +8,17 @@ interface merchantRepublicI{};
 
 contract GuildCouncil {
 
+    event GuildEstablished(uint256 indexed guildId);
+    event GuildDecision(uint256 indexed guildId, uint256 indexed proposalId);
+    event BuddgetIssues(uint256 indexed guildId, uint256 budget);
+
     constructor() public
 
     bool private nftTransfers;
+
+    mapping(uint256 => address) activeGuildVotes;
+
+    address[] guilds;
 
     // For every Guild, there is an ERC1155 token
     // Every guild member is an owner of that erc1155 token
@@ -22,21 +30,16 @@ contract GuildCouncil {
         returns(uint256 id)
     {
     }
-
-    ///
-    function setupFundingPool(uint256 period)
-        external
-        auth
-    {
-    }
-
+    // check if msg.sender == activeGuildvotes[proposalid]
     function guildVerdict(uint256 proposalId, uint8 verdict, int256 proposedChangeToStake)
         public
         returns(bool success)
     {
     }
     // If guildMembersCount = 0, then automatically call guildVerdict with a `pass`.
-    function _callGuildToVote(uint256 guildId, uint256 proposalId)
+    // guildAddress = guilds[guildId]
+    // activeGuildVotes[proposalid] = guildAddress
+    function _callGuildsToVote(uint256[] guildId, uint256[] proposalId)
         internal
     {
     }
@@ -167,8 +170,6 @@ contract  Guild is ERC1155{
 
     uint256 guildMemberReward;
 
-    uint256 guildBudgetPeriod;
-
     /// must have gravitas(in the specific guild) > threshold
     /// epoch[n] =  block.timestamp
     /// with every new Member, we log at which epoch it joined.
@@ -272,12 +273,13 @@ function joinGuild()
     {
     }
 
-    /// if msg.sender has nft, then reward
+    // check if user exists in array AddressToGuildMember
     function claimReward()
         external
         auth
     {
     }
+
     // Simple power law based on index
     // loop over the address array of chainOfResponsibility
     // send over the reward weighted by the invert power law of their index
