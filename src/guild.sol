@@ -11,6 +11,8 @@ contract GuildCouncil {
     event GuildEstablished(uint256 indexed guildId);
     event GuildDecision(uint256 indexed guildId, uint256 indexed proposalId);
     event BuddgetIssues(uint256 indexed guildId, uint256 budget);
+    event SilverSent(uint256 indexed guildId, uint256 indexed recipientCommoner,
+                     uint256 indexed senderCommoner, uint256 silverAmmount);
 
     constructor() public
 

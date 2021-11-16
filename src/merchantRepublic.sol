@@ -90,6 +90,7 @@ contract MerchantRepublic {
     {
     }
 
+// ~~~~~~ VOTE ~~~~~~~~~
     function castVote(uint256 proposalId, uint8 support)
         external
     {
@@ -110,6 +111,8 @@ contract MerchantRepublic {
         returns (uint96);
     {
     }
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~
 
     function _initialise()
         external
@@ -140,14 +143,6 @@ contract MerchantRepublic {
      * @param newProposalThreshold new proposal threshold
      */
     function _setProposalThreshold(uint newProposalThereshold) external {
-    }
-
-    /**
-      * @notice Initiate the GovernorBravo contract
-      * @dev Admin only. Sets initial proposal id which initiates the contract, ensuring a continious proposal id count
-      * @param governorAlpha The address for the Governor to continue the proposal id count from
-      */
-    function _initiate(address governorAlpha) external {
     }
 
     /**
