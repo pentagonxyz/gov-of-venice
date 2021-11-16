@@ -16,7 +16,6 @@ contract GuildCouncil {
 
     constructor() public
 
-    bool private nftTransfers;
 
     mapping(uint256 => address) activeGuildVotes;
 
@@ -73,6 +72,23 @@ contract GuildCouncil {
 }
 
 contract  Guild is ERC1155{
+
+// ~~~~~~~~~~ EVENTS ~~~~~~~~~~~~~~~~~~~
+
+event GuildMemberJoined(address indexed commoner);
+event VotingPeriodChanged(uint256 votingPeriod);
+event GuildParameterChanged(bytes32 what, uint256 old, uint256 new);
+event GuildInvitedToProposalVote(uint256 indexed guildId, uint256 indexed proposalId);
+event GuildMasterVote(address indexed guildMember, address indexed guildMaster)
+event BanishMemberVote(address indexed guildmember, address indexed banished)
+event ProposalVote(address indexed guildMember, uint256 proposalid);
+event GuildMasterChanged(address newGuildMaster);
+event GuildMemberRewardClaimed(address indexed guildMember, uint256 reward);
+event ChainOfResponsibilityRewarded(address[] chain, uint256[] rewards);
+event GravitasChanged(address indexed commoner, uint256 oldGravitas, uint256 newGravitas);
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     struct guildMember{
         address[] chainOfResponsibility,
         uint8 absenceCounter,
@@ -83,6 +99,8 @@ contract  Guild is ERC1155{
     mapping(address => uint48) addressToGravitas;
 
     uint32[] epochs;
+
+    bool private nftTransfers;
 
     struct Guildbook{
         bytes32 name,
