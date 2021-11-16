@@ -64,7 +64,8 @@ contract GuildCouncil {
         returns(bool)
     {
     }
-
+    // budget for every guidl is proposed as a protocol proposal, voted upon and then
+    // this function is called by the governance smart contract to issue the budget
     function issueBudget(uint256 guildId, uint256 amount, IERC20 tokens)
     {
     }
@@ -73,21 +74,21 @@ contract GuildCouncil {
 
 contract  Guild is ERC1155{
 
-// ~~~~~~~~~~ EVENTS ~~~~~~~~~~~~~~~~~~~
+    // ~~~~~~~~~~ EVENTS ~~~~~~~~~~~~~~~~~~~
 
-event GuildMemberJoined(address indexed commoner);
-event VotingPeriodChanged(uint256 votingPeriod);
-event GuildParameterChanged(bytes32 what, uint256 old, uint256 new);
-event GuildInvitedToProposalVote(uint256 indexed guildId, uint256 indexed proposalId);
-event GuildMasterVote(address indexed guildMember, address indexed guildMaster)
-event BanishMemberVote(address indexed guildmember, address indexed banished)
-event ProposalVote(address indexed guildMember, uint256 proposalid);
-event GuildMasterChanged(address newGuildMaster);
-event GuildMemberRewardClaimed(address indexed guildMember, uint256 reward);
-event ChainOfResponsibilityRewarded(address[] chain, uint256[] rewards);
-event GravitasChanged(address indexed commoner, uint256 oldGravitas, uint256 newGravitas);
+    event GuildMemberJoined(address indexed commoner);
+    event VotingPeriodChanged(uint256 votingPeriod);
+    event GuildParameterChanged(bytes32 what, uint256 old, uint256 new);
+    event GuildInvitedToProposalVote(uint256 indexed guildId, uint256 indexed proposalId);
+    event GuildMasterVote(address indexed guildMember, address indexed guildMaster)
+    event BanishMemberVote(address indexed guildmember, address indexed banished)
+    event ProposalVote(address indexed guildMember, uint256 proposalid);
+    event GuildMasterChanged(address newGuildMaster);
+    event GuildMemberRewardClaimed(address indexed guildMember, uint256 reward);
+    event ChainOfResponsibilityRewarded(address[] chain, uint256[] rewards);
+    event GravitasChanged(address indexed commoner, uint256 oldGravitas, uint256 newGravitas);
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     struct guildMember{
         address[] chainOfResponsibility,
@@ -125,7 +126,7 @@ event GravitasChanged(address indexed commoner, uint256 oldGravitas, uint256 new
 
     mapping(address => bool) private voted;
 
-   bool private activeVote;
+    bool private activeVote;
 
     // if timestamp + votingPeriod >= block.timestamp, that means an active vote
     // is underway. the vote can be either for electing master or banishing a member
@@ -155,9 +156,6 @@ event GravitasChanged(address indexed commoner, uint256 oldGravitas, uint256 new
     /// Rethink the variable type to smaller uints for efficient storoage packing
     /// Based on the use-case, uint256 sounds too big
 
-    uint256 public guildMasterTerm;
-    ///
-
     uint256 public guildMembersCount;
 
     ///
@@ -167,27 +165,22 @@ event GravitasChanged(address indexed commoner, uint256 oldGravitas, uint256 new
     uint256 public maxGuildMembers;
 
     ///
-    uint256 public banishmentThreshold;
-
-    ///
-    uint256 public timeOutPeriod;
+    uint256 public constant timeOutPeriod;
 
     ///
     uint256 public guildMasterRewardMultiplier;
 
     /// @notice The duration of voting on a proposal, in blocks
-    uint256 public votingPeriod;
+    uint256 public constant votingPeriod;
 
     /// @notice The number of votes required in order for a voter to become a proposer
-    uint256 public proposalThreshold;
+    uint256 public constant proposalThreshold;
 
     ///
     uint256 public absenceThreshold;
 
     uint256 guildBudget;
     `
-    uint256 guildBudgetPeriod;
-
     uint256 guildMemberReward;
 
     /// must have gravitas(in the specific guild) > threshold
@@ -233,40 +226,63 @@ event GravitasChanged(address indexed commoner, uint256 oldGravitas, uint256 new
         );
         _safeBatchTransferFrom(from, to, ids, amounts, data);
     }
-// Mint an erc1155 for the new member
-// Add address to list of addresses
-// create guildMebmer struct
-// adr ->  guildMember
+    // Mint an erc1155 for the new member
+    // Add address to list of addresses
+    // create guildMebmer struct
+    // adr ->  guildMember
 
-function joinGuild()
-        external
-    {
-    }
-    // Check if commoner has an NFT
-    function isGuildMember(address commoneer)
-        external
-        view
-        returns(bool)
-    {
-    }
+    function joinGuild()
+            external
+        {
+        }
+        // Check if commoner has an NFT
+        function isGuildMember(address commoneer)
+            external
+            view
+            returns(bool)
+        {
+        }
 
 /// ____ Guild Master Functions _____
-    function changeVotingPeriod(uint256 votingPeriod)
-        external
-        auth
-    {
-    }
-
-    function changeProposalThreshold(uint256 threshold)
-        external
-        auth
-    {
-    }
     function inviteGuildsToProposal(uint256 guildId, uint256 proposalId, string reason)
         external
         auth
     {
     }
+
+    function changeGravitasThreshold(uint256 threshold)
+        external
+        auth
+    {
+    }
+
+    function changeAbsenceThreshold(uint256 threshold)
+        external
+        auth
+    {
+    }
+
+    function changeReward(uint256 memberReward, uint256 guildMasterRewardMultiplier)
+        external
+        auth
+    {
+    }
+    // if newMax < currentCount, then no new members can join the guild
+    // until currentCount < newMax
+    function changeMaxGuildMembers(uint256 maxGuildMembers)
+        external
+        auth
+    {
+    }
+
+    function guildBudget()
+        view
+        external
+        auth
+        returns (uint256)
+    {
+    }
+
 /// ----------------
     function voteForGuildMaster(address support)
         external
