@@ -14,9 +14,11 @@ contract GuildCouncil {
     event SilverSent(uint256 indexed guildId, uint256 indexed recipientCommoner,
                      uint256 indexed senderCommoner, uint256 silverAmmount);
 
-    constructor() public
+    constructor(address merchantRepublic, address constitution) public
     {
         guildCounter = 0;
+        securityCouncil[merchantRepublic] = 2;
+        securityCouncil[constitution] = 3;
 
     mapping(uint256 => address) activeGuildVotes;
 
@@ -25,6 +27,8 @@ contract GuildCouncil {
     bool guildsAgreeToProposal;
 
     address[] guilds;
+
+    mapping(address -> uint8) securityCouncil;
 
     uint256 private guildCounter;
 
@@ -35,18 +39,20 @@ contract GuildCouncil {
     function establishGuild(bytes32 guildName, uint256 gravitasThreshold, uint256 timeOutPeriod,
                             uint256 banishmentThreshold,uint256 maxGuildMembers, address[] foundingMembers)
         public
+        onlyConstitution
         returns(uint256 id)
     {
         require(guildName.length != 0, "guildAssociation::emptyGuildName");
         guildCounter++;
-        Guild newGuild = new Guild(guildName, gravitasThreshold, timeOutPeriod, banishmnentThreshold, maxGuildMembers, foundingMembers);
         guilds.push(address(newGuild));
+        Guild newGuild = new Guild(guildName, gravitasThreshold, timeOutPeriod, banishmnentThreshold, maxGuildMembers, foundingMembers);
+        securityCouncil[address(newGuild)] = 1;
         return guildCounter;
     }
     // check if msg.sender == activeGuildvotes[proposalid]
     function _guildVerdict(uint256 proposalId, bool guiildAgreement, int256 proposedChangeToStake)
         external
-        auth
+        onlyGuild
         returns(bool success)
     {
         require(msg.sender == activeGuildVotes[proposalId],
@@ -64,16 +70,14 @@ contract GuildCouncil {
         }
     }
 
-
-
-
     }
     // If guildMembersCount = 0, then automatically call guildVerdict with a `pass`.
     // guildAddress = guilds[guildId]
     // activeGuildVotes[proposalid] = guildAddress
     function _callGuildsToVote(uint256[] guildsId, uint256 proposalId)
        external
-       auth
+       onlyGuild
+       onlyMerchantRepublic
     {
         for(uint256 i=0;i < guildsId.length; i++){
             activeGuildVotes[proposalId] = guilds[Id];
@@ -120,6 +124,28 @@ contract GuildCouncil {
     {
     }
 
+    function setMerchantRepublic(address oldMerchantRepublic, address newMerchantRepublic)
+        external
+        onlyConstitution
+    {
+        securityCouncil[newMerchantRepublic] = 2;
+        delete securityCouncil[oldMerchantRepublic];
+    }
+
+    modifier onlyGuild() {
+        require(securityCouncil[msg.sender] == 1, "GuildCouncil::SecurityCouncil::only_guild");
+        _;
+    }
+
+    modifier onlyMerchantRepublic(){
+        require(securityCouncil[msg.sender] == 2, "GuildCouncil::SecurityCouncil::only_merchantRepublic");
+        _;
+    }
+
+    modifier onlyConstitution(){
+        require(securityCouncil[msg.sender] == 3, "GuildCouncil::SecurityCouncil::only_constitution");
+        _;
+    }
 }
 
 contract  Guild is ERC1155{
