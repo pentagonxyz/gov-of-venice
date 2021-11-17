@@ -8,9 +8,9 @@ interface merchantRepublicI{};
 
 contract GuildCouncil {
 
-    event GuildEstablished(uint256 indexed guildId);
-    event GuildDecision(uint256 indexed guildId, uint256 indexed proposalId);
-    event BuddgetIssues(uint256 indexed guildId, uint256 budget);
+    event GuildEstablished(uint256 guildId, address guildAddress);
+    event GuildDecision(uint256 indexed guildId, uint256 indexed proposalId, bool guildAgreement);
+    event BuddgetIssued(uint256 indexed guildId, uint256 budget);
     event SilverSent(uint256 indexed guildId, uint256 indexed recipientCommoner,
                      uint256 indexed senderCommoner, uint256 silverAmmount);
 
@@ -47,6 +47,7 @@ contract GuildCouncil {
         guilds.push(address(newGuild));
         Guild newGuild = new Guild(guildName, gravitasThreshold, timeOutPeriod, banishmnentThreshold, maxGuildMembers, foundingMembers);
         securityCouncil[address(newGuild)] = 1;
+        emit GuildEstablished(guildId, guildAddress);
         return guildCounter;
     }
     // check if msg.sender == activeGuildvotes[proposalid]
@@ -57,6 +58,7 @@ contract GuildCouncil {
     {
         require(msg.sender == activeGuildVotes[proposalId],
                 "guildCouncil::guildVerdict::incorrect_active_guild_vote");
+        emit GuildDecision(guildId,  proposalid, guildAgreement);
         if(guildAgreement == false){
             activeGuildVotesCounter = 0;
             mercnantRepublicI.guiildsVerdict(proposalId[, false);
@@ -112,22 +114,39 @@ contract GuildCouncil {
 
     }
 
-    /// Returns true if the person's silver is over threshold
-    function sendSilver(address receiver, uint256 guildId)
-        external
+   // Returns the new gravitas of the receiver
+    function sendSilver(address sender, address receiver, uint256 guildId, uint256 silverAmount)
+        onlyMerchantRepublic
         returns(bool)
     {
+        uint256 gravitas = GuildI(guilds[guildId]).calculateGravitas(sender, amountOfSilver);
+        uint256 memberGravitas = GuildI.modifyGravitas(receiver, gravitas);
+        GuildI.appendChainOfResponsibility(receiver, sender);
+        emit SilverSent(guildId, receiver, sender, silverAmount);
+        return memberGravitas;
+    }
+
+
+
     }
     // budget for every guidl is proposed as a protocol proposal, voted upon and then
     // this function is called by the governance smart contract to issue the budget
-    function issueBudget(uint256 guildId, uint256 amount, IERC20 tokens)
+    function issueBudget(address budgetSender, uint256 guildId, uint256 budgetAmount, IERC20 tokens)
+        external
+        onlyConstitution
+        onlyMerchantRepublic
+        returns (bool)
     {
+        emit BudgetIssued(guildId, budgetAmount);
+        return tokens.transferFrom(budgetSender, guilds[guildId], budgetAmount);
     }
 
     function setMerchantRepublic(address oldMerchantRepublic, address newMerchantRepublic)
         external
         onlyConstitution
     {
+        require(securityCouncil[oldMerchantRepublic] == 2,
+                "GuildCouncil::SetMerchantRepublic::wrong_old_address");
         securityCouncil[newMerchantRepublic] = 2;
         delete securityCouncil[oldMerchantRepublic];
     }
@@ -196,10 +215,13 @@ contract  Guild is ERC1155{
         string guildBanner,
     }
 
+    address guildCouncilAddress;
+
     constructor(bytes32 guildName, uint256 gravitas Threshold, uint256 timeOutPeriod,
                 uint256 banishmentThreshold,uint256 maxGuildMembers,
                 address[] initialMembers, uint256 votingPeriod, address nftAddress, IERC20 token)
     {
+        guildCouncilAddress = msg.sender;
 
     }
 
@@ -442,10 +464,30 @@ contract  Guild is ERC1155{
 
     function fallback();
 
-    function calculateGravitas(address guildMemberAddress)
+    function calculateGravitas(address commonerAddress, uint256 silverAmount)
         public
         returns (uint256 gravitas)
     {
+    }
+
+
+    function modifyGravitas(address guildMember, uint256 newGravitas)
+        external
+        onlyGuildCouncil
+        returns (uint256 newGuildMemberGravitas)
+    {
+    }
+
+    function appendChainOfResponsbility(address guildMember, address commoner)
+        external
+        onlyGuildCouncil
+        returns (bool success)
+    {
+    }
+
+    modifier onlyGuildCouncil() {
+        require(msg.sender == guildCouncilAddress, "Guild::OnlyGuildCouncil::wrong_address");
+        _;
     }
 
 }
