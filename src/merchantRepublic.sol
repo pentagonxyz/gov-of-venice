@@ -194,7 +194,7 @@ contract MerchantRepublic {
     {
     }
 
-    function guildsVerdict(uint256 proposalId, bool guildsAgree)
+    function guildsVerdict(uint256 proposalId, bool guilds)
         external
         auth
     {
@@ -247,6 +247,14 @@ contract MerchantRepublic {
         public
     {
 
+    }
+    //
+    function sendSilver(address receiver, uint256 silverAmount)
+        public
+    {
+        uint256 silver = addressToSilver[msg.sender];
+        silver = silver - amount;
+        guildCouncil.sendSilver(msg.sender, receiver, guildId, silverAmount);
     }
 
     function _setVotingDelay(uint newVotingDelay) external {
