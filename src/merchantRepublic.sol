@@ -194,6 +194,12 @@ contract MerchantRepublic {
     {
     }
 
+    function guildsVerdict(uint256 proposalId, bool guildsAgree)
+        external
+        auth
+    {
+    }
+
 // ~~~~~~~~~~~~~~~~~~~~~
 
     function getActions(uint256 proposalId);
