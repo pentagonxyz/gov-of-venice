@@ -15,47 +15,97 @@ contract GuildCouncil {
                      uint256 indexed senderCommoner, uint256 silverAmmount);
 
     constructor() public
-
+    {
+        guildCounter = 0;
 
     mapping(uint256 => address) activeGuildVotes;
 
+    uint256 activeGuildVotesCounter;
+
+    bool guildsAgreeToProposal;
+
     address[] guilds;
+
+    uint256 private guildCounter;
 
     // For every Guild, there is an ERC1155 token
     // Every guild member is an owner of that erc1155 token
     // Override transfer function so that people can't transfer or trade this. It's a badge.
     // When creating the svg, gravitas should show.
-    function establishGuild(bytes32 guildName, uint256 gravitas Threshold, uint256 timeOutPeriod,
-                            uint256 banishmentThreshold,uint256 maxGuildMembers, address[] initialMembers, address nftAddress, IERC20 token)
+    function establishGuild(bytes32 guildName, uint256 gravitasThreshold, uint256 timeOutPeriod,
+                            uint256 banishmentThreshold,uint256 maxGuildMembers, address[] foundingMembers)
         public
         returns(uint256 id)
     {
+        require(guildName.length != 0, "guildAssociation::emptyGuildName");
+        guildCounter++;
+        Guild newGuild = new Guild(guildName, gravitasThreshold, timeOutPeriod, banishmnentThreshold, maxGuildMembers, foundingMembers);
+        guilds.push(address(newGuild));
+        return guildCounter;
     }
     // check if msg.sender == activeGuildvotes[proposalid]
-    function guildVerdict(uint256 proposalId, uint8 verdict, int256 proposedChangeToStake)
-        public
+    function _guildVerdict(uint256 proposalId, bool guiildAgreement, int256 proposedChangeToStake)
+        external
+        auth
         returns(bool success)
     {
+        require(msg.sender == activeGuildVotes[proposalId],
+                "guildCouncil::guildVerdict::incorrect_active_guild_vote");
+        if(guildAgreement == false){
+            activeGuildVotesCounter = 0;
+            mercnantRepublicI.guiildsVerdict(proposalId[, false);
+        }
+        else if (activeGuildVotesCounter != 0) {
+            activeGuildVotesCounter--;
+        }
+        else {
+            activeGuildVotesCounter = 0;
+            mercnantRepublicI.guiildsVerdict(proposalId[, true);
+        }
+    }
+
+
+
+
     }
     // If guildMembersCount = 0, then automatically call guildVerdict with a `pass`.
     // guildAddress = guilds[guildId]
     // activeGuildVotes[proposalid] = guildAddress
-    function _callGuildsToVote(uint256[] guildId, uint256 proposalId)
-        internal
+    function _callGuildsToVote(uint256[] guildsId, uint256 proposalId)
+       external
+       auth
     {
+        for(uint256 i=0;i < guildsId.length; i++){
+            activeGuildVotes[proposalId] = guilds[Id];
+            activeGuildVotesCounter++;
+            if(
+            GuildI(guilds[guildsId[i]]).requestToVoteOnProposal(proposalId);
     }
 
     function availableGuilds()
         external
         view
-        returns(uint256[])
+        returns(address[])
     {
+        return guilds;
     }
     function guildInformation(uint256 guildId)
         external
-        view
+        pure
         returns(Guild)
     {
+        return guildInformation(guilds[guildId]);
+    }
+
+    function guildInformation(address guildAddress)
+        public
+        pure
+        returns(bytes)
+    {
+        bool success, Guild guild = guildI(guildAddress).requestGuildArchive();
+        return guild;
+
+
     }
 
     /// Returns true if the person's silver is over threshold
