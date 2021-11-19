@@ -344,7 +344,11 @@ contract  Guild is ERC1155{
         GuildMember guildMember = addressToGuildMember[guildMemberAddress];
         address[] chain = guildMember.chainOfResponsibility;
         for(uint256 i=0; i < chain.length; i++) {
-            tokens.transferFrom(address(this), chain[i], reward / (i ** 2));
+            // this is SUM(1/2^(j)) series for j =[0,1,2,...i] = 2 - 2^(-i)
+            // assume 4 people in the chain
+            // total reward: 2*reward - reward * 1/(2^4 = reward * (2-1/16))~=2*reward
+            // then 1/2*SUM(1/(2^j)) ~= reward
+            tokens.transferFrom(address(this), chain[i], reward / (2 * (2 ** i) ) );
         }
         emit ChainOfResponsibilityRewarded(address, reward);
     }
