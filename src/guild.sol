@@ -59,13 +59,16 @@ contract  Guild is ERC1155{
 
     GuildCouncilI guildCouncil;
 
+    address guildCouncilAddress;
+
     GuildBook constant guildBook;
 
     constructor(bytes32 guildName, uint256 gravitasThreshold, uint256 timeOutPeriod,
                 uint256 banishmentThreshold,uint256 maxGuildMembers,
                 address[] foundingMembers, uint256 votingPeriod) ERC1155("")
     {
-        guildCouncil = GuildCouncilI(msg.sender)
+        guildCouncil = GuildCouncilI(msg.sender);
+        guildCouncilAddress = msg.sender;
         guildBook = new GuildBook(guildName, gravitasThreshold, timeOutPeriod,
                                             banishmentThreshold, maxGuildMembers, VontingPeriod);
         for(uint256 i=0;i<foundingMembers.length;i++) {
@@ -290,12 +293,15 @@ contract  Guild is ERC1155{
     }
 
 /// ---------------- Start Voting ---------------------
+
+
+
     function startGuildmasterVote(address member)
         external
         onlyGuildMember
         returns (bool)
     {
-        require(guildMasterActiveVote == false, "Guild::startGuildMaster::active_vote");
+        require(guildMasterVoteReceipt.active == false, "Guild::startGuildMaster::active_vote");
         guildMasterVoteReceipt.sponsor = msg.sender;
         proposalVoteStartTimestamp = now();
         banishmentActiveVote = member;
@@ -307,10 +313,21 @@ contract  Guild is ERC1155{
         onlyGuildMember
         returns (bool)
     {
-        require(banishentActiveVote == false, "Guild::startBanishmentVote::active_vote");
+        require(banishmentVoteReceipt.active == false, "Guild::startBanishmentVote::active_vote");
         banishmentVoteReceipt.sponsor = msg.sender;
         guildMasterVoteStartTimestamp = now();
         banishmnetActiveVote = member;
+        return true;
+    }
+
+    function guildVoteRequest(uint256 proposalId)
+        external
+        onlyGuildCouncil
+    {
+        require(proposalActiveVote == false, "Guild::guildVoteRequest::active_vote");
+        proposalVote.active= true;
+        proposalVoteReceipt.id = proposalId;
+        proposalVoteStartTimestamp = now();
         return true;
     }
 // _______________________________________________________________
@@ -552,5 +569,11 @@ contract  Guild is ERC1155{
     modifier onlyGuildMaster() {
         require(msg.sender == guildMasterAddress, "Guild::OnlyGuildMaster::wrong_address");
         _;
+    }
+
+    modifier onlyGuildMember() {
+        require(adressToGuildMember[msg.sener].joinEpoch != 0, "Guild::OnlyeGuildMember::wrong_address");
+        _;
+    }
 
 }
