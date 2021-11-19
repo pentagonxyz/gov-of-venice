@@ -289,7 +289,7 @@ contract  Guild is ERC1155{
         external
         (uint256)
     {
-       return guildBudget;
+       return balanceOf(address(this));
     }
 
 /// ---------------- Start Voting ---------------------
