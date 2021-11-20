@@ -79,7 +79,7 @@ contract GuildCouncil {
     }
 
     }
-    // If guildMembersCount = 0, then automatically call guildVerdict with a `pass`.
+    // If guildMembersCount = 0, then skip
     // guildAddress = guilds[guildId]
     // activeGuildVotes[proposalid] = guildAddress
     function _callGuildsToVote(uint256[] guildsId, uint256 proposalId)
@@ -88,9 +88,12 @@ contract GuildCouncil {
        onlyMerchantRepublic
     {
         for(uint256 i=0;i < guildsId.length; i++){
-            activeGuildVotes[proposalId] = guilds[Id];
-            activeGuildVotesCounter++;
-            GuildI(guilds[guildsId[i]]).requestToVoteOnProposal(proposalId);
+            GuildI guild = GuildI(guilds[guildsId[i]]);
+            if (guild.addressList.length != 0) {
+                activeGuildVotes[proposalId] = guilds[Id];
+                activeGuildVotesCounter++;
+                guild.guildVoteRequest(proposalId);
+            }
     }
 
     function availableGuilds()
