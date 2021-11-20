@@ -82,7 +82,7 @@ contract  Guild is ERC1155{
 
     mapping(address => guildMember) public addressToGuildMember;
 
-    address[] addressList;
+    address[] public addressList;
 
     mapping(address => bool) private voted;
 
@@ -146,6 +146,9 @@ contract  Guild is ERC1155{
     uint256 guildMemberReward;
 
 // -------------- ERC1155 overrided functions ----------------------
+
+// The ERC1155 should not be tradeable.
+
 
     function safeTransferFrom(
         address from,
@@ -240,12 +243,12 @@ contract  Guild is ERC1155{
     }
 
 /// ____ Guild Master Functions _____
-    function inviteGuildsToProposal(uint256 guildId, uint256 proposalId, string reason)
+    function inviteGuildsToProposal(uint256[] guildId, uint256 proposalId, bytes32 reason)
         external
         onlyGuildMaster
         returns (bool)
     {
-        return guildCouncil._callGuildsToVote([guildId], proposalId, reason);
+        return guildCouncil._callGuildsToVote(guildId, proposalId, reason);
     }
 
     function changeGravitasThreshold(uint256 newThreshold)
@@ -282,6 +285,13 @@ contract  Guild is ERC1155{
         maxGuildMembers = newMaxGuildMembers;
     }
 
+    function changeGuildMemberSlash(uint256  slash)
+        external
+        onlyGuildMaster
+    {
+        emit GuildParameterChanged("guildMemberSlash", guildMemberSlash, slash);
+        guildMemberSlash = slash;
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     function guildBudget()
@@ -293,8 +303,6 @@ contract  Guild is ERC1155{
     }
 
 /// ---------------- Start Voting ---------------------
-
-
 
     function startGuildmasterVote(address member)
         external
@@ -376,7 +384,7 @@ contract  Guild is ERC1155{
     /// Total Budger for period P: B
     /// Total period: P
     /// Period unit (e.g seconds): U
-    /// reward = (block.timestamp = guildMember.joinEpoch)^2*reward_per_epoch*gravitas_multiplier
+    /// reward = (block.timestamp - guildMember.joinEpoch)^2*reward_per_epoch*gravitas_multiplier
 
     function calculateMemberReward(address member)
         public
@@ -465,7 +473,7 @@ contract  Guild is ERC1155{
             proposalVoteReceipt.activeGuildMasterVote = false;
             guildMasterVoteResult(guildMaster, false);
             address sponsor = guildMasterVoteReceipt.sponsor;
-            modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMasterVoteSlash);
+            modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
         }
         emit GuildMasterVote(msg.sender, guildMaster);
     }
@@ -499,7 +507,7 @@ contract  Guild is ERC1155{
             banishmentVoteReceipt.activeGuildMasterVote = false;
             banishmentVoteReceipt(memberToBanish, false);
             address sponsor = ildMasterVoteReceipt.sponsor;
-            modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMasterVoteSlash);
+            modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
         }
         emit GuildMasterVote(msg.sender, guildMaster);
     }
@@ -538,6 +546,11 @@ contract  Guild is ERC1155{
         return banishmentVoteProposal;
     }
 
+    function requestGuildBook()
+        external
+    {
+        return guildBook;
+    }
 //---------------------------------------------------------
 
     function fallback();
