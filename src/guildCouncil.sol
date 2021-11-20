@@ -14,16 +14,6 @@ contract GuildCouncil {
     event SilverSent(uint256 indexed guildId, uint256 indexed recipientCommoner,
                      uint256 indexed senderCommoner, uint256 silverAmmount);
 
-    // Constants
-
-    uint8 constant minimumInitialGuildMembers = 3;
-
-    constructor(address merchantRepublic, address constitution) public
-    {
-        guildCounter = 0;
-        securityCouncil[merchantRepublic] = 2;
-        securityCouncil[constitution] = 3;
-    }
 
     mapping(uint256 => address) activeGuildVotes;
 
@@ -36,6 +26,21 @@ contract GuildCouncil {
     mapping(address -> uint8) securityCouncil;
 
     uint256 private guildCounter;
+
+    uint8 constant minimumInitialGuildMembers = 3;
+
+    MerchantRepublicI merchantRepublic;
+
+    ConstitutionI constitution;
+
+    constructor(address merchantRepublicAddress, address constitutionAddress) public
+    {
+        guildCounter = 0;
+        securityCouncil[merchantRepublic] = 2;
+        securityCouncil[constitution] = 3;
+        merchantRepublic = MerchantRepublicI(merchantRepublicAddress);
+        constitution = constitutionI(constitutionAddress);
+    }
 
     // For every Guild, there is an ERC1155 token
     // Every guild member is an owner of that erc1155 token
@@ -57,7 +62,7 @@ contract GuildCouncil {
         return guildCounter;
     }
     // check if msg.sender == activeGuildvotes[proposalid]
-    function _guildVerdict(uint256 proposalId, bool guiildAgreement, int256 proposedChangeToStake)
+    function _guildVerdict(uint256 proposalId, bool guildAgreement, int256 proposedChangeToStake)
         external
         onlyGuild
         returns(bool success)
@@ -67,14 +72,14 @@ contract GuildCouncil {
         emit GuildDecision(guildId,  proposalid, guildAgreement);
         if(guildAgreement == false){
             activeGuildVotesCounter = 0;
-            mercnantRepublicI.guiildsVerdict(proposalId[, false);
+            merchantRepublic.guildsVerdict(proposalId, false);
         }
         else if (activeGuildVotesCounter != 0) {
             activeGuildVotesCounter--;
         }
         else {
             activeGuildVotesCounter = 0;
-            mercnantRepublicI.guiildsVerdict(proposalId[, true);
+            mercnantRepublic.guiildsVerdict(proposalId, true);
         }
     }
 
@@ -82,7 +87,7 @@ contract GuildCouncil {
     // If guildMembersCount = 0, then skip
     // guildAddress = guilds[guildId]
     // activeGuildVotes[proposalid] = guildAddress
-    function _callGuildsToVote(uint256[] guildsId, uint256 proposalId)
+    function _callGuildsToVote(uint256[] guildsId, uint256 proposalId, bytes32 reason)
        external
        onlyGuild
        onlyMerchantRepublic
