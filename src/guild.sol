@@ -132,6 +132,8 @@ contract  Guild is ERC1155{
     ///
     uint256 public guildMasterRewardMultiplier;
 
+    uint48 memberRewardPerEpoch;
+
     /// @notice The duration of voting on a proposal, in blocks
     uint256 public constant votingPeriod;
 
@@ -267,6 +269,14 @@ contract  Guild is ERC1155{
         absenceThreshold = newThreshold;
     }
 
+    function changeMemberRewardPerEpoch(uint48 newMemberRewardPerEpoch)
+        external
+        onlyGuildMaster
+    {
+        emit GuildParameterChanged("memberRewardPerEpoch", memberRewardPerEpoch, newMemberRewardPerEpoch);
+        memberRewardPerEpoch = newMemberRewardPerEpoch;
+    }
+
     function changeGuildMasterMultiplier(uint256 newGuildMasterRewardMultiplier)
         external
         onlyGuildMaster
@@ -351,7 +361,7 @@ contract  Guild is ERC1155{
         external
         onlyGuildMember
     {
-        uint256 reward = calculateMemberReward(msg.sender)
+        uint256 reward = calculateMemberReward(msg.sender) / addressList.length
         tokens.transfer(address(this), msg.sender, reward * (1 - chainRewardMultiplier);
         _rewardchainOfResponsibility(reward*chainRewardMultiplier, msg.sender);
     }
@@ -389,14 +399,15 @@ contract  Guild is ERC1155{
     function calculateMemberReward(address member)
         public
     {
-        uint256 multiplier;
+        uint8 multiplier;
+        uint48 weightedReward  = MemberRewardPerEpoch / addressList.length;
         if (member == guildMasterAddress){
                 multiplier = guildMasterRewardMultiplier;
         }
         else {
             multiplier = 1;
         }
-        return ((block.timestamp - addressToGuildMember[member].joinEpoch) ** 2 ) * rewardPerEpoch  * multiplier
+        return ((block.timestamp - addressToGuildMember[member].joinEpoch) ** 2 ) * weightedReward  * multiplier
     }
 
     /// It is called if a member doesn't vote for X amount of times
