@@ -31,8 +31,6 @@ contract  Guild is ERC1155{
 
     uint48 gravitasWeight;
 
-    uint32[] epochs;
-
     bool private nftTransfers;
 
     struct GuildBook{
@@ -61,7 +59,7 @@ contract  Guild is ERC1155{
 
     address guildCouncilAddress;
 
-    GuildBook constant guildBook;
+    GuildBook guildBook;
 
     constructor(bytes32 guildName, uint256 gravitasThreshold, uint256 timeOutPeriod,
                 uint256 banishmentThreshold,uint256 maxGuildMembers,
@@ -85,6 +83,8 @@ contract  Guild is ERC1155{
     address[] public addressList;
 
     mapping(address => bool) private voted;
+
+    mapping(address => uint48) private apprentishipStart;
 
     bool private activeProposalVote;
 
@@ -127,25 +127,19 @@ contract  Guild is ERC1155{
     uint256 public maxGuildMembers;
 
     ///
-    uint256 public constant timeOutPeriod;
+    uint256 public constant timeOutThreshold;
 
     ///
     uint256 public guildMasterRewardMultiplier;
 
-    uint48 memberRewardPerEpoch;
+    uint48 public memberRewardPerEpoch;
 
     /// @notice The duration of voting on a proposal, in blocks
     uint256 public constant votingPeriod;
 
-    /// @notice The number of votes required in order for a voter to become a proposer
-    uint256 public constant proposalThreshold;
-
-    ///
-    uint256 public absenceThreshold;
-
-    uint256 guildBudget;
-    `
     uint256 guildMemberReward;
+
+
 
 // -------------- ERC1155 overrided functions ----------------------
 
@@ -187,10 +181,16 @@ contract  Guild is ERC1155{
 
 ------------- Guild Member lifecycle -----------------------
 
+    function  startApprentiship()
+        external
+    {
+        require(addressToGravitas[msg.sender] >= guildBook.gravitasThreshold, "Guild::joinGuild::gravitas_too_low");
+        apprentishipStart[msg.sender] = now();
+    }
     function joinGuild()
             external
         {
-            require(addressToGravitas[msg.sender] >= guildBook.gravitasThreshold, "Such low gravitas, wow");
+            require(apprentishipStar[msg.sender] + timeOutThreshold < now(), "Guild::joinGuild::user_has_not_done_apprentiship");
             GuildMember memory guildMember = new GuildMember([], 0, 0, now(), addressList.length - 1);
             addressToGuildMember[msg.sender] = guildMember;
             addressList.push(msg.sender);
@@ -323,6 +323,8 @@ contract  Guild is ERC1155{
         guildMasterVoteReceipt.sponsor = msg.sender;
         proposalVoteStartTimestamp = now();
         banishmentActiveVote = member;
+        proposalVote.nay = 0;
+        proposalVote.aye = 0;
         return true;
     }
 
@@ -333,7 +335,9 @@ contract  Guild is ERC1155{
     {
         require(banishmentVoteReceipt.active == false, "Guild::startBanishmentVote::active_vote");
         banishmentVoteReceipt.sponsor = msg.sender;
-        guildMasterVoteStartTimestamp = now();
+        banishmentVoteStartTimestamp = now();
+        banishmentVote.aye = 0;
+        banishmentVote.nay = 0;
         banishmnetActiveVote = member;
         return true;
     }
@@ -344,6 +348,8 @@ contract  Guild is ERC1155{
     {
         require(proposalActiveVote == false, "Guild::guildVoteRequest::active_vote");
         proposalVote.active= true;
+        proposalVote.aye = 0;
+        proposalVote.nay = 0;
         proposalVoteReceipt.id = proposalId;
         proposalVoteStartTimestamp = now();
         return true;
@@ -494,7 +500,7 @@ contract  Guild is ERC1155{
         onlyGuildMember
     {
         require(banishmentVoteReceipt.activeVote == true,
-                "Guild::castVoteForBanishment::wrong_guild_member_address");
+                "Guild::castVoteForBanishment::no_active_vote");
         require(banishmentVoteReceipt.lastVoteTimestamp[msg.sender] < banishmentVoteStartTimestmap,
                 "Guild::vastVoteForBanishmnet::account_already_voted");
         require(now() - banishmentVoteReceipt >= votingPeriod,
