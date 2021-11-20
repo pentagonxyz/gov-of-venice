@@ -116,8 +116,8 @@ contract GuildCouncil {
         pure
         returns(bytes)
     {
-        bool success, Guild guild = guildI(guildAddress).requestGuildArchive();
-        return guild;
+        GuildI guild = GuildI(guildAddress);
+        return guild.requestGuildBook();
     }
 
    // Returns the new gravitas of the receiver
@@ -125,9 +125,10 @@ contract GuildCouncil {
         onlyMerchantRepublic
         returns(bool)
     {
-        uint256 gravitas = GuildI(guilds[guildId]).calculateGravitas(sender, amountOfSilver);
-        uint256 memberGravitas = GuildI.modifyGravitas(receiver, gravitas);
-        GuildI.appendChainOfResponsibility(receiver, sender);
+        GuildI guild = GuildI(guilds[guildId]);
+        uint256 gravitas = guild.calculateGravitas(sender, amountOfSilver);
+        uint256 memberGravitas = guild..modifyGravitas(receiver, gravitas);
+        guild.appendChainOfResponsibility(receiver, sender);
         emit SilverSent(guildId, receiver, sender, silverAmount);
         return memberGravitas;
     }
