@@ -190,7 +190,7 @@ contract  Guild is ERC1155{
     function joinGuild()
             external
         {
-            require(apprentishipStar[msg.sender] + timeOutThreshold < now(), "Guild::joinGuild::user_has_not_done_apprentiship");
+            require(apprentishipStart[msg.sender] + timeOutThreshold < now(), "Guild::joinGuild::user_has_not_done_apprentiship");
             GuildMember memory guildMember = new GuildMember([], 0, 0, now(), addressList.length - 1);
             addressToGuildMember[msg.sender] = guildMember;
             addressList.push(msg.sender);
@@ -259,14 +259,6 @@ contract  Guild is ERC1155{
     {
         emit GuildParameterChanged("gravitasThreshold", gravitasThreshold, newThreshold);
         gravitasThreshold = newThreshold;
-    }
-
-    function changeAbsenceThreshold(uint256 newThreshold)
-        external
-        onlyGuildmaster
-    {
-        emit GuildParameterChanged("absenceThreshold", absenceThreshold, newThreshold);
-        absenceThreshold = newThreshold;
     }
 
     function changeMemberRewardPerEpoch(uint48 newMemberRewardPerEpoch)
@@ -588,6 +580,7 @@ contract  Guild is ERC1155{
     {
         emit GravitasChanged(guildMember, addressToGravitas[guildMember], newGravitas);
         addressToGravitas[guildMember] = newGravitas;
+        return newGrevitas;
     }
 
 // ------------------------- Modifiers -------------------------
