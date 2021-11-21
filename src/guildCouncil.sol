@@ -14,7 +14,6 @@ contract GuildCouncil {
     event SilverSent(uint256 indexed guildId, uint256 indexed recipientCommoner,
                      uint256 indexed senderCommoner, uint256 silverAmmount);
 
-
     mapping(uint256 => address) activeGuildVotes;
 
     uint256 activeGuildVotesCounter;
@@ -29,9 +28,16 @@ contract GuildCouncil {
 
     uint8 constant minimumInitialGuildMembers = 3;
 
+    // Maximum time guilds have to decide about a prooposal is 28 days
+    uint48 constant guildDecisionTimeLimit=  2419200;
+
+    bool constant defaultGuildDecision = true;
+
     MerchantRepublicI merchantRepublic;
 
     ConstitutionI constitution;
+
+    address highGuildMaster;
 
     constructor(address merchantRepublicAddress, address constitutionAddress) public
     {
@@ -40,6 +46,7 @@ contract GuildCouncil {
         securityCouncil[constitution] = 3;
         merchantRepublic = MerchantRepublicI(merchantRepublicAddress);
         constitution = constitutionI(constitutionAddress);
+        highGuildMaster = msg.sender;
     }
 
     // For every Guild, there is an ERC1155 token
@@ -62,6 +69,7 @@ contract GuildCouncil {
         return guildCounter;
     }
     // check if msg.sender == activeGuildvotes[proposalid]
+    // TODO: Impelemnt logic to bypass deadlock, aka a guild is not returning an answer
     function _guildVerdict(uint256 proposalId, bool guildAgreement, int256 proposedChangeToStake)
         external
         onlyGuild
@@ -82,8 +90,15 @@ contract GuildCouncil {
             mercnantRepublic.guiildsVerdict(proposalId, true);
         }
     }
-
+    // in case of a guild not returning a verdict, this is a safeguard to continue the process
+    function forceDecision(uint256 proposalId)
+        external
+        onlyHighGuildMaster
+    {
+        require(now() - proposalTimestamp > guildDecisionTimeLimit, "guildCouncil::forceDecision::decision_still_in_time_limit");
+        merchantRepublic.guildsVerdict(proposalId, defaultGuildDecision);
     }
+
     // If guildMembersCount = 0, then skip
     // guildAddress = guilds[guildId]
     // activeGuildVotes[proposalid] = guildAddress
@@ -132,7 +147,7 @@ contract GuildCouncil {
     {
         GuildI guild = GuildI(guilds[guildId]);
         uint256 gravitas = guild.calculateGravitas(sender, amountOfSilver);
-        uint256 memberGravitas = guild..modifyGravitas(receiver, gravitas);
+        uint256 memberGravitas = guild.modifyGravitas(receiver, gravitas);
         guild.appendChainOfResponsibility(receiver, sender);
         emit SilverSent(guildId, receiver, sender, silverAmount);
         return memberGravitas;
@@ -160,7 +175,7 @@ contract GuildCouncil {
                 "GuildCouncil::SetMerchantRepublic::wrong_old_address");
         securityCouncil[newMerchantRepublic] = 2;
         delete securityCouncil[oldMerchantRepublic];
-    }
+    };
 
     modifier onlyGuild() {
         require(securityCouncil[msg.sender] == 1, "GuildCouncil::SecurityCouncil::only_guild");
@@ -176,4 +191,8 @@ contract GuildCouncil {
         require(securityCouncil[msg.sender] == 3, "GuildCouncil::SecurityCouncil::only_constitution");
         _;
     }
+
+    modifier onlyHighGuildMaster(){
+        require(msg.sender == highGuildMaster);
+        _;
 }
