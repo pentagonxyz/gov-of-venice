@@ -61,22 +61,7 @@ contract  Guild is ERC1155{
 
     GuildBook guildBook;
 
-    constructor(bytes32 guildName, uint256 gravitasThreshold, uint256 timeOutPeriod,
-                uint256 banishmentThreshold,uint256 maxGuildMembers,
-                address[] foundingMembers, uint256 votingPeriod) ERC1155("")
-    {
-        guildCouncil = GuildCouncilI(msg.sender);
-        guildCouncilAddress = msg.sender;
-        guildBook = new GuildBook(guildName, gravitasThreshold, timeOutPeriod,
-                                            banishmentThreshold, maxGuildMembers, VontingPeriod);
-        for(uint256 i=0;i<foundingMembers.length;i++) {
-            GuildMember guildMember = new GuildMember( [], 0, 0, now(), i);
-            address member = foundingMembers[i];
-            addressToGuildMember[member] = guildMember;
-            addressList.push(member);
-            _mint(member, 42, 1, "");
-        }
-    }
+
 
     mapping(address => guildMember) public addressToGuildMember;
 
@@ -130,16 +115,41 @@ contract  Guild is ERC1155{
     uint256 public constant timeOutThreshold;
 
     ///
+    uint48 public constant proposalQuorum;
+
+    ///
+    uint48 public constant guildMasterQuorum;
+
+    ///
+    uint48 public constant banishmentQuorum;
+    ///
     uint256 public guildMasterRewardMultiplier;
 
     uint48 public memberRewardPerEpoch;
 
-    /// @notice The duration of voting on a proposal, in blocks
+    /// @notice The duration of voting on a proposal, in UNIX timestamp seconds;
     uint256 public constant votingPeriod;
 
     uint256 guildMemberReward;
 
+//---------- Constructor ----------------
 
+    constructor(bytes32 guildName, uint256 gravitasThreshold, uint256 timeOutPeriod,
+                uint256 banishmentThreshold,uint256 maxGuildMembers,
+                address[] foundingMembers, uint256 votingPeriod) ERC1155("")
+    {
+        guildCouncil = GuildCouncilI(msg.sender);
+        guildCouncilAddress = msg.sender;
+        guildBook = new GuildBook(guildName, gravitasThreshold, timeOutPeriod,
+                                            banishmentThreshold, maxGuildMembers, VontingPeriod);
+        for(uint256 i=0;i<foundingMembers.length;i++) {
+            GuildMember guildMember = new GuildMember( [], 0, 0, now(), i);
+            address member = foundingMembers[i];
+            addressToGuildMember[member] = guildMember;
+            addressList.push(member);
+            _mint(member, 42, 1, "");
+        }
+    }
 // -------------- ERC1155 overrided functions ----------------------
 
 // The ERC1155 should not be tradeable.
@@ -240,6 +250,11 @@ contract  Guild is ERC1155{
         addressList[index] =  movedAddress;
         delete addressList[addressList.length - 1]
         addressToGuildMember[movedAddress].addressListIndex = index;
+        _burn(guildMemberAddress, guildMemberNFTId, 1);
+        if (guildMemberAddress == guildMaster){
+            guildMaster = address(0);
+            _burn(guildMemberAddress, guildMasterNFTId, 1);
+        }
         emit GuildMemberBanished(guildMemberAddress);
     }
 
