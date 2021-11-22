@@ -53,6 +53,8 @@ contract  Guild is ERC1155{
 
     GuildCouncilI guildCouncil;
 
+    TokensI tokens;
+
     address guildCouncilAddress;
 
     GuildBook guildBook;
@@ -145,7 +147,7 @@ contract  Guild is ERC1155{
 
     constructor(bytes32 guildName, uint256 gravitasThreshold, uint256 timeOutPeriod,
                 uint256 banishmentThreshold,uint256 maxGuildMembers,
-                address[] foundingMembers, uint256 votingPeriod) ERC1155("")
+                address[] foundingMembers, uint256 votingPeriod, TokensI tokens) ERC1155("")
     {
         guildCouncil = GuildCouncilI(msg.sender);
         guildCouncilAddress = msg.sender;
@@ -157,8 +159,8 @@ contract  Guild is ERC1155{
             addressToGuildMember[member] = guildMember;
             addressList.push(member);
             _mint(member, guildMemberNftId, 1, "");
-
         }
+        tokens = TokensI(tokensAddress);
     }
 // -------------- ERC1155 overrided functions ----------------------
 
