@@ -358,7 +358,7 @@ contract  Guild is ERC1155{
         external
         onlyGuildMember
     {
-        uint256 reward = calculateMemberReward(msg.sender) / addressList.length
+        uint256 reward = calculateMemberReward(msg.sender);
         tokens.transfer(address(this), msg.sender, reward * (1 - chainRewardMultiplier);
         _rewardchainOfResponsibility(reward*chainRewardMultiplier, msg.sender);
     }
