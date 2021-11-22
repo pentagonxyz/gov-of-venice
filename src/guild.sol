@@ -154,7 +154,7 @@ contract  Guild is ERC1155{
         guildBook = new GuildBook(guildName, gravitasThreshold, timeOutPeriod,
                                             banishmentThreshold, maxGuildMembers, VontingPeriod);
         for(uint256 i=0;i<foundingMembers.length;i++) {
-            GuildMember guildMember = new GuildMember( [], 0, 0, now(), i);
+            GuildMember memory guildMember = new GuildMember( [], 0, 0, now(), i);
             address member = foundingMembers[i];
             addressToGuildMember[member] = guildMember;
             addressList.push(member);
@@ -340,6 +340,7 @@ contract  Guild is ERC1155{
         returns (bool)
     {
         require(guildMasterVoteReceipt.active == false, "Guild::startGuildMaster::active_vote");
+        guildMasterVoteReceipt storage
         guildMasterVoteReceipt.sponsor = msg.sender;
         proposalVoteStartTimestamp = now();
         banishmentActiveVote = member;
@@ -402,7 +403,7 @@ contract  Guild is ERC1155{
         private
         returns(bool)
     {
-        GuildMember guildMember = addressToGuildMember[guildMemberAddress];
+        GuildMember storage guildMember = addressToGuildMember[guildMemberAddress];
         address[] chain = guildMember.chainOfResponsibility;
         for(uint256 i=0; i < chain.length; i++) {
             // this is SUM(1/2^(j)) series for j =[0,1,2,...i] = 2 - 2^(-i)
