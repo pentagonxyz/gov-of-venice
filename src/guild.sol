@@ -27,11 +27,7 @@ contract  Guild is ERC1155{
         uint32 joinEpoch,
         uint32 addressListIndex
     }
-    mapping(address => uint48) addressToGravitas;
 
-    uint48 gravitasWeight;
-
-    bool private nftTransfers;
 
     struct GuildBook{
         bytes32 name;
@@ -61,6 +57,11 @@ contract  Guild is ERC1155{
 
     GuildBook guildBook;
 
+    mapping(address => uint48) addressToGravitas;
+
+    uint48 gravitasWeight;
+
+    bool private nftTransfers;
 
 
     mapping(address => guildMember) public addressToGuildMember;
@@ -111,6 +112,8 @@ contract  Guild is ERC1155{
     ///
     uint256 public maxGuildMembers;
 
+    // ----------- CONSTANTS ---------------
+
     ///
     uint256 public constant timeOutThreshold;
 
@@ -122,10 +125,16 @@ contract  Guild is ERC1155{
 
     ///
     uint48 public constant banishmentQuorum;
-    ///
-    uint256 public guildMasterRewardMultiplier;
 
+    uint8 private constant guildMemberNftId;
+
+    uint8 private constant guildMasterNftId;
+    ///
+
+    // -----------------------
     uint48 public memberRewardPerEpoch;
+
+    uint256 public guildMasterRewardMultiplier;
 
     /// @notice The duration of voting on a proposal, in UNIX timestamp seconds;
     uint256 public constant votingPeriod;
@@ -147,7 +156,8 @@ contract  Guild is ERC1155{
             address member = foundingMembers[i];
             addressToGuildMember[member] = guildMember;
             addressList.push(member);
-            _mint(member, 42, 1, "");
+            _mint(member, guildMemberNftId, 1, "");
+
         }
     }
 // -------------- ERC1155 overrided functions ----------------------
@@ -190,6 +200,8 @@ contract  Guild is ERC1155{
 
 ------------- Guild Member lifecycle -----------------------
 
+    // cooloff period before getting voted to a guild and actually joining it. This is added
+    // so that it's harder to game the system
     function  startApprentiship()
         external
     {
@@ -203,7 +215,7 @@ contract  Guild is ERC1155{
             GuildMember memory guildMember = new GuildMember([], 0, 0, now(), addressList.length - 1);
             addressToGuildMember[msg.sender] = guildMember;
             addressList.push(msg.sender);
-            _mint(msg.sender, memberNftId, 1, "");
+            _mint(msg.sender, guildMemberNftId, 1, "");
         }
 
     function appendChainOfResponsbility(address guildMember, address commoner)
@@ -234,7 +246,7 @@ contract  Guild is ERC1155{
     {
         require(msg.sender == guildMasterElect, "Guild::guildMasterAcceptanceCeremony::wrong_guild_master_elect");
         guildMaster = msg.sender;
-        _mint(msg.sender, masterNftId, 1, "");
+        _mint(msg.sender, guildMasterNftId, 1, "");
     }
 
     // invoke _burn to remove the Guild ERC1155 from the member
