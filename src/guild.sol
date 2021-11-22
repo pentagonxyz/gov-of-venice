@@ -140,7 +140,6 @@ contract  Guild is ERC1155{
     uint256 guildMemberReward;
 
 
-
 // -------------- ERC1155 overrided functions ----------------------
 
 // The ERC1155 should not be tradeable.
@@ -580,7 +579,7 @@ contract  Guild is ERC1155{
     {
         emit GravitasChanged(guildMember, addressToGravitas[guildMember], newGravitas);
         addressToGravitas[guildMember] = newGravitas;
-        return newGrevitas;
+        return newGravitas;
     }
 
 // ------------------------- Modifiers -------------------------
