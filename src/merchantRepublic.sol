@@ -253,16 +253,33 @@ contract MerchantRepublic {
     }
     // Issue silver based on tokens at the time of invocation
     // set flag for this season
-    function issueSilver()
-        public
+    function setSilverSeason()
+        external
+        onlyDoge
+        returns (bool)
     {
 
+        silverIssuanceSeason = block.number;
+        emit newSilverSeason(silverIssuanceSeason);
+        return true
     }
-    //
+
+    function issueSilver()
+        internal
+    {
+        addressToSilver[msg.sender] = tokens.balanceOf(msg.sender);
+        addressToLastSilverIssuance[msg.sender] = block.number;
+    }
+
+    // Silver is a common resource for all guilds, but every
+    //  guild member has a different gravitas for every guild
     function sendSilver(address receiver, uint256 silverAmount)
         public
         returns(uint256)
     {
+        if (addressToLastSilverIssuance[msg.sender] < silverIssuanceSeason){
+            issueSilver();
+    }
         uint256 silver = addressToSilver[msg.sender];
         silver = silver - amount;
         guildCouncil.sendSilver(msg.sender, receiver, guildId, silverAmount);
