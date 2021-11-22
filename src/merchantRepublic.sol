@@ -261,10 +261,12 @@ contract MerchantRepublic {
     //
     function sendSilver(address receiver, uint256 silverAmount)
         public
+        returns(uint256)
     {
         uint256 silver = addressToSilver[msg.sender];
         silver = silver - amount;
         guildCouncil.sendSilver(msg.sender, receiver, guildId, silverAmount);
+        return silver;
     }
 
     function _setVotingDelay(uint newVotingDelay) external {
