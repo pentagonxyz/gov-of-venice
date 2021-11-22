@@ -230,7 +230,7 @@ contract  Guild is ERC1155{
     }
 
 
-    function isGuildMember(address commoneer)
+    function isGuildMember(address commoner)
         external
         view
         returns(bool)
