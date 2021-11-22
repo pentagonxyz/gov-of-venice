@@ -194,10 +194,20 @@ contract MerchantRepublic {
     {
     }
 
-    function guildsVerdict(uint256 proposalId, bool guilds)
+    function guildsVerdict(uint256 proposalId, bool guildsVerdict)
         external
-        auth
+        onlyGuildCouncil
     {
+        require(state(proposalId) == ProposalState.PendingGuildsVote,
+                "merchantRepublic::guildsVerdict::not_pending_guilds_vote");
+        Proposal storage proposal = proposals[proposalId];
+        if (guildVerdict == true){
+            proposal.guildsVerdict = true;
+        }
+        else {
+            proposal.guildsVerdict = false;
+        }
+        emit GuildsVerdict(proposalId, guildsVerdict);
     }
 
 // ~~~~~~~~~~~~~~~~~~~~~
