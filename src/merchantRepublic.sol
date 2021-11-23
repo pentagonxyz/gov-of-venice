@@ -94,6 +94,7 @@ contract MerchantRepublic {
 
         /// @notice Receipts of ballots for the entire set of voters
         mapping (address => Receipt) receipts;
+
     }
 
     /// @notice Ballot receipt record for a voter
@@ -130,7 +131,32 @@ contract MerchantRepublic {
 
 // https://medium.com/@novablitz/storing-structs-is-costing-you-gas-774da988895e`
 
+    /// @notice The name of this contract
+    string public constant name = "Merchant Republic";
 
+    /// @notice The minimum setable proposal threshold
+    uint public constant MIN_PROPOSAL_THRESHOLD = 50000e18; // 50,000  Tokens
+
+    /// @notice The number of votes in support of a proposal required in order for a quorum to be reached and for a vote to succeed
+    function quorumVotes() public pure returns (uint) { return 400000e18; } // 400,000 = 4% of Tokens
+
+    /// @notice The maximum number of actions that can be included in a proposal
+    function proposalMaxOperations() public pure returns (uint) { return 10; } // 10 actions
+
+    /// @notice The EIP-712 typehash for the contract's domain
+    bytes32 public constant DOMAIN_TYPEHASH = keccak256"EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+
+    /// @notice The EIP-712 typehash for the ballot struct used by the contract
+    bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint256 proposalId,uint8 support)");(
+
+    function initialize(address constitutionAddress, address tokensAddress, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_) public {
+        require(msg.sender == admin, "GovernorBravo::initialize: admin only");
+        constitution = ConstitutionI(constitutionAddress);
+        tokens = TokensI(tokensAddress);
+        votingPeriod = votingPeriod_;
+        votingDelay = votingDelay_;
+        proposalThreshold = proposalThreshold_;
+    }
 
 
 // ~~~~~~~~ PROPOSAL LIFECYCLE ~~~~~~~~~~~~~~~~
@@ -366,18 +392,7 @@ contract MerchantRepublic {
     }
 r
 
-/**
-      * @notice Initiate the MerchantRepublic contract
-      * @dev Doge only. Sets initial proposal id which initiates the contract, ensuring a continious proposal id count
-      * @param governorAlpha The address for the Governor to continue the proposal id count from
-      */
-    function _initiate() external {
-        require(msg.sender == doge, "MerchantRepublic::_initiate: doge only");
-        require(initialProposalId == 0, "MerchantRepublic::_initiate: can only initiate once");
-        proposalCount = 0;
-        initialProposalId = proposalCount;
-        constitution.acceptDoge();
-    }
+
 
     /**
       * @notice Begins transfer of doge rights. The newPendingDoge must call `_acceptAdmi` to finalize the transfer.
@@ -498,6 +513,8 @@ r
     }
         uint256 silver = addressToSilver[msg.sender];
         silver = silver - amount;
+        // It returns the new gravitas of the receiver, but it's better that the function
+        // returns the remain silver in the sender's account.
         guildCouncil.sendSilver(msg.sender, receiver, guildId, silverAmount);
         return silver;
     }
