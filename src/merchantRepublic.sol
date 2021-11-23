@@ -92,6 +92,12 @@ contract MerchantRepublic {
         /// @notice Flag marking whether the proposal has been executed
         bool executed;
 
+        /// Whether guilds have reached a decision about the proposal
+        bool guildsVerdict;
+
+        ///Whether the guilds agree or disagree with the proposal
+        bool guildsAgreement;
+
         /// @notice Receipts of ballots for the entire set of voters
         mapping (address => Receipt) receipts;
 
@@ -150,12 +156,27 @@ contract MerchantRepublic {
     bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint256 proposalId,uint8 support)");(
 
     function initialize(address constitutionAddress, address tokensAddress, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_) public {
-        require(msg.sender == admin, "GovernorBravo::initialize: admin only");
+        require(msg.sender == doge, "MerchantRepublic::initialize: doge only");
         constitution = ConstitutionI(constitutionAddress);
         tokens = TokensI(tokensAddress);
         votingPeriod = votingPeriod_;
         votingDelay = votingDelay_;
         proposalThreshold = proposalThreshold_;
+
+    }
+
+    /**
+      * @notice Initiate the MerchantRepublic contract
+      * @dev Doge only. Sets initial proposal id which initiates the contract, ensuring a continious proposal id count
+      * @param governorAlpha The address for the Governor to continue the proposal id count from
+      */
+    function _initiate(address previousMerchantRepublic) external {
+        require(msg.sender == doge, "MerchantRepublic::_initiate: doge only");
+        require(initialProposalId == 0, "MerchantRepublic::_initiate: can only initiate once");
+        // Optional if merchantRepublic migrates, otherwise = 0;
+        proposalCount = PreviousMerchantRepublicI(previousMerchantRepublic).proposalCount();
+        initialProposalId = proposalCount;
+        constitution.acceptDoge();
     }
 
 
