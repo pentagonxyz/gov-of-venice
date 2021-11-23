@@ -40,11 +40,11 @@ contract MerchantRepublic {
     /// @notice Emitted when proposal threshold is set
     event ProposalThresholdSet(uint oldProposalThreshold, uint newProposalThreshold);
 
-    /// @notice Emitted when pendingAdmin is changed
-    event NewPendingAdmin(address oldPendingAdmin, address newPendingAdmin);
+    /// @notice Emitted when pendingDoge is changed
+    event NewPendingDoge(address oldPendingDoge, address newPendingDoge);
 
-    /// @notice Emitted when pendingAdmin is accepted, which means admin is updated
-    event NewAdmin(address oldAdmin, address newAdmin);
+    /// @notice Emitted when pendingDoge is accepted, which means doge is updated
+    event NewDoge(address oldDoge, address newDoge);
 
     struct Proposal {
 
@@ -148,11 +148,13 @@ contract MerchantRepublic {
       * @param proposalId The id of the proposal to queue
       */
     function queue(uint proposalId) external {
-        require(state(proposalId) == ProposalState.Succeeded, "MerchantRepublic::queue: proposal can only be queued if it is succeeded");
+        require(state(proposalId) == ProposalState.Succeeded,
+                "MerchantRepublic::queue: proposal can only be queued if it is succeeded");
         Proposal storage proposal = proposals[proposalId];
         uint eta = block.timestamp + constitution.delay()
         for (uint i = 0; i < proposal.targets.length; i++) {
-            queueOrRevertInternal(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], eta);
+            queueOrRevertInternal(proposal.targets[i], proposal.values[i],
+                                  proposal.signatures[i], proposal.calldatas[i], eta);
         }
         proposal.eta = eta;
         emit ProposalQueued(proposalId, eta);
@@ -163,7 +165,7 @@ contract MerchantRepublic {
                                    string memory signature,
                                    bytes memory data,
                                    uint eta)
-                                   internal
+        internal
     {
         require(!.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))),
                 "MerchantRepublic::queueOrRevertInternal: identical proposal action already queued at eta");
@@ -175,7 +177,8 @@ contract MerchantRepublic {
       * @param proposalId The id of the proposal to execute
       */
     function execute(uint proposalId) external payable {
-        require(state(proposalId) == ProposalState.Queued, "MerchantRepublic::execute: proposal can only be executed if it is queued");
+        require(state(proposalId) == ProposalState.Queued,
+                "MerchantRepublic::execute: proposal can only be executed if it is queued");
         Proposal storage proposal = proposals[proposalId];
         proposal.executed = true;
         for (uint i = 0; i < proposal.targets.length; i++) {
@@ -234,7 +237,8 @@ contract MerchantRepublic {
         proposals[newProposal.id] = newProposal;
         latestProposalIds[newProposal.proposer] = newProposal.id;
         bool success = callGuildsToVote(guildsId, proposalId, guildsReason);
-        emit ProposalCreated(newProposal.id, msg.sender, targets, values, signatures, calldatas, startBlock, endBlock, description, guildsId, guildsReason, success);
+        emit ProposalCreated(newProposal.id, msg.sender, targets, values, signatures,
+                             calldatas, startBlock, endBlock, description, guildsId, guildsReason, success);
         return newProposal.id;
     }
 
@@ -263,38 +267,71 @@ contract MerchantRepublic {
 // ~~~~~~~~~~~~~~~~~~~~~
 
 
-    function getActions(uint256 proposalId);
-        external
-    {
+    function getActions(uint proposalId) external view returns (address[] memory targets, uint[] memory values, string[] memory signatures, bytes[] memory calldatas) {
+        Proposal storage p = proposals[proposalId];
+        return (p.targets, p.values, p.signatures, p.calldatas);
     }
 
-    function getReceipt(uint256 proposalId, address voter)
-        external
-    {
+    function getReceipt(uint proposalId, address voter) external view returns (Receipt memory) {
+        return proposals[proposalId].receipts[voter];
     }
 
 // ~~~~~~ VOTE ~~~~~~~~~
-    function castVote(uint256 proposalId, uint8 support)
-        external
-    {
+
+    /**
+      * @notice Cast a vote for a proposal
+      * @param proposalId The id of the proposal to vote on
+      * @param support The support value for the vote. 0=against, 1=for, 2=abstain
+      */
+    function castVote(uint proposalId, uint8 support) external {
+        emit VoteCast(msg.sender, proposalId, support, _castVote(msg.sender, proposalId, support), "");
     }
 
-    function castVoteWithReason(uint256 proposalId, uint8 support, string calldata reason)
-        external
-    {
+    /**
+      * @notice Cast a vote for a proposal with a reason
+      * @param proposalId The id of the proposal to vote on
+      * @param support The support value for the vote. 0=against, 1=for, 2=abstain
+      * @param reason The reason given for the vote by the voter
+      */
+    function castVoteWithReason(uint proposalId, uint8 support, string calldata reason) external {
+       emit VoteCast(msg.sender, proposalId, support, _castVote(msg.sender, proposalId, support), reason);
     }
 
-    function castVoteBySig(uint proposalId, uint8 support, uint8 v, bytes32 r, bytes32 s)
-        externali
-    {
+    /**
+      * @notice Cast a vote for a proposal by signature
+      * @dev External function that accepts EIP-712 signatures for voting on proposals.
+      */
+    function castVoteBySig(uint proposalId, uint8 support, uint8 v, bytes32 r, bytes32 s) external {
+        bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), getChainId(), address(this)));
+        bytes32 structHash = keccak256(abi.encode(BALLOT_TYPEHASH, proposalId, support));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+        address signatory = ecrecover(digest, v, r, s);
+        require(signatory != address(0), "MerchantRepublic::castVoteBySig: invalid signature");
+        emit VoteCast(signatory, proposalId, support, _castVote(signatory, proposalId, support), "");
     }
 
-    function _castVote(address voter, uint proposalId, uint8 support)
-        internal
-        returns (uint96);
-    {
-    }
+    function _castVote(address voter, uint proposalId, uint8 support) internal returns (uint96) {
+        require(state(proposalId) == ProposalState.Active, "MerchantRepublic::_castVote: voting is closed");
+        require(support <= 2, "MerchantRepublic::_castVote: invalid vote type");
+        Proposal storage proposal = proposals[proposalId];
+        Receipt storage receipt = proposal.receipts[voter];
+        require(receipt.hasVoted == false, "MerchantRepublic::_castVote: voter already voted");
+        uint96 votes = comp.getPriorVotes(voter, proposal.startBlock);
 
+        if (support == 0) {
+            proposal.againstVotes = add256(proposal.againstVotes, votes);
+        } else if (support == 1) {
+            proposal.forVotes = add256(proposal.forVotes, votes);
+        } else if (support == 2) {
+            proposal.abstainVotes = add256(proposal.abstainVotes, votes);
+        }
+
+        receipt.hasVoted = true;
+        receipt.support = support;
+        receipt.votes = votes;
+
+        return votes;
+    }
 // ~~~~~~~~~~~~~~~~~~~~~~~~~
 
     function _initialise()
@@ -303,42 +340,98 @@ contract MerchantRepublic {
     {
     }
 
+    /*
+     * @notice Doge function for setting the voting delay
+     * @param newVotingDelay new voting delay, in blocks
+     */
     function _setVotingDelay(uint newVotingDelay) external {
+        require(msg.sender == doge, "MerchantRepublic::_setVotingDelay: doge only");
+        uint oldVotingDelay = votingDelay;
+        votingDelay = newVotingDelay;
+
+        emit VotingDelaySet(oldVotingDelay,votingDelay);
     }
 
-    /*
-     * @notice Admin function for setting the voting period
+   /*
+     * @notice Doge function for setting the voting period
      * @param newVotingPeriod new voting period, in blocks
      */
     function _setVotingPeriod(uint newVotingPeriod) external {
+        require(msg.sender == doge, "MerchantRepublic::_setVotingPeriod: doge only");
+        uint oldVotingPeriod = votingPeriod;
+        votingPeriod = newVotingPeriod;
 
+        emit VotingPeriodSet(oldVotingPeriod, votingPeriod);
     }
+
     /*
-     * @notice Admin function for setting the proposal threshold
+     * @notice Doge function for setting the proposal threshold
      * @dev newProposalThreshold must be greater than the hardcoded min
      * @param newProposalThreshold new proposal threshold
      */
     function _setProposalThreshold(uint newProposalThereshold) external {
+        require(msg.sender == doge, "GovenorBravo::_setProposalThreshold: doge only");
+        require(newProposalThereshold >= MIN_PROPOSAL_THRESHOLD, "MerchantRepublic::_setProposalThreshold: new threshold below min");
+        uint oldProposalThreshold = proposalThreshold;
+        proposalThreshold = newProposalThereshold;
+
+        emit ProposalThresholdSet(oldProposalThreshold, proposalThreshold);
+    }
+r
+
+/**
+      * @notice Initiate the MerchantRepublic contract
+      * @dev Doge only. Sets initial proposal id which initiates the contract, ensuring a continious proposal id count
+      * @param governorAlpha The address for the Governor to continue the proposal id count from
+      */
+    function _initiate(address governorAlpha) external {
+        require(msg.sender == doge, "MerchantRepublic::_initiate: doge only");
+        require(initialProposalId == 0, "MerchantRepublic::_initiate: can only initiate once");
+        proposalCount = 0;
+        initialProposalId = proposalCount;
+        timelock.acceptDoge();
     }
 
     /**
-      * @notice Begins transfer of admin rights. The newPendingAdmin must call `_acceptAdmin` to finalize the transfer.
-      * @dev Admin function to begin change of admin. The newPendingAdmin must call `_acceptAdmin` to finalize the transfer.
-      * @param newPendingAdmin New pending admin.
+      * @notice Begins transfer of doge rights. The newPendingDoge must call `_acceptAdmi` to finalize the transfer.
+      * @dev Doge function to begin change of doge. The newPendingDoge must call `_acceptDoge` to finalize the transfer.
+      * @param newPendingDoge New pending doge.
       */
-    function _setPendingAdmin(address newPendingAdmin) external {
+    function _setPendingDoge(address newPendingDoge) external {
+        // Check caller = doge
+        require(msg.sender == doge, "MerchantRepublicDelegator:_setPendingDoge: doge only");
+
+        // Save current value, if any, for inclusion in log
+        address oldPendingDoge = pendingDoge;
+
+        // Store pendingDoge with value newPendingDoge
+        pendingDoge = newPendingDoge;
+
+        // Emit NewPendingDoge(oldPendingDoge, newPendingDoge)
+        emit NewPendingDoge(oldPendingDoge, newPendingDoge);
     }
 
     /**
-      * @notice Accepts transfer of admin rights. msg.sender must be pendingAdmin
-      * @dev Admin function for pending admin to accept role and update admin
+      * @notice Accepts transfer of doge rights. msg.sender must be pendingDoge
+      * @dev Doge function for pending doge to accept role and update doge
       */
-    function _acceptAdmin() external {
+    function _acceptDoge() external {
+        // Check caller is pendingDoge and pendingDoge ≠ address(0)
+        require(msg.sender == pendingDoge && msg.sender != address(0), "MerchantRepublic::_acceptDoge: doge only");
 
-    }
+        // Save current values for inclusion in log
+        address oldDoge = doge;
+        address oldPendingDoge = pendingDoge;
 
-    function getChainId() internal pure returns (uint) {
-    }
+        // Store doge with value pendingDoge
+        doge = pendingDoge;
+
+        // Clear the pending value
+        pendingDoge = address(0);
+
+        emit NewDoge(oldDoge, doge);
+        emit NewPendingDoge(oldPendingDoge, pendingDoge);
+    }n
 
     function state(uint proposalId) public view returns (ProposalState) {
         require(proposalCount >= proposalId && proposalId > initialProposalId, "MerchantRepublic::state: invalid proposal id");
@@ -412,5 +505,15 @@ contract MerchantRepublic {
         returns(bool)
     {
         return guildCouncil._callGuildToVote(guildsId, proposalId, reason);
+    }
+
+    function getChainId()
+        internal
+        pure
+        returns (uint)
+    {
+        uint chainId;
+        assembly { chainId := chainid() }
+        return chainId;
     }
 }
