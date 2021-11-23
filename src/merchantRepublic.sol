@@ -22,10 +22,10 @@ contract MerchantRepublic {
 
     event ProposalSubmittedToCommoners(uint256 id);
 
-    /// @notice An event emitted when a proposal has been queued in the Timelock
+    /// @notice An event emitted when a proposal has been queued in the constitution
     event ProposalQueued(uint id, uint eta);
 
-    /// @notice An event emitted when a proposal has been executed in the Timelock
+    /// @notice An event emitted when a proposal has been executed in the constitution
     event ProposalExecuted(uint id);
 
     /// @notice An event emitted when the voting delay is set
@@ -150,7 +150,7 @@ contract MerchantRepublic {
     function queue(uint proposalId) external {
         require(state(proposalId) == ProposalState.Succeeded, "MerchantRepublic::queue: proposal can only be queued if it is succeeded");
         Proposal storage proposal = proposals[proposalId];
-        uint eta = add256(block.timestamp, timelock.delay());
+        uint eta = block.timestamp + constitution.delay()
         for (uint i = 0; i < proposal.targets.length; i++) {
             queueOrRevertInternal(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], eta);
         }
@@ -165,9 +165,9 @@ contract MerchantRepublic {
                                    uint eta)
                                    internal
     {
-        require(!timelock.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))),
+        require(!.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))),
                 "MerchantRepublic::queueOrRevertInternal: identical proposal action already queued at eta");
-        timelock.queueTransaction(target, value, signature, data, eta);
+        constitution.queueTransaction(target, value, signature, data, eta);
     }
 
     /**
@@ -362,7 +362,7 @@ contract MerchantRepublic {
             return ProposalState.Succeeded;
         } else if (proposal.executed) {
             return ProposalState.Executed;
-        } else if (block.timestamp >= add256(proposal.eta, timelock.GRACE_PERIOD())) {
+        } else if (block.timestamp >= add256(proposal.eta, constitution.GRACE_PERIOD())) {
             return ProposalState.Expired;
         } else {
             return ProposalState.Queued;
