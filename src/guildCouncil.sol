@@ -53,6 +53,7 @@ contract GuildCouncil {
     // Every guild member is an owner of that erc1155 token
     // Override transfer function so that people can't transfer or trade this. It's a badge.
     // When creating the svg, gravitas should show.
+
     function establishGuild(bytes32 guildName, uint256 gravitasThreshold, uint256 timeOutPeriod,
                             uint256 banishmentThreshold,uint256 maxGuildMembers, address[] foundingMembers)
         public
@@ -70,6 +71,7 @@ contract GuildCouncil {
     }
     // check if msg.sender == activeGuildvotes[proposalid]
     // TODO: Impelemnt logic to bypass deadlock, aka a guild is not returning an answer
+
     function _guildVerdict(uint256 proposalId, bool guildAgreement, int256 proposedChangeToStake)
         external
         onlyGuild
@@ -106,14 +108,22 @@ contract GuildCouncil {
        external
        onlyGuild
        onlyMerchantRepublic
+       returns(bool)
     {
+        bool success = false;
         for(uint256 i=0;i < guildsId.length; i++){
             GuildI guild = GuildI(guilds[guildsId[i]]);
             if (guild.addressList.length != 0) {
                 activeGuildVotes[proposalId] = guilds[Id];
                 activeGuildVotesCounter++;
                 guild.guildVoteRequest(proposalId);
+                success = true;
             }
+        }
+        if (success == false){
+           _guildVerdict(proposalId, defaultGuildDecision);
+        }
+        return success;
     }
 
     function availableGuilds()
