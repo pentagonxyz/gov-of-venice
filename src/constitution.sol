@@ -3,8 +3,8 @@ pragma solidity ^0.8.9;
 
 contract Constitution {
 
-    event NewAdmin(address indexed newAdmin);
-    event NewPendingAdmin(address indexed newPendingAdmin);
+    event NewDoge(address indexed newDoge);
+    event NewPendingDoge(address indexed newPendingDoge);
     event NewDelay(uint indexed newDelay);
     event CancelTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature,  bytes data, uint eta);
     event ExecuteTransaction(bytes32 indexed txHash, address indexed target, uint value, string signature,  bytes data, uint eta);
@@ -14,23 +14,23 @@ contract Constitution {
     uint public constant MINIMUM_DELAY = 2 days;
     uint public constant MAXIMUM_DELAY = 30 days;
 
-    address public admin;
-    address public pendingAdmin;
+    address public doge;
+    address public pendingDoge;
     uint public delay;
 
     mapping (bytes32 => bool) public queuedTransactions;
 
-    constructor(address admin_, uint delay_) public {
+    constructor(address doge_, uint delay_) public {
         require(delay_ >= MINIMUM_DELAY, "Constitution::constructor: Delay must exceed minimum delay.");
         require(delay_ <= MAXIMUM_DELAY, "Constitution::setDelay: Delay must not exceed maximum delay.");
 
-        admin = admin_;
+        doge = doge_;
         delay = delay_;
     }
 
     function setMerchantRepublic(address merchantRepublic)
         public
-        onlyAdmin
+        onlyDoge
         {
         }
 
@@ -45,23 +45,23 @@ contract Constitution {
         emit NewDelay(delay);
     }
 
-    function acceptAdmin() public {
-        require(msg.sender == pendingAdmin, "Constitution::acceptAdmin: Call must come from pendingAdmin.");
-        admin = msg.sender;
-        pendingAdmin = address(0);
+    function acceptDoge() public {
+        require(msg.sender == pendingDoge, "Constitution::acceptDoge: Call must come from pendingDoge.");
+        doge = msg.sender;
+        pendingDoge = address(0);
 
-        emit NewAdmin(admin);
+        emit NewDoge(doge);
     }
 
-    function setPendingAdmin(address pendingAdmin_) public {
-        require(msg.sender == address(this), "Constitution::setPendingAdmin: Call must come from Constitution.");
-        pendingAdmin = pendingAdmin_;
+    function setPendingDoge(address pendingDoge_) public {
+        require(msg.sender == address(this), "Constitution::setPendingDoge: Call must come from Constitution.");
+        pendingDoge = pendingDoge_;
 
-        emit NewPendingAdmin(pendingAdmin);
+        emit NewPendingDoge(pendingDoge);
     }
 
     function queueTransaction(address target, uint value, string memory signature, bytes memory data, uint eta) public returns (bytes32) {
-        require(msg.sender == admin, "Constitution::queueTransaction: Call must come from admin.");
+        require(msg.sender == doge, "Constitution::queueTransaction: Call must come from doge.");
         require(eta >= getBlockTimestamp().add(delay), "Constitution::queueTransaction: Estimated execution block must satisfy delay.");
 
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
@@ -72,7 +72,7 @@ contract Constitution {
     }
 
     function cancelTransaction(address target, uint value, string memory signature, bytes memory data, uint eta) public {
-        require(msg.sender == admin, "Constitution::cancelTransaction: Call must come from admin.");
+        require(msg.sender == doge, "Constitution::cancelTransaction: Call must come from doge.");
 
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
         queuedTransactions[txHash] = false;
@@ -81,7 +81,7 @@ contract Constitution {
     }
 
     function executeTransaction(address target, uint value, string memory signature, bytes memory data, uint eta) public payable returns (bytes memory) {
-        require(msg.sender == admin, "Constitution::executeTransaction: Call must come from admin.");
+        require(msg.sender == doge, "Constitution::executeTransaction: Call must come from doge.");
 
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
         require(queuedTransactions[txHash], "Constitution::executeTransaction: Transaction hasn't been queued.");
