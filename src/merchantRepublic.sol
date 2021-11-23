@@ -5,7 +5,9 @@ contract MerchantRepublic {
 
 
     /// @notice An event emitted when a new proposal is created
-    event ProposalCreated(uint id, address proposer, address[] targets, uint[] values, string[] signatures, bytes[] calldatas, uint startBlock, uint endBlock, string description);
+    event ProposalCreated(uint id, address proposer, address[] targets, uint[] values, string[] signatures,
+                          bytes[] calldatas, uint startBlock, uint endBlock, string description, uint256[] guildsId,
+                          string guildsReason, bool guildsCallSuccess);
 
     /// @notice An event emitted when a vote has been cast on a proposal
     /// @param voter The address which casted a vote
@@ -157,7 +159,7 @@ contract MerchantRepublic {
                                    uint eta)
         internal
     {
-        require(!.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))),
+        require(!constitution.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))),
                 "MerchantRepublic::queueOrRevertInternal: identical proposal action already queued at eta");
         constitution.queueTransaction(target, value, signature, data, eta);
     }
@@ -178,7 +180,7 @@ contract MerchantRepublic {
         emit ProposalExecuted(proposalId);
 
     function propose(address[] calldata targets, uint[] calldata values, string[] calldata signatures, bytes[] calldata calldatas,
-                     string calldata description, uint256[] calldata guildsId, bytes32 calldata guildsReason)
+                     string calldata description, uint256[] calldata guildsId, string calldata guildsReason)
             public
             returns (uint)
     {
@@ -257,7 +259,9 @@ contract MerchantRepublic {
 // ~~~~~~~~~~~~~~~~~~~~~
 
 
-    function getActions(uint proposalId) external view returns (address[] memory targets, uint[] memory values, string[] memory signatures, bytes[] memory calldatas) {
+    function getActions(uint proposalId) external view returns (address[] memory targets,
+                                                                uint[] memory values, string[] memory signatures,
+                                                                bytes[] memory calldatas) {
         Proposal storage p = proposals[proposalId];
         return (p.targets, p.values, p.signatures, p.calldatas);
     }
@@ -443,7 +447,7 @@ r
             return ProposalState.Succeeded;
         } else if (proposal.executed) {
             return ProposalState.Executed;
-        } else if (block.timestamp >= add256(proposal.eta, constitution.GRACE_PERIOD())) {
+        } else if (block.timestamp >= proposal.eta, constitution.GRACE_PERIOD()) {
             return ProposalState.Expired;
         } else {
             return ProposalState.Queued;
