@@ -246,7 +246,7 @@ contract  Guild is ERC1155{
     function guildMasterAcceptanceCeremony()
         external
     {
-        require(msg.sender == guildMasterElect, "Guild::guildMasterAcceptanceCeremony::wrong_guild_master_elect");
+        require(msg.sender == guildMasterElect && msg.sender != address(0), "Guild::guildMasterAcceptanceCeremony::wrong_guild_master_elect");
         guildMaster = msg.sender;
         _mint(msg.sender, guildMasterNftId, 1, "");
     }
