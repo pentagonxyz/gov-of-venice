@@ -110,7 +110,6 @@ contract MerchantRepublic {
     enum ProposalState {
         PendingCommonerVote,
         PendingGuildVote,
-        Active,
         Canceled,
         Defeated,
         Succeeded,
@@ -138,6 +137,10 @@ contract MerchantRepublic {
     {
     }
 // https://medium.com/@novablitz/storing-structs-is-costing-you-gas-774da988895e`
+
+
+
+
 // ~~~~~~~~ PROPOSAL LIFECYCLE ~~~~~~~~~~~~~~~~
 
     /**
@@ -145,7 +148,7 @@ contract MerchantRepublic {
       * @param proposalId The id of the proposal to queue
       */
     function queue(uint proposalId) external {
-        require(state(proposalId) == ProposalState.Succeeded, "GovernorBravo::queue: proposal can only be queued if it is succeeded");
+        require(state(proposalId) == ProposalState.Succeeded, "MerchantRepublic::queue: proposal can only be queued if it is succeeded");
         Proposal storage proposal = proposals[proposalId];
         uint eta = add256(block.timestamp, timelock.delay());
         for (uint i = 0; i < proposal.targets.length; i++) {
@@ -163,7 +166,7 @@ contract MerchantRepublic {
                                    internal
     {
         require(!timelock.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))),
-                "GovernorBravo::queueOrRevertInternal: identical proposal action already queued at eta");
+                "MerchantRepublic::queueOrRevertInternal: identical proposal action already queued at eta");
         timelock.queueTransaction(target, value, signature, data, eta);
     }
 
@@ -172,26 +175,73 @@ contract MerchantRepublic {
       * @param proposalId The id of the proposal to execute
       */
     function execute(uint proposalId) external payable {
-        require(state(proposalId) == ProposalState.Queued, "GovernorBravo::execute: proposal can only be executed if it is queued");
+        require(state(proposalId) == ProposalState.Queued, "MerchantRepublic::execute: proposal can only be executed if it is queued");
         Proposal storage proposal = proposals[proposalId];
         proposal.executed = true;
         for (uint i = 0; i < proposal.targets.length; i++) {
-            timelock.executeTransaction.value(proposal.values[i])(proposal.targets[i], proposal.values[i],
+            constitution.executeTransaction.value(proposal.values[i])(proposal.targets[i], proposal.values[i],
                                               proposal.signatures[i], proposal.calldatas[i], proposal.eta);
         }
         emit ProposalExecuted(proposalId);
 
-    function propose(
-                    address[] memory targets, uint[] memory values, string[] memory signatures,
-                    bytes[] memory calldatas, string memory description, bytes32[] guilds
-                    )
-        public
-        returns (uint)
-        {}
+    function propose(address[] calldata targets, uint[] calldata values, string[] calldata signatures, bytes[] calldata calldatas,
+                     string calldata description, uint256[] calldata guildsId, bytes32 calldata guildsReason)
+            public
+            returns (uint)
+    {
+        // Reject proposals before initiating as Governor
+        require(initialProposalId != 0, "MerchantRepublic::propose: The MerchantRepublic is has not convened yet");
+        require(comp.getPriorVotes(msg.sender, sub256(block.number, 1)) > proposalThreshold,
+                "MerchantRepublic::propose: proposer votes below proposal threshold");
+        require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length,
+                "MerchantRepublic::propose: proposal function information arity mismatch");
+        require(targets.length != 0, "MerchantRepublic::propose: must provide ctions");
+        require(targets.length <= proposalMaxOperations(), "MerchantRepublic::propose: too many actions");
+        require(guildsId.length !=0, "MerchantRepublic::propose::no_guilds_defined");
+        uint latestProposalId = latestProposalIds[msg.sender];
+        if (latestProposalId != 0) {
+          ProposalState proposersLatestProposalState = state(latestProposalId);
+          require(proposersLatestProposalState != ProposalState.PendingComonersVote,
+                  "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending commoner's vote");
+          require(proposersLatestProposalState != ProposalState.PendingGuildsVote,
+                  "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending guilds vote");
+        }
+
+        uint startBlock = block.number + votingDelay;
+        uint endBlock = startBlock + votingPeriod;
+
+        proposalCount++;
+        Proposal memory newProposal = Proposal({
+            id: proposalCount,
+            proposer: msg.sender,
+            eta: 0,
+            targets: targets,
+            values: values,
+            signatures: signatures,
+            calldatas: calldatas,
+            startBlock: startBlock,
+            endBlock: endBlock,
+            forVotes: 0,
+            againstVotes: 0,
+            abstainVotes: 0,
+            canceled: false,
+            executed: false,
+            guildsVerdict: false,
+            guildsAgreement: false
+
+        });
+
+        proposals[newProposal.id] = newProposal;
+        latestProposalIds[newProposal.proposer] = newProposal.id;
+        bool success = callGuildsToVote(guildsId, proposalId, guildsReason);
+        emit ProposalCreated(newProposal.id, msg.sender, targets, values, signatures, calldatas, startBlock, endBlock, description, guildsId, guildsReason, success);
+        return newProposal.id;
+    }
 
     function cancel(uint256 proposalId)
         external
     {
+
     }
 
     function guildsVerdict(uint256 proposalId, bool guildsVerdict)
@@ -211,6 +261,7 @@ contract MerchantRepublic {
     }
 
 // ~~~~~~~~~~~~~~~~~~~~~
+
 
     function getActions(uint256 proposalId);
         external
@@ -251,40 +302,6 @@ contract MerchantRepublic {
         auth
     {
     }
-    // Issue silver based on tokens at the time of invocation
-    // set flag for this season
-    function setSilverSeason()
-        external
-        onlyDoge
-        returns (bool)
-    {
-
-        silverIssuanceSeason = block.number;
-        emit newSilverSeason(silverIssuanceSeason);
-        return true
-    }
-
-    function issueSilver()
-        internal
-    {
-        addressToSilver[msg.sender] = tokens.balanceOf(msg.sender);
-        addressToLastSilverIssuance[msg.sender] = block.number;
-    }
-
-    // Silver is a common resource for all guilds, but every
-    //  guild member has a different gravitas for every guild
-    function sendSilver(address receiver, uint256 silverAmount)
-        public
-        returns(uint256)
-    {
-        if (addressToLastSilverIssuance[msg.sender] < silverIssuanceSeason){
-            issueSilver();
-    }
-        uint256 silver = addressToSilver[msg.sender];
-        silver = silver - amount;
-        guildCouncil.sendSilver(msg.sender, receiver, guildId, silverAmount);
-        return silver;
-    }
 
     function _setVotingDelay(uint newVotingDelay) external {
     }
@@ -321,5 +338,79 @@ contract MerchantRepublic {
     }
 
     function getChainId() internal pure returns (uint) {
+    }
+
+    function state(uint proposalId) public view returns (ProposalState) {
+        require(proposalCount >= proposalId && proposalId > initialProposalId, "MerchantRepublic::state: invalid proposal id");
+        Proposal storage proposal = proposals[proposalId];
+        if (proposal.canceled) {
+            return ProposalState.Canceled;
+        }
+        else if (proposal.guildsVerdict == false) {
+            return ProposalState.PendingGuildsVote;
+        }
+        else if (proposal.guildsAgreement == false) {
+            return ProposalState.Defeated;
+        }
+        else if (block.number <= proposal.startBlock) {
+            return ProposalState.PendingCommonersVoteStart;
+        } else if (block.number <= proposal.endBlock) {
+            return ProposalState.PendingCommonersVote;
+        } else if (proposal.forVotes <= proposal.againstVotes || proposal.forVotes < quorumVotes()) {
+            return ProposalState.Defeated;
+        } else if (proposal.eta == 0) {
+            return ProposalState.Succeeded;
+        } else if (proposal.executed) {
+            return ProposalState.Executed;
+        } else if (block.timestamp >= add256(proposal.eta, timelock.GRACE_PERIOD())) {
+            return ProposalState.Expired;
+        } else {
+            return ProposalState.Queued;
+        }
+    }
+
+// -------------- GUILD FUNCTIONS -----------------------------
+
+
+    // Issue silver based on tokens at the time of invocation
+    // set flag for this season
+    function setSilverSeason()
+        external
+        onlyDoge
+        returns (bool)
+    {
+
+        silverIssuanceSeason = block.number;
+        emit newSilverSeason(silverIssuanceSeason);
+        return true
+    }
+
+    function issueSilver()
+        internal
+    {
+        addressToSilver[msg.sender] = tokens.balanceOf(msg.sender);
+        addressToLastSilverIssuance[msg.sender] = block.number;
+    }
+
+    // Silver is a common resource for all guilds, but every
+    //  guild member has a different gravitas for every guild
+    function sendSilver(address receiver, uint256 silverAmount)
+        public
+        returns(uint256)
+    {
+        if (addressToLastSilverIssuance[msg.sender] < silverIssuanceSeason){
+            issueSilver();
+    }
+        uint256 silver = addressToSilver[msg.sender];
+        silver = silver - amount;
+        guildCouncil.sendSilver(msg.sender, receiver, guildId, silverAmount);
+        return silver;
+    }
+
+    function callGuildsToVote(uint256[] calldata guildsId, uint256 proposalId, bytes32 reason){
+        internal
+        returns(bool)
+    {
+        return guildCouncil._callGuildToVote(guildsId, proposalId, reason);
     }
 }
