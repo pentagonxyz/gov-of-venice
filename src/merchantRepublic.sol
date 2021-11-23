@@ -126,16 +126,6 @@ contract MerchantRepublic {
     ///
     uint32 tokensToSilverRatio;
 
-    ///
-    ///
-    uint48 SeasonLengthInSeconds;
-
-    function silverBalance()
-        external
-        view
-        returns(uint256)
-    {
-    }
 // https://medium.com/@novablitz/storing-structs-is-costing-you-gas-774da988895e`
 
 
@@ -363,7 +353,7 @@ contract MerchantRepublic {
      * @param newProposalThreshold new proposal threshold
      */
     function _setProposalThreshold(uint newProposalThereshold) external {
-        require(msg.sender == doge, "GovenorBravo::_setProposalThreshold: doge only");
+        require(msg.sender == doge, "Bravo::_setProposalThreshold: doge only");
         require(newProposalThereshold >= MIN_PROPOSAL_THRESHOLD, "MerchantRepublic::_setProposalThreshold: new threshold below min");
         uint oldProposalThreshold = proposalThreshold;
         proposalThreshold = newProposalThereshold;
@@ -377,12 +367,12 @@ r
       * @dev Doge only. Sets initial proposal id which initiates the contract, ensuring a continious proposal id count
       * @param governorAlpha The address for the Governor to continue the proposal id count from
       */
-    function _initiate(address governorAlpha) external {
+    function _initiate() external {
         require(msg.sender == doge, "MerchantRepublic::_initiate: doge only");
         require(initialProposalId == 0, "MerchantRepublic::_initiate: can only initiate once");
         proposalCount = 0;
         initialProposalId = proposalCount;
-        timelock.acceptDoge();
+        constitution.acceptDoge();
     }
 
     /**
@@ -407,7 +397,7 @@ r
     /**
       * @notice Accepts transfer of doge rights. msg.sender must be pendingDoge
       * @dev Doge function for pending doge to accept role and update doge
-      */
+    */
     function _acceptDoge() external {
         // Check caller is pendingDoge and pendingDoge ≠ address(0)
         require(msg.sender == pendingDoge && msg.sender != address(0), "MerchantRepublic::_acceptDoge: doge only");
@@ -435,9 +425,14 @@ r
         else if (proposal.guildsVerdict == false) {
             return ProposalState.PendingGuildsVote;
         }
+        // To reach here, guilds have reviewed the proposal
+        // and have reached a verdict
         else if (proposal.guildsAgreement == false) {
             return ProposalState.Defeated;
         }
+        // To reach here, proposal.guildsAgreeement = true
+        // Thus guilds have approved, thus it's now turn for
+        // commoners to vote.
         else if (block.number <= proposal.startBlock) {
             return ProposalState.PendingCommonersVoteStart;
         } else if (block.number <= proposal.endBlock) {
@@ -456,6 +451,14 @@ r
     }
 
 // -------------- GUILD FUNCTIONS -----------------------------
+
+    function silverBalance()
+        external
+        view
+        returns(uint256)
+    {
+        return addressToSilver[msg.sender];
+    }
 
 
     // Issue silver based on tokens at the time of invocation
@@ -479,7 +482,9 @@ r
     }
 
     // Silver is a common resource for all guilds, but every
-    //  guild member has a different gravitas for every guild
+    //  guild member has a different gravitas for every guild.
+    // Instead of the user having to issue silver in a seperate action,
+    // we issue the silver during the first "spend".
     function sendSilver(address receiver, uint256 silverAmount)
         public
         returns(uint256)
