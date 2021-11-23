@@ -333,13 +333,6 @@ contract MerchantRepublic {
         return votes;
     }
 // ~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    function _initialise()
-        external
-        auth
-    {
-    }
-
     /*
      * @notice Doge function for setting the voting delay
      * @param newVotingDelay new voting delay, in blocks
