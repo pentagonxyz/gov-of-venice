@@ -21,11 +21,11 @@ contract  Guild is ERC1155{
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     struct guildMember{
-        address[] chainOfResponsibility,
-        uint8 absenceCounter,
-        uint32 lastClaimTimestamp,
-        uint32 joinEpoch,
-        uint32 addressListIndex
+        address[] chainOfResponsibility;
+        uint8 absenceCounter;
+        uint32 lastClaimTimestamp;
+        uint32 joinEpoch;
+        uint32 addressListIndex;
     }
 
 
