@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.9;
 
-interfaace ConstitutionI {
+interface ConstitutionI {
     function delay() external view returns (uint);
     function GRACE_PERIOD() external view returns (uint);
     function acceptDoge() external;
