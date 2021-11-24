@@ -1,160 +1,107 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.9;
 
-interface ConstitutionI{};
 
-interface merchantRepublicI{};
-
-
-contract GuildCouncil {
-
-    event GuildEstablished(uint256 indexed guildId);
-    event GuildDecision(uint256 indexed guildId, uint256 indexed proposalId);
-    event BuddgetIssues(uint256 indexed guildId, uint256 budget);
-    event SilverSent(uint256 indexed guildId, uint256 indexed recipientCommoner,
-                     uint256 indexed senderCommoner, uint256 silverAmmount);
-
-    constructor() public
-
-
-    mapping(uint256 => address) activeGuildVotes;
-
-    address[] guilds;
-
-    // For every Guild, there is an ERC1155 token
-    // Every guild member is an owner of that erc1155 token
-    // Override transfer function so that people can't transfer or trade this. It's a badge.
-    // When creating the svg, gravitas should show.
-    function establishGuild(bytes32 guildName, uint256 gravitas Threshold, uint256 timeOutPeriod,
-                            uint256 banishmentThreshold,uint256 maxGuildMembers, address[] initialMembers, address nftAddress, IERC20 token)
-        public
-        returns(uint256 id)
-    {
-    }
-    // check if msg.sender == activeGuildvotes[proposalid]
-    function guildVerdict(uint256 proposalId, uint8 verdict, int256 proposedChangeToStake)
-        public
-        returns(bool success)
-    {
-    }
-    // If guildMembersCount = 0, then automatically call guildVerdict with a `pass`.
-    // guildAddress = guilds[guildId]
-    // activeGuildVotes[proposalid] = guildAddress
-    function _callGuildsToVote(uint256[] guildId, uint256 proposalId)
-        internal
-    {
-    }
-
-    function availableGuilds()
-        external
-        view
-        returns(uint256[])
-    {
-    }
-    function guildInformation(uint256 guildId)
-        external
-        view
-        returns(Guild)
-    {
-    }
-
-    /// Returns true if the person's silver is over threshold
-    function sendSilver(address receiver, uint256 guildId)
-        external
-        returns(bool)
-    {
-    }
-    // budget for every guidl is proposed as a protocol proposal, voted upon and then
-    // this function is called by the governance smart contract to issue the budget
-    function issueBudget(uint256 guildId, uint256 amount, IERC20 tokens)
-    {
-    }
-
-}
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "./guildCouncilI.sol";
 
 contract  Guild is ERC1155{
 
     // ~~~~~~~~~~ EVENTS ~~~~~~~~~~~~~~~~~~~
 
-    event GuildMemberJoined(address indexed commoner);
+    event GuildMemberJoined(address commoner);
+    event GuildMemberBanished(address guildMember);
     event VotingPeriodChanged(uint256 votingPeriod);
-    event GuildParameterChanged(bytes32 what, uint256 old, uint256 new);
+    event GuildParameterChanged(bytes32 what, uint256 oldParameter, uint256 newParameter);
     event GuildInvitedToProposalVote(uint256 indexed guildId, uint256 indexed proposalId);
-    event GuildMasterVote(address indexed guildMember, address indexed guildMaster)
-    event BanishMemberVote(address indexed guildmember, address indexed banished)
+    event GuildMasterVote(address indexed guildMember, address indexed guildMaster);
+    event BanishMemberVote(address indexed guildmember, address indexed banished);
     event ProposalVote(address indexed guildMember, uint256 proposalid);
     event GuildMasterChanged(address newGuildMaster);
     event GuildMemberRewardClaimed(address indexed guildMember, uint256 reward);
-    event ChainOfResponsibilityRewarded(address[] chain, uint256[] rewards);
+    event ChainOfResponsibilityRewarded(address[] chain, uint256 baseReward);
     event GravitasChanged(address indexed commoner, uint256 oldGravitas, uint256 newGravitas);
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    enum ProposalState {
-        Pending,
-        Defeated,
-        Succeeded,
-        Expired
+    struct GuildMember{
+        address[] chainOfResponsibility;
+        uint8 absenceCounter;
+        uint32 lastClaimTimestamp;
+        uint32 joinEpoch;
+        uint32 addressListIndex;
     }
 
-    struct guildMember{
-        address[] chainOfResponsibility,
-        uint8 absenceCounter,
-        uint32 lastClaimTimestamp,
-        uint32 joinEpoch,
-        uint32 addressListIndex
+
+    struct GuildBook{
+        bytes32 name;
+        uint8 id;
+        uint48 gravitasThreshold;
+        uint48 timeOutPeriod;
+        uint8 banishmentThreshold;
+        uint8 maxGuildMembers;
+        uint48 votingPeriod;
+
     }
+
+    struct VoteReceipt {
+        uint48 yay;
+        uint48 nay;
+        uint48 count;
+        uint48 lastTimestamp;
+        bool activeVote;
+        address sponsor;
+        address targetAddress;
+        uint256 proposalId;
+    }
+
+    GuildCouncilI guildCouncil;
+
+    TokensI tokens;
+
+    address guildCouncilAddress;
+
+    GuildBook guildBook;
+
     mapping(address => uint48) addressToGravitas;
 
-    uint32[] epochs;
+    uint48 gravitasWeight;
 
     bool private nftTransfers;
 
-    struct Guildbook{
-        bytes32 name,
-        uint8 id,
-        uint48 gravitasThreshold
-        uint48 timeOutPeriod,
-        uint8 banishmentThreshold,
-        uint8 maxGuildMembers,
-        string guildBanner,
-    }
-
-    constructor(bytes32 guildName, uint256 gravitas Threshold, uint256 timeOutPeriod,
-                uint256 banishmentThreshold,uint256 maxGuildMembers,
-                address[] initialMembers, uint256 votingPeriod, address nftAddress, IERC20 token)
-    {
-
-    }
 
     mapping(address => guildMember) public addressToGuildMember;
 
-    address[] addressList;
+    address[] public addressList;
 
     mapping(address => bool) private voted;
 
-    bool private activeVote;
+    mapping(address => uint48) private apprentishipStart;
+
+    bool private activeProposalVote;
+
+    bool private activeGuildMasterVote;
+
+    bool private activeBanishmentVote;
 
     // if timestamp + votingPeriod >= block.timestamp, that means an active vote
     // is underway. the vote can be either for electing master or banishing a member
-    https://medium.com/@novablitz/storing-structs-is-costing-you-gas-774da988895e
-    struct Vote {
-        address addr,
-        uint8 reason,
-        uint48 count
-    }
-    // To keep costs down, we only keep a single vote receipt from the latest vote for each guild member.
+    // https://medium.com/@novablitz/storing-structs-is-costing-you-gas-774da988895e
+
+
+   // To keep costs down, we only keep a single vote receipt from the latest vote for each guild member.
     // if lastVoteTimestamp + votinPeriod >= block.timestamp, that means that the member voted in the current vote
     // Else, disregard the rest of the receipt, let the member vote and populate receipt with up to date information
     // A vote in a guild can be one of:
     // 1) Vote on proposalId after the request of the DAO
     // 2) Vote on removal(banishment) of a guild member
     // 3) Vote on elevating a member to guild master
-    struct VoteReceipt {
-        uint8 type,
-        uint8 vote,
-        uint48 lastVoteTimestamp
-    }
+
+    VoteReceipt guildMasterVoteReceipt;
+
+    VoteReceipt proposalVoteReceipt;
+
+    VoteReceipt banishmentVoteReceipt;
 
     address public guildMaster;
 
@@ -171,35 +118,57 @@ contract  Guild is ERC1155{
     ///
     uint256 public maxGuildMembers;
 
-    ///
-    uint256 public constant timeOutPeriod;
+    // ----------- CONSTANTS ---------------
 
     ///
+    uint256 public constant timeOutThreshold;
+
+    ///
+    uint48 public constant proposalQuorum;
+
+    ///
+    uint48 public constant guildMasterQuorum;
+
+    ///
+    uint48 public constant banishmentQuorum;
+
+    uint8 private constant guildMemberNftId;
+
+    uint8 private constant guildMasterNftId;
+    ///
+
+    // -----------------------
+    uint48 public memberRewardPerEpoch;
+
     uint256 public guildMasterRewardMultiplier;
 
-    /// @notice The duration of voting on a proposal, in blocks
+    /// @notice The duration of voting on a proposal, in UNIX timestamp seconds;
     uint256 public constant votingPeriod;
 
-    /// @notice The number of votes required in order for a voter to become a proposer
-    uint256 public constant proposalThreshold;
-
-    ///
-    uint256 public absenceThreshold;
-
-    uint256 guildBudget;
-    `
     uint256 guildMemberReward;
 
-    /// must have gravitas(in the specific guild) > threshold
-    /// epoch[n] =  block.timestamp
-    /// with every new Member, we log at which epoch it joined.
-    /// We know that between epoch[n] and
+//---------- Constructor ----------------
 
-    // require msg.sender = guildMasterAddress
-    modifier guildMaster(){
+    constructor(bytes32 guildName, uint256 newGravitasThreshold, uint256 timeOutPeriod,
+                uint256 banishmentThreshold,uint256 newMaxGuildMembers,
+                address[] foundingMembers, uint256 newVotingPeriod, tokensAddress) ERC1155("")
+    {
+        guildCouncil = GuildCouncilI(msg.sender);
+        guildCouncilAddress = msg.sender;
+        guildBook = new GuildBook(guildName, newGravitasThreshold, timeOutPeriod,
+                                            banishmentThreshold, newMaxGuildMembers, newVotingPeriod);
+        for(uint256 i=0;i<foundingMembers.length;i++) {
+            GuildMember guildMember = new GuildMember( [], 0, 0, now(), i);
+            address member = foundingMembers[i];
+            addressToGuildMember[member] = guildMember;
+            addressList.push(member);
+            _mint(member, guildMemberNftId, 1, "");
+        }
+        tokens = TokensI(tokensAddress);
     }
-    // require balanceOf guildmember NFT = 1
-    modifier guildMember()
+// -------------- ERC1155 overrided functions ----------------------
+
+// The ERC1155 should not be tradeable.
 
 
     function safeTransferFrom(
@@ -233,78 +202,57 @@ contract  Guild is ERC1155{
         );
         _safeBatchTransferFrom(from, to, ids, amounts, data);
     }
-    // Mint an erc1155 for the new member
-    // Add address to list of addresses
-    // create guildMebmer struct
-    // adr ->  guildMember
 
+
+// ------------- Guild Member lifecycle -----------------------
+
+    // cooloff period before getting voted to a guild and actually joining it. This is added
+    // so that it's harder to game the system
+    function  startApprentiship()
+        external
+    {
+        require(addressToGravitas[msg.sender] >= guildBook.gravitasThreshold, "Guild::joinGuild::gravitas_too_low");
+        apprentishipStart[msg.sender] = now();
+    }
     function joinGuild()
             external
         {
-        }
-        // Check if commoner has an NFT
-        function isGuildMember(address commoneer)
-            external
-            view
-            returns(bool)
-        {
+            require(apprentishipStart[msg.sender] + timeOutThreshold < now(), "Guild::joinGuild::user_has_not_done_apprentiship");
+            GuildMember memory guildMember = new GuildMember([], 0, 0, now(), addressList.length - 1);
+            addressToGuildMember[msg.sender] = guildMember;
+            addressList.push(msg.sender);
+            _mint(msg.sender, guildMemberNftId, 1, "");
         }
 
-/// ____ Guild Master Functions _____
-    function inviteGuildsToProposal(uint256 guildId, uint256 proposalId, string reason)
+    function appendChainOfResponsbility(address guildMember, address commoner)
         external
-        auth
+        onlyGuildCouncil
+        returns (bool success)
     {
+        addressToGuildMember[guildMember].chainOfResponsibility.push(commoner);
+        return true;
     }
 
-    function changeGravitasThreshold(uint256 threshold)
-        external
-        auth
-    {
-    }
 
-    function changeAbsenceThreshold(uint256 threshold)
+    function isGuildMember(address commoner)
         external
-        auth
-    {
-    }
-
-    function changeReward(uint256 memberReward, uint256 guildMasterRewardMultiplier)
-        external
-        auth
-    {
-    }
-    // if newMax < currentCount, then no new members can join the guild
-    // until currentCount < newMax
-    function changeMaxGuildMembers(uint256 maxGuildMembers)
-        external
-        auth
-    {
-    }
-
-    function guildBudget()
         view
-        external
-        auth
-        returns (uint256)
+        returns(bool)
     {
+        if(balanceOf(commoner, memberNFTId) == 1){
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
-/// ----------------
-    function voteForGuildMaster(address support)
-        external
-        auth
-    {
-    }
-    // burn a guildMember NFT, mint a guildMsater NFT
     function guildMasterAcceptanceCeremony()
         external
     {
-    }
-
-    function voteToBanishGuildMember(address guildMemberAddress)
-        external
-    {
+        require(msg.sender == guildMasterElect && msg.sender != address(0), "Guild::guildMasterAcceptanceCeremony::wrong_guild_master_elect");
+        guildMaster = msg.sender;
+        _mint(msg.sender, guildMasterNftId, 1, "");
     }
 
     // invoke _burn to remove the Guild ERC1155 from the member
@@ -314,13 +262,138 @@ contract  Guild is ERC1155{
     function _banishGuildMember(address guildMemberAddress)
         private
     {
+        uint256 index = addressToGuildMember[guildMemberAddress].addressListIndex;
+        delete addressToGuildMemer[guildMemberAddress];
+        address movedAddress = addressList[addressList.length - 1];
+        addressList[index] =  movedAddress;
+        delete addressList[addressList.length - 1];
+        addressToGuildMember[movedAddress].addressListIndex = index;
+        _burn(guildMemberAddress, guildMemberNFTId, 1);
+        if (guildMemberAddress == guildMaster){
+            guildMaster = address(0);
+            _burn(guildMemberAddress, guildMasterNFTId, 1);
+        }
+        emit GuildMemberBanished(guildMemberAddress);
     }
 
+/// ____ Guild Master Functions _____
+    function inviteGuildsToProposal(uint256[] guildId, uint256 proposalId, bytes32 reason)
+        external
+        onlyGuildMaster
+        returns (bool)
+    {
+        return guildCouncil._callGuildsToVote(guildId, proposalId, reason);
+    }
+
+    function changeGravitasThreshold(uint256 newThreshold)
+        external
+        onlyGuildMaster
+    {
+        emit GuildParameterChanged("gravitasThreshold", gravitasThreshold, newThreshold);
+        gravitasThreshold = newThreshold;
+    }
+
+    function changeMemberRewardPerEpoch(uint48 newMemberRewardPerEpoch)
+        external
+        onlyGuildMaster
+    {
+        emit GuildParameterChanged("memberRewardPerEpoch", memberRewardPerEpoch, newMemberRewardPerEpoch);
+        memberRewardPerEpoch = newMemberRewardPerEpoch;
+    }
+
+    function changeGuildMasterMultiplier(uint256 newGuildMasterRewardMultiplier)
+        external
+        onlyGuildMaster
+    {
+        emit GuildParameterChanged("guildMasterRewardMultiplier",
+                                   guildMasterRewardMultiplier, newGuildMasterRewardMultiplier);
+        guildMasterRewardMultiplier = newGuildMasterRewardMultiplier;
+    }
+    // if newMax < currentCount, then no new members can join the guild
+    // until currentCount < newMax
+    function changeMaxGuildMembers(uint256 newMaxGuildMembers)
+        external
+       onlyGuildMaster
+    {
+        emit GuildParameterChanged("maxGuildMembers", maxGuildMembers, newMaxGuildMembers);
+        maxGuildMembers = newMaxGuildMembers;
+    }
+
+    function changeGuildMemberSlash(uint256  slash)
+        external
+        onlyGuildMaster
+    {
+        emit GuildParameterChanged("guildMemberSlash", guildMemberSlash, slash);
+        guildMemberSlash = slash;
+    }
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    function guildBudget()
+        view
+        external
+        returns(uint256)
+    {
+       return balanceOf(address(this));
+    }
+
+/// ---------------- Start Voting ---------------------
+
+    function startGuildmasterVote(address member)
+        external
+        onlyGuildMember
+        returns (bool)
+    {
+        require(guildMasterVoteReceipt.active == false, "Guild::startGuildMaster::active_vote");
+        guildMasterVoteReceipt.sponsor = msg.sender;
+        proposalVoteStartTimestamp = now();
+        banishmentActiveVote = member;
+        proposalVote.nay = 0;
+        proposalVote.aye = 0;
+        return true;
+    }
+
+    function startBanishmentVote(address member)
+        external
+        onlyGuildMember
+        returns (bool)
+    {
+        require(banishmentVoteReceipt.active == false, "Guild::startBanishmentVote::active_vote");
+        banishmentVoteReceipt.sponsor = msg.sender;
+        banishmentVoteStartTimestamp = now();
+        banishmentVote.aye = 0;
+        banishmentVote.nay = 0;
+        banishmnetActiveVote = member;
+        return true;
+    }
+
+    function guildVoteRequest(uint256 proposalId)
+        external
+        onlyGuildCouncil
+    {
+        require(proposalActiveVote == false, "Guild::guildVoteRequest::active_vote");
+        proposalVote.active= true;
+        proposalVote.aye = 0;
+        proposalVote.nay = 0;
+        proposalVoteReceipt.id = proposalId;
+        proposalVoteStartTimestamp = now();
+        return true;
+    }
+// _______________________________________________________________
+
+
+
+// ----------------- Rewards --------------------------
+
     // check if user exists in array AddressToGuildMember
+    // chainRewardMultiplie = percentage of total reward that should
+    // go to chainOfResponsibility (e.g 10%)
     function claimReward()
         external
-        auth
+        onlyGuildMember
     {
+        uint256 reward = calculateMemberReward(msg.sender);
+        tokens.transfer(address(this), msg.sender, reward * (1 - chainRewardMultiplier));
+        _rewardchainOfResponsibility(reward*chainRewardMultiplier, msg.sender);
     }
 
     // Simple power law based on index
@@ -328,48 +401,235 @@ contract  Guild is ERC1155{
     // send over the reward weighted by the invert power law of their index
     // As addresses are entered serially, the first addresses will get higher rewards
     // than others
-    function _rewardChainOfResponsibility(address guildMemberAddress)
+
+    function _rewardChainOfResponsibility(uint256 reward, address guildMemberAddress)
         private
         returns(bool)
     {
+        GuildMember guildMember = addressToGuildMember[guildMemberAddress];
+        address[] chain = guildMember.chainOfResponsibility;
+        for(uint256 i=0; i < chain.length; i++) {
+            // this is SUM(1/2^(j)) series for j =[0,1,2,...i] = 2 - 2^(-i)
+            // assume 4 people in the chain
+            // total reward: 2*reward - reward * 1/(2^4 = reward * (2-1/16))~=2*reward
+            // then 1/2*SUM(1/(2^j)) ~= reward
+            tokens.transferFrom(address(this), chain[i], reward / (2 * (2 ** i) ) );
+        }
+        emit ChainOfResponsibilityRewarded(address, reward);
     }
+
     /// Member Reward: R
     /// Member Count: N
     /// Guild Master Reward: 2R
     /// Total Budger for period P: B
     /// Total period: P
     /// Period unit (e.g seconds): U
-    /// reward = (block.timestamp = guildMember.joinEpoch)^2*reward_per_epoch*gravitas_multiplier
+    /// reward = (block.timestamp - guildMember.joinEpoch)^2*reward_per_epoch*gravitas_multiplier
 
     function calculateMemberReward(address member)
         public
     {
-
+        uint8 multiplier;
+        uint48 weightedReward  = MemberRewardPerEpoch / addressList.length;
+        if (member == guildMasterAddress){
+                multiplier = guildMasterRewardMultiplier;
+        }
+        else {
+            multiplier = 1;
+        }
+        return ((block.timestamp - addressToGuildMember[member].joinEpoch) ** 2 ) * weightedReward  * multiplier;
     }
+
     /// It is called if a member doesn't vote for X amount of times
     /// If gravitas < threshold, it is automatically removed from the guild
     function _slashGuildMember(address guildMemberAddress)
         private
     {
+        uint48 oldGravitas = addressToGravitas[guildMemberAddress];
+        modifyGravitas(oldGravitas, oldGravitas - gravitasSlashPenalty);
+        if (oldGravitas < gravitasShlashPenalty) {
+            _banishGuildMember(guildMemberAddress);
+        }
     }
 
-    function castVote(uint256 proposalId, uint8 support, bool extraGuildNeeded, string guildToVote)
+// -------------------------------------
+// ---------- Cast Votes ---------------
+
+    function castVoteForProposal(uint256 proposalId, uint8 support)
+        external
+        onlyGuildMember
+    {
+        require(proposalVoteReceipt.active == true, "Guild::castVote::no_active_proposal_vote");
+        require(proposalVoteReceipt.VoteId == proposalId, "Guild::castVote::wrong_proposal_id");
+        require(support == 1 || support == 0, "Guild::castVote::wrong_support_value");
+        require(proposalVoteReceipt.lastTimestamp[msg.sender] < proposalVoteStartTimestamp,
+                "Guild::castVoteForProposal::account_already_voted");
+        require(now() - proposalVoteStartTimestamp >= votingPeriod, "Guild::castVoteForProposal::_voting_period_ended");
+        proposalVoteReceipt.support += support;
+        if (support == 1){
+            proposalVoteReceipt.aye += 1;
+        }
+        else {
+            proposalVoteReceipt.nay += 1;
+        }
+        proposalVoteReceipt.count += 1;
+        proposalVoteReceipt.lastVoteTimestamp[msg.sender] = now();
+
+        if(propoposalVoteReceipt.aye > (members.length * proposalQuorum / 100)){
+            proposalVoteReceipt.activeProposalVote = false;
+            guildCouncil._guildVerdict(true, proposalId);
+        }
+        else if (proposalVoteReceipt.nay > (members.length * proposalQuorum / 100)) {
+            proposalVoteReceipt.activeProposalVote = false;
+            guildCouncil._guildVerdict(false, proposalId);
+        }
+        emit ProposalVote(msg.sender, proposalId);
+    }
+
+
+    function castVoteForGuildMaster(bool support, address votedAddress)
+        external
+        onlyGuildMember
+    {
+        require(guildMasterVoteReceipt.activeVote == true,
+                "Guild::castVoteForGuildMaster::wrong_guild_master_address");
+        require(guildMasterVoteReceipt.lastTimestamp[msg.sender] < guildMasterVoteStartTimestmap,
+                "Guild::castVoteForGuildMaster::account_already_voted");
+        require(now() - guildMasterVoteStartTimestamp >= votingPeriod, "Guild::castVoteForGuildMaster::_voting_period_ended");
+        require(votedAddress == guildMasterVoteReceipt.targetAddress, "Guild::casteVoteForGuildMaster::wrong_voted_address");
+        if (support == 1){
+            guildMasterVoteReceipt.aye += 1;
+        }
+        else {
+            guildMasterVoteReceipt.nay += 1;
+        }
+        guildMasterVoteReceipt.count += 1;
+        guildMasterVoteReceipt.lastTimestamp[msg.sender] = now();
+        if(guildMasterVote.aye > (members.length * guildMasterquorum / 100)){
+            guildMasterVoteReceipt.activeVote = false;
+            guildMasterVoteResult(guildMaster, true);
+        }
+        else if (guildMasterVote.nay > (members.length * guildMasterquorum / 100)) {
+            proposalVoteReceipt.activeGuildMasterVote = false;
+            guildMasterVoteResult(guildMaster, false);
+            address sponsor = guildMasterVoteReceipt.sponsor;
+            modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
+        }
+        emit GuildMasterVote(msg.sender, guildMaster);
+    }
+
+    function castVoteForBanishment(bool support, address memberToBanish)
+        external
+        onlyGuildMember
+    {
+        require(banishmentVoteReceipt.activeVote == true,
+                "Guild::castVoteForBanishment::no_active_vote");
+        require(banishmentVoteReceipt.lastVoteTimestamp[msg.sender] < banishmentVoteStartTimestmap,
+                "Guild::vastVoteForBanishmnet::account_already_voted");
+        require(now() - banishmentVoteReceipt >= votingPeriod,
+                "Guild::castVoteForBanishment::_voting_period_ended");
+        require(guildMemberToBanish == banishmentVoteReceipt.targetAddress,
+                "Guild::castVoteForBanishment::wrong_voted_address");
+        if (support == 1){
+            banishmentVoteReceipt.aye++;
+        }
+        else {
+            banishmentVotReceipt.nay++;
+        }
+        banishmentVoteReceipt.count++;
+        banishmentVoteReceipt.lastVoteTimestamp[msg.sender] = now();
+        if(banishmentVoteReceipt.aye > (members.length * banishmentQuorum / 100)){
+            banishmentVote.activeGuildMasterVote = false;
+            _banishGuildMember(memberToBanish);
+
+        }
+        else if (proposalVoteReceipt.nay > (members.length * banishmentQuorum / 100)) {
+            banishmentVoteReceipt.activeGuildMasterVote = false;
+            banishmentVoteReceipt(memberToBanish, false);
+            address sponsor = ildMasterVoteReceipt.sponsor;
+            modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
+        }
+        emit GuildMasterVote(msg.sender, guildMaster);
+    }
+
+//---------------------------------------------------------
+
+//--------------------- Get Vote receipts -----------------
+
+    function guildMasterResult(address newGuildMasterElect, bool result)
+        private
+    {
+        if (result == true){
+            guildMasterElect = newGuildMasterElect;
+        }
+        emit GuildMasterVoteResult(newGuildMaster, result);
+    }
+
+    function getLastProposalVoteReceipt()
+        external
+        returns (ProposalVoteReceipt)
+    {
+        return proposalVoteReceipt;
+    }
+
+    function getLastGuildMasterVoteReceipt()
+        external
+        returns (GuildMasterVoteReceipt)
+    {
+        return guildMasterVoteReceipt;
+    }
+
+    function getLastBanishmentVoteReceipt()
+        external
+        returns (BanishmentVoteProposal)
+    {
+        return banishmentVoteProposal;
+    }
+
+    function requestGuildBook()
         external
     {
+        return guildBook;
     }
-    function getReceipt(uint proposalId, address voter)
-        external
-        view
-        returns (Receipt memory)
-    {
-    }
+//---------------------------------------------------------
 
-    function fallback();
+    fallback() external payable;
 
-    function calculateGravitas(address guildMemberAddress)
+    receive() external payable;
+
+// -------------------- calculate and modify Grafitas ------
+
+    function calculateGravitas(address commonerAddress, uint256 silverAmount)
         public
         returns (uint256 gravitas)
     {
+        return silverAmmount + addressToGravitas[commonerAddress]*gravitasWeight;
+    }
+
+    function modifyGravitas(address guildMember, uint256 newGravitas)
+        external
+        onlyGuildCouncil
+        returns (uint256 newGuildMemberGravitas)
+    {
+        emit GravitasChanged(guildMember, addressToGravitas[guildMember], newGravitas);
+        addressToGravitas[guildMember] = newGravitas;
+        return newGravitas;
+    }
+
+// ------------------------- Modifiers -------------------------
+
+    modifier onlyGuildCouncil() {
+        require(msg.sender == guildCouncilAddress, "Guild::OnlyGuildCouncil::wrong_address");
+        _;
+    }
+    modifier onlyGuildMaster() {
+        require(msg.sender == guildMasterAddress, "Guild::OnlyGuildMaster::wrong_address");
+        _;
+    }
+
+    modifier onlyGuildMember() {
+        require(adressToGuildMember[msg.sener].joinEpoch != 0, "Guild::OnlyeGuildMember::wrong_address");
+        _;
     }
 
 }
