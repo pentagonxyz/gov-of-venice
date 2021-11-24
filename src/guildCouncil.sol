@@ -2,7 +2,10 @@
 pragma solidity ^0.8.9;
 
 import "./merchantRepublicI.sol";
-import "./guildI.sol";
+// import "./guildI.sol";
+import "./guild.sol";
+import "./constitutionI.sol";
+import "./tokensI.sol";
 
 
 //TODO: Breadk down guild coiuncil into a different file
@@ -33,6 +36,8 @@ contract GuildCouncil {
 
     bool constant defaultGuildDecision = true;
 
+    uint48 constant minimumFoundingMembers = 3;
+
     MerchantRepublicI merchantRepublic;
 
     ConstitutionI constitution;
@@ -45,14 +50,13 @@ contract GuildCouncil {
         securityCouncil[merchantRepublic] = 2;
         securityCouncil[constitution] = 3;
         merchantRepublic = MerchantRepublicI(merchantRepublicAddress);
-        constitution = constitutionI(constitutionAddress);
+        constitution = ConstitutionI(constitutionAddress);
         highGuildMaster = msg.sender;
     }
 
-    // For every Guild, there is an ERC1155 token
-    // Every guild member is an owner of that erc1155 token
-    // Override transfer function so that people can't transfer or trade this. It's a badge.
-    // When creating the svg, gravitas should show.
+    // This function assumes that the Guild is not a black box, but incorporated in the GuildCouncil
+    // smart contract.
+    // The alternative is to deplo the Guild and simply invoke this function to register its' address
 
     function establishGuild(bytes32 guildName, uint256 gravitasThreshold, uint256 timeOutPeriod,
                             uint256 banishmentThreshold,uint256 maxGuildMembers, address[] foundingMembers)
@@ -63,8 +67,8 @@ contract GuildCouncil {
         require(guildName.length != 0, "guildCouncil::constructor::empty_guild_name");
         require(foundingMembers.length >= minimumFoundingMembers, "guildCouncil::constructor::minimum_founding_members");
         guildCounter++;
-        guilds.push(address(newGuild));
         Guild newGuild = new Guild(guildName, gravitasThreshold, timeOutPeriod, banishmnentThreshold, maxGuildMembers, foundingMembers);
+        guilds.push(address(newGuild));
         securityCouncil[address(newGuild)] = 1;
         emit GuildEstablished(guildId, guildAddress);
         return guildCounter;
@@ -136,7 +140,7 @@ contract GuildCouncil {
     function guildInformation(uint256 guildId)
         external
         pure
-        returns(Guild)
+        returns(GuildI.GuildBook memory)
     {
         return guildInformation(guilds[guildId]);
     }
@@ -144,7 +148,7 @@ contract GuildCouncil {
     function guildInformation(address guildAddress)
         public
         pure
-        returns(bytes)
+        returns(GuildI.GuildBook memory)
     {
         GuildI guild = GuildI(guildAddress);
         return guild.requestGuildBook();
@@ -168,7 +172,7 @@ contract GuildCouncil {
 
     // budget for every guidl is proposed as a protocol proposal, voted upon and then
     // this function is called by the governance smart contract to issue the budget
-    function issueBudget(address budgetSender, uint256 guildId, uint256 budgetAmount, IERC20 tokens)
+    function issueBudget(address budgetSender, uint256 guildId, uint256 budgetAmount, TokensI tokens)
         external
         onlyConstitution
         onlyMerchantRepublic

@@ -14,4 +14,13 @@ interface GuildI {
         returns (bool success);
     function guildVoteRequest(uint256 proposalId)
         external;
+    struct GuildBook{
+        bytes32 name;
+        uint8 id;
+        uint48 gravitasThreshold;
+        uint48 timeOutPeriod;
+        uint8 banishmentThreshold;
+        uint8 maxGuildMembers;
+        uint48 votingPeriod;
+    }
 }

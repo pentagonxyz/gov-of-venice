@@ -13,6 +13,15 @@ interface GuildCouncilI {
     function sendSilver(address sender, address receiver, uint256 guildId, uint256 silverAmount)
         external
         returns(bool);
+    struct GuildBook{
+        bytes32 name;
+        uint8 id;
+        uint48 gravitasThreshold;
+        uint48 timeOutPeriod;
+        uint8 banishmentThreshold;
+        uint8 maxGuildMembers;
+        uint48 votingPeriod;
+    }
 }
 
 
