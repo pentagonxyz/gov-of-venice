@@ -8,13 +8,10 @@ interface GuildI {
         returns (uint256 gravitas);
     function modifyGravitas(address guildMember, uint256 newGravitas)
         external
-        onlyGuildCouncil
         returns (uint256 newGuildMemberGravitas);
     function appendChainOfResponsbility(address guildMember, address commoner)
         external
-        onlyGuildCouncil
         returns (bool success);
     function guildVoteRequest(uint256 proposalId)
-        external
-        onlyGuildCouncil;
+        external;
 }
