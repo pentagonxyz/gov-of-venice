@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "./guildCouncilI.sol";
+import "./tokensI.sol";
 
 contract  Guild is ERC1155{
 
@@ -70,7 +71,7 @@ contract  Guild is ERC1155{
     bool private nftTransfers;
 
 
-    mapping(address => guildMember) public addressToGuildMember;
+    mapping(address => GuildMember) public addressToGuildMember;
 
     address[] public addressList;
 
@@ -151,7 +152,7 @@ contract  Guild is ERC1155{
 
     constructor(bytes32 guildName, uint256 newGravitasThreshold, uint256 timeOutPeriod,
                 uint256 banishmentThreshold,uint256 newMaxGuildMembers,
-                address[] foundingMembers, uint256 newVotingPeriod, tokensAddress) ERC1155("")
+                address[] foundingMembers, uint256 newVotingPeriod, address tokensAddress) ERC1155("")
     {
         guildCouncil = GuildCouncilI(msg.sender);
         guildCouncilAddress = msg.sender;
@@ -479,7 +480,7 @@ contract  Guild is ERC1155{
             proposalVoteReceipt.activeProposalVote = false;
             guildCouncil._guildVerdict(true, proposalId);
         }
-        else if (proposalVoteReceipt.nay > (members.length * proposalQuorum / 100)) {
+        else if (eroposalVoteReceipt.nay > (members.length * proposalQuorum / 100)) {
             proposalVoteReceipt.activeProposalVote = false;
             guildCouncil._guildVerdict(false, proposalId);
         }
@@ -567,21 +568,21 @@ contract  Guild is ERC1155{
 
     function getLastProposalVoteReceipt()
         external
-        returns (ProposalVoteReceipt)
+        returns (VoteReceipt)
     {
         return proposalVoteReceipt;
     }
 
     function getLastGuildMasterVoteReceipt()
         external
-        returns (GuildMasterVoteReceipt)
+        returns (VoteReceipt)
     {
         return guildMasterVoteReceipt;
     }
 
     function getLastBanishmentVoteReceipt()
         external
-        returns (BanishmentVoteProposal)
+        returns (VoteReceipt)
     {
         return banishmentVoteProposal;
     }
