@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.9;
 
-interface ConstitutionI{};
+import "./merchantRepublicI.sol";
+import "./guildI.sol";
 
-interface merchantRepublicI{};
 
 //TODO: Breadk down guild coiuncil into a different file
 contract GuildCouncil {
@@ -22,7 +22,7 @@ contract GuildCouncil {
 
     address[] guilds;
 
-    mapping(address -> uint8) securityCouncil;
+    mapping(address => uint8) securityCouncil;
 
     uint256 private guildCounter;
 
@@ -152,6 +152,7 @@ contract GuildCouncil {
 
    // Returns the new gravitas of the receiver
     function sendSilver(address sender, address receiver, uint256 guildId, uint256 silverAmount)
+        external
         onlyMerchantRepublic
         returns(bool)
     {
@@ -164,7 +165,7 @@ contract GuildCouncil {
     }
 
 
-    }
+
     // budget for every guidl is proposed as a protocol proposal, voted upon and then
     // this function is called by the governance smart contract to issue the budget
     function issueBudget(address budgetSender, uint256 guildId, uint256 budgetAmount, IERC20 tokens)
@@ -185,7 +186,7 @@ contract GuildCouncil {
                 "GuildCouncil::SetMerchantRepublic::wrong_old_address");
         securityCouncil[newMerchantRepublic] = 2;
         delete securityCouncil[oldMerchantRepublic];
-    };
+    }
 
     modifier onlyGuild() {
         require(securityCouncil[msg.sender] == 1, "GuildCouncil::SecurityCouncil::only_guild");
@@ -205,4 +206,5 @@ contract GuildCouncil {
     modifier onlyHighGuildMaster(){
         require(msg.sender == highGuildMaster);
         _;
+    }
 }

@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.9;
 
+import "./tokensI.sol";
+import "./constitutionI.sol";
+import "./guildCouncilI.sol";
+
 contract MerchantRepublic {
 
 
@@ -150,10 +154,10 @@ contract MerchantRepublic {
     function proposalMaxOperations() public pure returns (uint) { return 10; } // 10 actions
 
     /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH = keccak256"EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
 
     /// @notice The EIP-712 typehash for the ballot struct used by the contract
-    bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint256 proposalId,uint8 support)");(
+    bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint256 proposalId,uint8 support)");
 
     function initialize(address constitutionAddress, address tokensAddress, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_) public {
         require(msg.sender == doge, "MerchantRepublic::initialize: doge only");
@@ -168,7 +172,7 @@ contract MerchantRepublic {
     /**
       * @notice Initiate the MerchantRepublic contract
       * @dev Doge only. Sets initial proposal id which initiates the contract, ensuring a continious proposal id count
-      * @param governorAlpha The address for the Governor to continue the proposal id count from
+      * @param previousMerchantRepublic The address for the previousMerchantRepublic to continue the proposal id count from
       */
     function _initiate(address previousMerchantRepublic) external {
         require(msg.sender == doge, "MerchantRepublic::_initiate: doge only");
@@ -190,7 +194,7 @@ contract MerchantRepublic {
         require(state(proposalId) == ProposalState.Succeeded,
                 "MerchantRepublic::queue: proposal can only be queued if it is succeeded");
         Proposal storage proposal = proposals[proposalId];
-        uint eta = block.timestamp + constitution.delay()
+        uint eta = block.timestamp + constitution.delay();
         for (uint i = 0; i < proposal.targets.length; i++) {
             queueOrRevertInternal(proposal.targets[i], proposal.values[i],
                                   proposal.signatures[i], proposal.calldatas[i], eta);
@@ -225,6 +229,7 @@ contract MerchantRepublic {
                                               proposal.signatures[i], proposal.calldatas[i], proposal.eta);
         }
         emit ProposalExecuted(proposalId);
+    }
 
     function propose(address[] calldata targets, uint[] calldata values, string[] calldata signatures, bytes[] calldata calldatas,
                      string calldata description, uint256[] calldata guildsId, string calldata guildsReason)
@@ -287,14 +292,13 @@ contract MerchantRepublic {
 
     }
 
-    function guildsVerdict(uint256 proposalId, bool guildsVerdict)
+    function guildsVerdict(uint256 proposalId, bool verdict)
         external
         onlyGuildCouncil
     {
         require(state(proposalId) == ProposalState.PendingGuildsVote,
                 "merchantRepublic::guildsVerdict::not_pending_guilds_vote");
-        Proposal storage proposal = proposals[proposalId];
-        if (guildVerdict == true){
+        if (verdict == true){
             proposal.guildsVerdict = true;
         }
         else {
@@ -411,7 +415,7 @@ contract MerchantRepublic {
 
         emit ProposalThresholdSet(oldProposalThreshold, proposalThreshold);
     }
-r
+
 
 
 
@@ -420,7 +424,9 @@ r
       * @dev Doge function to begin change of doge. The newPendingDoge must call `_acceptDoge` to finalize the transfer.
       * @param newPendingDoge New pending doge.
       */
-    function _setPendingDoge(address newPendingDoge) external {
+    function _setPendingDoge(address newPendingDoge)
+        external
+    {
         // Check caller = doge
         require(msg.sender == doge, "MerchantRepublicDelegator:_setPendingDoge: doge only");
 
@@ -454,7 +460,7 @@ r
 
         emit NewDoge(oldDoge, doge);
         emit NewPendingDoge(oldPendingDoge, pendingDoge);
-    }n
+    }
 
     function state(uint proposalId) public view returns (ProposalState) {
         require(proposalCount >= proposalId && proposalId > initialProposalId, "MerchantRepublic::state: invalid proposal id");
@@ -483,7 +489,7 @@ r
             return ProposalState.Succeeded;
         } else if (proposal.executed) {
             return ProposalState.Executed;
-        } else if (block.timestamp >= proposal.eta, constitution.GRACE_PERIOD()) {
+        } else if (block.timestamp >= proposal.eta + constitution.GRACE_PERIOD()) {
             return ProposalState.Expired;
         } else {
             return ProposalState.Queued;
@@ -511,7 +517,7 @@ r
 
         silverIssuanceSeason = block.number;
         emit newSilverSeason(silverIssuanceSeason);
-        return true
+        return true;
     }
 
     function issueSilver()
@@ -540,7 +546,7 @@ r
         return silver;
     }
 
-    function callGuildsToVote(uint256[] calldata guildsId, uint256 proposalId, bytes32 reason){
+    function callGuildsToVote(uint256[] calldata guildsId, uint256 proposalId, bytes32 reason)
         internal
         returns(bool)
     {

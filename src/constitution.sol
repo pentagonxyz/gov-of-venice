@@ -28,13 +28,8 @@ contract Constitution {
         delay = delay_;
     }
 
-    function setMerchantRepublic(address merchantRepublic)
-        public
-        onlyDoge
-        {
-        }
 
-    function() external payable { }
+    fallback() external payable { }
 
     function setDelay(uint delay_) public {
         require(msg.sender == address(this), "Constitution::setDelay: Call must come from Constitution.");
