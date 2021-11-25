@@ -2,8 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "./merchantRepublicI.sol";
-// import "./guildI.sol";
-import "./guild.sol";
+import "./guildI.sol";
+// import "./guild.sol";
 import "./constitutionI.sol";
 import "./tokensI.sol";
 
@@ -13,7 +13,7 @@ contract GuildCouncil {
 
     event GuildEstablished(uint256 guildId, address guildAddress);
     event GuildDecision(uint256 indexed guildId, uint256 indexed proposalId, bool guildAgreement);
-    event BuddgetIssued(uint256 indexed guildId, uint256 budget);
+    event BudgetIssued(uint256 indexed guildId, uint256 budget);
     event SilverSent(uint256 indexed guildId, uint256 indexed recipientCommoner,
                      uint256 indexed senderCommoner, uint256 silverAmmount);
 
@@ -44,6 +44,8 @@ contract GuildCouncil {
 
     address highGuildMaster;
 
+    mapping(uint256 => uint48) proposalTimestamp;
+
     constructor(address merchantRepublicAddress, address constitutionAddress) public
     {
         guildCounter = 0;
@@ -55,35 +57,33 @@ contract GuildCouncil {
     }
 
     // This function assumes that the Guild is not a black box, but incorporated in the GuildCouncil
-    // smart contract.
+    // smart contracta.
     // The alternative is to deplo the Guild and simply invoke this function to register its' address
 
-    function establishGuild(bytes32 guildName, uint256 gravitasThreshold, uint256 timeOutPeriod,
-                            uint256 banishmentThreshold,uint256 maxGuildMembers, address[] foundingMembers)
+    function establishGuild(address guildAddress)
         public
         onlyConstitution
         returns(uint256 id)
     {
-        require(guildName.length != 0, "guildCouncil::constructor::empty_guild_name");
-        require(foundingMembers.length >= minimumFoundingMembers, "guildCouncil::constructor::minimum_founding_members");
+        require( guildAddress != address(0), "guildCouncil::establishGuild::wrong_address");
+        guilds.push(guildAddress);
+        securityCouncil[guildAddress] = 1;
+        emit GuildEstablished(guildCounter, guildAddress);
         guildCounter++;
-        Guild newGuild = new Guild(guildName, gravitasThreshold, timeOutPeriod, banishmnentThreshold, maxGuildMembers, foundingMembers);
-        guilds.push(address(newGuild));
-        securityCouncil[address(newGuild)] = 1;
-        emit GuildEstablished(guildId, guildAddress);
         return guildCounter;
     }
+
     // check if msg.sender == activeGuildvotes[proposalid]
     // TODO: Impelemnt logic to bypass deadlock, aka a guild is not returning an answer
 
     function _guildVerdict(uint256 proposalId, bool guildAgreement, int256 proposedChangeToStake)
-        external
+        public
         onlyGuild
         returns(bool success)
     {
         require(msg.sender == activeGuildVotes[proposalId],
                 "guildCouncil::guildVerdict::incorrect_active_guild_vote");
-        emit GuildDecision(guildId,  proposalid, guildAgreement);
+        emit GuildDecision(guilds[msg.sender],  proposalId, guildAgreement);
         if(guildAgreement == false){
             activeGuildVotesCounter = 0;
             merchantRepublic.guildsVerdict(proposalId, false);
@@ -93,7 +93,7 @@ contract GuildCouncil {
         }
         else {
             activeGuildVotesCounter = 0;
-            mercnantRepublic.guiildsVerdict(proposalId, true);
+            merchantRepublic.guildsVerdict(proposalId, true);
         }
     }
     // in case of a guild not returning a verdict, this is a safeguard to continue the process
@@ -101,7 +101,7 @@ contract GuildCouncil {
         external
         onlyHighGuildMaster
     {
-        require(now() - proposalTimestamp > guildDecisionTimeLimit, "guildCouncil::forceDecision::decision_still_in_time_limit");
+        require(now() - proposalTimestamp[proposalId] > guildDecisionTimeLimit, "guildCouncil::forceDecision::decision_still_in_time_limit");
         merchantRepublic.guildsVerdict(proposalId, defaultGuildDecision);
     }
 
@@ -118,8 +118,9 @@ contract GuildCouncil {
         for(uint256 i=0;i < guildsId.length; i++){
             GuildI guild = GuildI(guilds[guildsId[i]]);
             if (guild.addressList.length != 0) {
-                activeGuildVotes[proposalId] = guilds[Id];
+                activeGuildVotes[proposalId] = guilds[guildsId];
                 activeGuildVotesCounter++;
+                proposalTimestamp[proposalId] = now();
                 guild.guildVoteRequest(proposalId);
                 success = true;
             }
@@ -161,14 +162,12 @@ contract GuildCouncil {
         returns(bool)
     {
         GuildI guild = GuildI(guilds[guildId]);
-        uint256 gravitas = guild.calculateGravitas(sender, amountOfSilver);
+        uint256 gravitas = guild.calculateGravitas(sender, silverAmount);
         uint256 memberGravitas = guild.modifyGravitas(receiver, gravitas);
         guild.appendChainOfResponsibility(receiver, sender);
         emit SilverSent(guildId, receiver, sender, silverAmount);
         return memberGravitas;
     }
-
-
 
     // budget for every guidl is proposed as a protocol proposal, voted upon and then
     // this function is called by the governance smart contract to issue the budget

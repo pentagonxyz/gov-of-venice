@@ -155,6 +155,8 @@ contract  Guild is ERC1155{
 
     uint256 public guildMasterRewardMultiplier;
 
+    uint48 minimumFoundingMembers;
+
     /// @notice The duration of voting on a proposal, in UNIX timestamp seconds;
     uint256 public constant votingPeriod;
 
@@ -166,7 +168,8 @@ contract  Guild is ERC1155{
                 uint256 banishmentThreshold,uint256 newMaxGuildMembers,
                 address[] foundingMembers, uint256 newVotingPeriod, address tokensAddress) ERC1155("")
     {
-
+        require(guildName.length != 0, "guild::constructor::empty_guild_name");
+        require(foundingMembers.length >= minimumFoundingMembers, "guild::constructor::minimum_founding_members");
         guildCouncil = GuildCouncilI(msg.sender);
         guildCouncilAddress = msg.sender;
         guildBook = new GuildBook(guildName, newGravitasThreshold, timeOutPeriod,

@@ -139,6 +139,8 @@ contract MerchantRepublic {
     ///
     uint32 tokensToSilverRatio;
 
+    address guildCouncil;
+
 // https://medium.com/@novablitz/storing-structs-is-costing-you-gas-774da988895e`
 
     /// @notice The name of this contract
@@ -159,13 +161,14 @@ contract MerchantRepublic {
     /// @notice The EIP-712 typehash for the ballot struct used by the contract
     bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint256 proposalId,uint8 support)");
 
-    function initialize(address constitutionAddress, address tokensAddress, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_) public {
+    function initialize(address constitutionAddress, address tokensAddress, address guildCouncilAddress, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_) public {
         require(msg.sender == doge, "MerchantRepublic::initialize: doge only");
         constitution = ConstitutionI(constitutionAddress);
         tokens = TokensI(tokensAddress);
         votingPeriod = votingPeriod_;
         votingDelay = votingDelay_;
         proposalThreshold = proposalThreshold_;
+        guildCouncil = guildCouncilAddress;
 
     }
 
@@ -511,10 +514,9 @@ contract MerchantRepublic {
     // set flag for this season
     function setSilverSeason()
         external
-        onlyDoge
         returns (bool)
     {
-
+        require(msg.sender == doge, "merchantRepublic::setSilverSeason::wrong_address");
         silverIssuanceSeason = block.number;
         emit newSilverSeason(silverIssuanceSeason);
         return true;
@@ -561,5 +563,11 @@ contract MerchantRepublic {
         uint chainId;
         assembly { chainId := chainid() }
         return chainId;
+    }
+
+    modifier onlyGuildCouncil()
+    {
+        require(msg.sender == guildCouncil, "Guild::onlyGuildCouncil::wrong_address");
+        _;
     }
 }
