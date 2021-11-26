@@ -366,6 +366,7 @@ contract  Guild is ERC1155{
         proposalVote.active = true;
         proposalVote.nay = 0;
         proposalVote.aye = 0;
+        banishmentVote.targetAddress = member;
         return true;
     }
 
@@ -379,6 +380,7 @@ contract  Guild is ERC1155{
         banishmentVote.startTimestamp = uint48(block.timestamp);
         banishmentVote.aye = 0;
         banishmentVote.nay = 0;
+        banishmentVote.targetAddress = member;
         banishmentVote.active = true;
         return true;
     }
@@ -422,7 +424,7 @@ contract  Guild is ERC1155{
 
     function _rewardChainOfResponsibility(uint256 reward, address guildMemberAddress)
         private
-        returns(bool)
+        returns(bool success)
     {
         address[] memory chain = addressToGuildMember[guildMemberAddress].chainOfResponsibility;
         for(uint256 i=0; i < chain.length; i++) {
