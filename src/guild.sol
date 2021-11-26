@@ -295,12 +295,12 @@ contract  Guild is ERC1155{
     }
 
 /// ____ Guild Master Functions _____
-    function inviteGuildsToProposal(uint256[] calldata guildId, uint256 proposalId, bytes32 reason)
+    function inviteGuildsToProposal(uint256[] calldata guildId, uint256 proposalId)
         external
         onlyGuildMaster
         returns (bool)
     {
-        return guildCouncil._callGuildsToVote(guildId, proposalId, reason);
+        return guildCouncil._callGuildsToVote(guildId, proposalId);
     }
 
     function changeGravitasThreshold(uint256 newThreshold)

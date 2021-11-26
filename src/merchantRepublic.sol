@@ -598,7 +598,7 @@ contract MerchantRepublic {
         returns(bool)
     {
         emit CallGuildsToVote(guildsId, proposalId);
-        return guildCouncil._callGuildsToVote(guildsId, proposalId, "");
+        return guildCouncil._callGuildsToVote(guildsId, proposalId);
     }
 
     function getChainId()
