@@ -23,6 +23,7 @@ contract  Guild is ERC1155{
     event ChainOfResponsibilityRewarded(address[] chain, uint256 baseReward);
     event GravitasChanged(address indexed commoner, uint256 oldGravitas, uint256 newGravitas);
     event GuildMasterVoteResult(address guildMasterElect, bool result);
+    event GuildReceivedFunds(uint256 funds, address sender);
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -37,11 +38,11 @@ contract  Guild is ERC1155{
 
     struct GuildBook{
         bytes32 name;
-        uint48 gravitasThreshold;
-        uint48 timeOutPeriod;
-        uint8 banishmentThreshold;
-        uint8 maxGuildMembers;
-        uint48 votingPeriod;
+        uint32 gravitasThreshold;
+        uint32 timeOutPeriod;
+        uint32 banishmentThreshold;
+        uint32 maxGuildMembers;
+        uint32 votingPeriod;
     }
 
     struct Vote {
@@ -75,6 +76,8 @@ contract  Guild is ERC1155{
     mapping(address => GuildMember) public addressToGuildMember;
 
     address[] public addressList;
+
+    uint256 public budget;
 
     mapping(address => bool) private voted;
 
@@ -163,9 +166,9 @@ contract  Guild is ERC1155{
 
 //---------- Constructor ----------------
 
-    constructor(bytes32 guildName, uint256 newGravitasThreshold, uint256 timeOutPeriod,
-                uint256 banishmentThreshold,uint256 newMaxGuildMembers,
-                address[] memory foundingMembers, uint256 newVotingPeriod, address tokensAddress) ERC1155("")
+    constructor(bytes32 guildName, uint32 newGravitasThreshold, uint32 timeOutPeriod,
+                uint32 banishmentThreshold,uint32 newMaxGuildMembers,
+                address[] memory foundingMembers, uint32 newVotingPeriod, address tokensAddress) ERC1155("")
     {
         require(guildName.length != 0, "guild::constructor::empty_guild_name");
         require(foundingMembers.length >= minimumFoundingMembers, "guild::constructor::minimum_founding_members");
@@ -234,7 +237,7 @@ contract  Guild is ERC1155{
             external
         {
             require(apprentishipStart[msg.sender] + timeOutThreshold < uint48(block.timestamp), "Guild::joinGuild::user_has_not_done_apprentiship");
-            GuildMember memory guildMember = GuildMember(new address[](0), 0, 0, uint48(block.timestamp), addressList.length - 1);
+            GuildMember memory guildMember = GuildMember(new address[](0), 0, 0, uint48(block.timestamp), uint48(addressList.length - 1));
             addressToGuildMember[msg.sender] = guildMember;
             addressList.push(msg.sender);
             _mint(msg.sender, guildMemberNftId, 1, "");
@@ -278,7 +281,7 @@ contract  Guild is ERC1155{
     function _banishGuildMember(address guildMemberAddress)
         private
     {
-        uint256 index = addressToGuildMember[guildMemberAddress].addressListIndex;
+        uint48 index = addressToGuildMember[guildMemberAddress].addressListIndex;
         delete addressToGuildMember[guildMemberAddress];
         address movedAddress = addressList[addressList.length - 1];
         addressList[index] =  movedAddress;
@@ -344,13 +347,12 @@ contract  Guild is ERC1155{
     }
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    function guildBudget()
+    function inquireGuildBudget()
         view
         external
         returns(uint256)
     {
-       return balanceOf(address(this));
-    }
+       return budget;
 
 /// ---------------- Start Voting ---------------------
 
@@ -362,7 +364,7 @@ contract  Guild is ERC1155{
         require(guildMasterVote.active == false, "Guild::startGuildMaster::active_vote");
         guildMasterVote.sponsor = msg.sender;
         proposalVote.startTimestamp = uint48(block.timestamp);
-        proposalVote.activeVote = true;
+        proposalVote.active = true;
         proposalVote.nay = 0;
         proposalVote.aye = 0;
         return true;
@@ -386,7 +388,7 @@ contract  Guild is ERC1155{
         external
         onlyGuildCouncil
     {
-        require(proposalVote.activeVote == false, "Guild::guildVoteRequest::active_vote");
+        require(proposalVote.active == false, "Guild::guildVoteRequest::active_vote");
         proposalVote.active= true;
         proposalVote.aye = 0;
         proposalVote.nay = 0;
@@ -608,7 +610,12 @@ contract  Guild is ERC1155{
     }
 //---------------------------------------------------------
 
-    receive() external payable {}
+    receive() external payable {
+        if(msg.value > 0){
+            budget = budget + msg.value;
+            emit GuildReceivedFunds(budget, msg.sender);
+        }
+    }
 
 // -------------------- calculate and modify Grafitas ------
 
