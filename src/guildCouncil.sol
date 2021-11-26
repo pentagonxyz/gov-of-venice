@@ -78,7 +78,6 @@ contract GuildCouncil {
     function _guildVerdict(uint256 proposalId, bool guildAgreement)
         public
         onlyGuild
-        returns(bool success)
     {
         uint256 guildId = activeGuildVotes[proposalId];
         require(msg.sender == guilds[guildId],

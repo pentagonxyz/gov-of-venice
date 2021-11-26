@@ -424,7 +424,6 @@ contract  Guild is ERC1155{
 
     function _rewardChainOfResponsibility(uint256 reward, address guildMemberAddress)
         private
-        returns(bool success)
     {
         address[] memory chain = addressToGuildMember[guildMemberAddress].chainOfResponsibility;
         for(uint256 i=0; i < chain.length; i++) {
@@ -447,6 +446,7 @@ contract  Guild is ERC1155{
 
     function calculateMemberReward(address member)
         public
+        view
         returns(uint256)
     {
         uint8 multiplier;
@@ -583,9 +583,9 @@ contract  Guild is ERC1155{
         emit GuildMasterVoteResult(newGuildMasterElect, result);
     }
 
-
     function requestGuildBook()
         external
+        view
         returns(GuildBook memory)
     {
         return guildBook;
@@ -593,6 +593,7 @@ contract  Guild is ERC1155{
 
     function inquireAddressList()
         external
+        view
         returns(address[] memory)
     {
         return addressList;
@@ -610,6 +611,7 @@ contract  Guild is ERC1155{
 
     function calculateGravitas(address commonerAddress, uint256 silverAmount)
         public
+        view
         returns (uint256 gravitas)
     {
         return silverAmount + addressToGravitas[commonerAddress]*gravitasWeight;

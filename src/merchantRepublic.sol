@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "./tokensI.sol";
 import "./constitutionI.sol";
 import "./guildCouncilI.sol";
+import "./merchantRepublicI.sol";
 
 contract MerchantRepublic {
 
@@ -222,8 +223,16 @@ contract MerchantRepublic {
         require(msg.sender == doge, "MerchantRepublic::_initiate: doge only");
         require(initialProposalId == 0, "MerchantRepublic::_initiate: can only initiate once");
         // Optional if merchantRepublic migrates, otherwise = 0;
-        initialProposalId = proposalCount;
+        initialProposalId = MerchantRepublicI(previousMerchantRepublic).getProposalCount();
         constitution.acceptDoge();
+    }
+
+    function getProposalCount()
+        external
+        view
+        returns (uint256 count)
+    {
+        return proposalCount;
     }
 
 
@@ -298,21 +307,23 @@ contract MerchantRepublic {
                   "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending guilds vote");
         }
         }
-        createProposal(targets, values, signatures, calldatas, description, guildsId);
+        createProposal(targets, values, signatures, calldatas, guildsId);
         announceProposal(targets, values, signatures, calldatas, description);
 
         return  proposalCount;
     }
 
-        function announceProposal(address[] calldata targets, uint[] calldata values, string[] calldata signatures, bytes[] calldata calldatas,
-                     string calldata description) private
+        function announceProposal(address[] calldata targets, uint[] calldata values,
+                                  string[] calldata signatures, bytes[] calldata calldatas,
+                                  string calldata description) private
         {
         emit ProposalCreated(proposalCount, msg.sender, targets, values, signatures,
                              calldatas,  block.number + votingDelay, block.number + votingDelay + votingPeriod, description);
         }
 
-        function createProposal(address[] calldata targets, uint[] calldata values, string[] calldata signatures, bytes[] calldata calldatas,
-                     string calldata description, uint256[] calldata guildsId)
+        function createProposal(address[] calldata targets, uint[] calldata values,
+                                string[] calldata signatures, bytes[] calldata calldatas,
+                                uint256[] calldata guildsId)
                     private
         {
             proposalCount++;
