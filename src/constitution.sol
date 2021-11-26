@@ -16,7 +16,7 @@ contract Constitution {
     address public pendingMerchantRepublic;
     uint public delay;
     mapping (bytes32 => bool) public queuedTransactions;
-    constructor(address merchantRepublicAddress, uint delay_) public {
+    constructor(address merchantRepublicAddress, uint delay_){
         require(delay_ >= MINIMUM_DELAY, "Constitution::constructor: Delay must exceed minimum delay.");
         require(delay_ <= MAXIMUM_DELAY, "Constitution::setDelay: Delay must not exceed maximum delay.");
         merchantRepublic = merchantRepublicAddress;

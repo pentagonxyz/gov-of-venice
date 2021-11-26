@@ -75,7 +75,7 @@ contract  Guild is ERC1155{
 
     mapping(address => GuildMember) public addressToGuildMember;
 
-    address[] public addressList;
+    address[] private addressList;
 
     uint256 public budget;
 
@@ -464,7 +464,7 @@ contract  Guild is ERC1155{
         private
     {
         uint48 oldGravitas = addressToGravitas[guildMemberAddress];
-        modifyGravitas(guildMemberAddress, uint48(oldGravitas - guildMemberSlash));
+        modifyGravitas(guildMemberAddress, oldGravitas - guildMemberSlash);
         if (oldGravitas < gravitasThreshold) {
             _banishGuildMember(guildMemberAddress);
         }
@@ -530,7 +530,7 @@ contract  Guild is ERC1155{
             proposalVote.active = false;
             guildMasterVoteResult(guildMaster, false);
             address sponsor = guildMasterVote.sponsor;
-            modifyGravitas(sponsor, uint48(addressToGravitas[sponsor] - guildMemberSlash));
+            modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
         }
         emit GuildMasterVote(msg.sender, guildMaster);
     }
@@ -584,8 +584,16 @@ contract  Guild is ERC1155{
 
     function requestGuildBook()
         external
+        returns(GuildBook memory)
     {
         return guildBook;
+    }
+
+    function inquireAddressList()
+        external
+        returns(address[] memory)
+    {
+        return addressList;
     }
 //---------------------------------------------------------
 
@@ -605,13 +613,13 @@ contract  Guild is ERC1155{
         return silverAmount + addressToGravitas[commonerAddress]*gravitasWeight;
     }
 
-    function modifyGravitas(address guildMember, uint48 newGravitas)
+    function modifyGravitas(address guildMember, uint256 newGravitas)
         public
         onlyGuildCouncil
         returns (uint256 newGuildMemberGravitas)
     {
         emit GravitasChanged(guildMember, addressToGravitas[guildMember], newGravitas);
-        addressToGravitas[guildMember] = newGravitas;
+        addressToGravitas[guildMember] = uint48(newGravitas);
         return newGravitas;
     }
 

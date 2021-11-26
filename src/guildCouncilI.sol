@@ -13,6 +13,7 @@ interface GuildCouncilI {
     function sendSilver(address sender, address receiver, uint256 guildId, uint256 silverAmount)
         external
         returns(bool);
+
 }
 
 

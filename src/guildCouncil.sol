@@ -14,10 +14,10 @@ contract GuildCouncil {
     event GuildEstablished(uint256 guildId, address guildAddress);
     event GuildDecision(uint256 indexed guildId, uint256 indexed proposalId, bool guildAgreement);
     event BudgetIssued(uint256 indexed guildId, uint256 budget);
-    event SilverSent(uint256 indexed guildId, uint256 indexed recipientCommoner,
-                     uint256 indexed senderCommoner, uint256 silverAmmount);
+    event SilverSent(uint256 indexed guildId, address indexed recipientCommoner,
+                     address indexed senderCommoner, uint256 silverAmmount);
 
-    mapping(uint256 => address) activeGuildVotes;
+    mapping(uint256 => uint256) activeGuildVotes;
 
     uint256 activeGuildVotesCounter;
 
@@ -46,11 +46,11 @@ contract GuildCouncil {
 
     mapping(uint256 => uint48) proposalTimestamp;
 
-    constructor(address merchantRepublicAddress, address constitutionAddress) public
+    constructor(address merchantRepublicAddress, address constitutionAddress)
     {
         guildCounter = 0;
-        securityCouncil[merchantRepublic] = 2;
-        securityCouncil[constitution] = 3;
+        securityCouncil[merchantRepublicAddress] = 2;
+        securityCouncil[constitutionAddress] = 3;
         merchantRepublic = MerchantRepublicI(merchantRepublicAddress);
         constitution = ConstitutionI(constitutionAddress);
         highGuildMaster = msg.sender;
@@ -74,16 +74,16 @@ contract GuildCouncil {
     }
 
     // check if msg.sender == activeGuildvotes[proposalid]
-    // TODO: Impelemnt logic to bypass deadlock, aka a guild is not returning an answer
 
     function _guildVerdict(uint256 proposalId, bool guildAgreement)
         public
         onlyGuild
         returns(bool success)
     {
-        require(msg.sender == activeGuildVotes[proposalId],
+        uint256 guildId = activeGuildVotes[proposalId];
+        require(msg.sender == guilds[guildId],
                 "guildCouncil::guildVerdict::incorrect_active_guild_vote");
-        emit GuildDecision(guilds[msg.sender],  proposalId, guildAgreement);
+        emit GuildDecision(guildId,  proposalId, guildAgreement);
         if(guildAgreement == false){
             activeGuildVotesCounter = 0;
             merchantRepublic.guildsVerdict(proposalId, false);
@@ -101,7 +101,7 @@ contract GuildCouncil {
         external
         onlyHighGuildMaster
     {
-        require(now() - proposalTimestamp[proposalId] > guildDecisionTimeLimit, "guildCouncil::forceDecision::decision_still_in_time_limit");
+        require(block.timestamp - proposalTimestamp[proposalId] > guildDecisionTimeLimit, "guildCouncil::forceDecision::decision_still_in_time_limit");
         merchantRepublic.guildsVerdict(proposalId, defaultGuildDecision);
     }
 
@@ -117,10 +117,10 @@ contract GuildCouncil {
         bool success = false;
         for(uint256 i=0;i < guildsId.length; i++){
             GuildI guild = GuildI(guilds[guildsId[i]]);
-            if (guild.addressList.length != 0) {
-                activeGuildVotes[proposalId] = guilds[guildsId];
+            if (guild.inquireAddressList().length != 0) {
+                activeGuildVotes[proposalId] = guildsId[i];
                 activeGuildVotesCounter++;
-                proposalTimestamp[proposalId] = now();
+                proposalTimestamp[proposalId] = uint48(block.timestamp);
                 guild.guildVoteRequest(proposalId);
                 success = true;
             }
@@ -140,7 +140,6 @@ contract GuildCouncil {
     }
     function guildInformation(uint256 guildId)
         external
-        pure
         returns(GuildI.GuildBook memory)
     {
         return guildInformation(guilds[guildId]);
@@ -148,7 +147,6 @@ contract GuildCouncil {
 
     function guildInformation(address guildAddress)
         public
-        pure
         returns(GuildI.GuildBook memory)
     {
         GuildI guild = GuildI(guildAddress);
@@ -159,7 +157,7 @@ contract GuildCouncil {
     function sendSilver(address sender, address receiver, uint256 guildId, uint256 silverAmount)
         external
         onlyMerchantRepublic
-        returns(bool)
+        returns(uint256)
     {
         GuildI guild = GuildI(guilds[guildId]);
         uint256 gravitas = guild.calculateGravitas(sender, silverAmount);

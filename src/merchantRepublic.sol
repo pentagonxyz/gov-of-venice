@@ -11,7 +11,7 @@ contract MerchantRepublic {
     /// @notice An event emitted when a new proposal is created
     event ProposalCreated(uint id, address proposer, address[] targets, uint[] values, string[] signatures,
                           bytes[] calldatas, uint startBlock, uint endBlock, string description, uint256[] guildsId,
-                          string guildsReason, bool guildsCallSuccess);
+                          bytes32 guildsReason, bool guildsCallSuccess);
 
     /// @notice An event emitted when a vote has been cast on a proposal
     /// @param voter The address which casted a vote
@@ -130,9 +130,9 @@ contract MerchantRepublic {
         bool guildsAgreement;
 
         /// @notice Receipts of ballots for the entire set of voters
-        mapping (address => Receipt) receipts;
-
     }
+
+    mapping (uint256 => mapping (address => Receipt)) receipts;
 
     /// @notice Ballot receipt record for a voter
     struct Receipt {
@@ -148,8 +148,9 @@ contract MerchantRepublic {
 
     /// @notice Possible states that a proposal may be in
     enum ProposalState {
-        PendingCommonerVote,
-        PendingGuildVote,
+        PendingCommonersVoteStart,
+        PendingCommonersVote,
+        PendingGuildsVote,
         Canceled,
         Defeated,
         Succeeded,
@@ -161,12 +162,12 @@ contract MerchantRepublic {
     // silver = balanceOf$TOKENS[address]*tokensToSilverRatio
     // addressToSilver["0x..34"] = [block.timestamp, silver]
     // silver is valid for block.timestamp + SeasonLengthInSeconds
-    mapping(address => uint256[]) addressToSilver;
+    mapping(address => uint256) addressToSilver;
 
     ///
     uint32 tokensToSilverRatio;
 
-    address guildCouncil;
+    GuildCouncilI guildCouncil;
 
 // https://medium.com/@novablitz/storing-structs-is-costing-you-gas-774da988895e`
 
@@ -207,7 +208,7 @@ contract MerchantRepublic {
         votingPeriod = votingPeriod_;
         votingDelay = votingDelay_;
         proposalThreshold = proposalThreshold_;
-        guildCouncil = guildCouncilAddress;
+        guildCouncil =  GuildCouncilI(guildCouncilAddress);
 
     }
 
@@ -266,15 +267,16 @@ contract MerchantRepublic {
         Proposal storage proposal = proposals[proposalId];
         proposal.executed = true;
         for (uint i = 0; i < proposal.targets.length; i++) {
-            constitution.executeTransaction.value(proposal.values[i])(proposal.targets[i], proposal.values[i],
+            constitution.executeTransaction{value: proposal.values[i]}(proposal.targets[i], proposal.values[i],
                                               proposal.signatures[i], proposal.calldatas[i], proposal.eta);
         }
         emit ProposalExecuted(proposalId);
     }
 
+
     function propose(address[] calldata targets, uint[] calldata values, string[] calldata signatures, bytes[] calldata calldatas,
-                     string calldata description, uint256[] calldata guildsId, string calldata guildsReason)
-            public
+                     string calldata description, uint256[] calldata guildsId)
+            external
             returns (uint)
     {
         // Reject proposals before initiating as Governor
@@ -289,7 +291,7 @@ contract MerchantRepublic {
         uint latestProposalId = latestProposalIds[msg.sender];
         if (latestProposalId != 0) {
           ProposalState proposersLatestProposalState = state(latestProposalId);
-          require(proposersLatestProposalState != ProposalState.PendingComonersVote,
+          require(proposersLatestProposalState != ProposalState.PendingCommonersVote,
                   "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending commoner's vote");
           require(proposersLatestProposalState != ProposalState.PendingGuildsVote,
                   "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending guilds vote");
@@ -316,15 +318,14 @@ contract MerchantRepublic {
             executed: false,
             guildsVerdict: false,
             guildsAgreement: false
-
         });
 
         proposals[proposalCount] = newProposal;
-        latestProposalIds[newProposal.proposer] = proposalCount;
-        bool success = callGuildsToVote(guildsId, proposalCount, guildsReason);
-        emit ProposalCreated(newProposal.id, msg.sender, targets, values, signatures,
-                             calldatas, startBlock, endBlock, description, guildsId, guildsReason, success);
-        return newProposal.id;
+        latestProposalIds[msg.sender] = proposalCount;
+        bool success = callGuildsToVote(guildsId, proposalCount, "");
+        emit ProposalCreated(proposalCount, msg.sender, targets, values, signatures,
+                             calldatas, startBlock, endBlock, description, guildsId,"", success);
+        return  proposalCount;
     }
 
     function cancel(uint256 proposalId)
@@ -355,7 +356,7 @@ contract MerchantRepublic {
     }
 
     function getReceipt(uint proposalId, address voter) external view returns (Receipt memory) {
-        return proposals[proposalId].receipts[voter];
+        return receipts[proposalId][voter];
     }
 
 // ~~~~~~ VOTE ~~~~~~~~~
@@ -393,10 +394,10 @@ contract MerchantRepublic {
     }
 
     function _castVote(address voter, uint proposalId, uint8 support) internal returns (uint96) {
-        require(state(proposalId) == ProposalState.Active, "MerchantRepublic::_castVote: voting is closed");
+        require(state(proposalId) == ProposalState.PendingCommonersVote, "MerchantRepublic::_castVote: voting is closed");
         require(support <= 2, "MerchantRepublic::_castVote: invalid vote type");
         Proposal storage proposal = proposals[proposalId];
-        Receipt storage receipt = proposal.receipts[voter];
+        Receipt storage receipt = receipts[proposalId][voter];
         require(receipt.hasVoted == false, "MerchantRepublic::_castVote: voter already voted");
         uint96 votes = tokens.getPriorVotes(voter, proposal.startBlock);
 
@@ -567,7 +568,7 @@ contract MerchantRepublic {
     //  guild member has a different gravitas for every guild.
     // Instead of the user having to issue silver in a seperate action,
     // we issue the silver during the first "spend".
-    function sendSilver(address receiver, uint256 silverAmount, uint48 guildId)
+    function sendSilver(address receiver, uint256 silverAmount, uint256 guildId)
         public
         returns(uint256)
     {
@@ -578,7 +579,7 @@ contract MerchantRepublic {
         silver = silver - silverAmount;
         // It returns the new gravitas of the receiver, but it's better that the function
         // returns the remain silver in the sender's account.
-        guildCouncil.sendSilver(msg.sender, receiver, guildId, silverAmount);
+        guildCouncil.sendSilver(msg.sender, receiver, guildId, silver);
         return silverAmount;
     }
 
@@ -586,12 +587,12 @@ contract MerchantRepublic {
         internal
         returns(bool)
     {
-        return guildCouncil._callGuildToVote(guildsId, proposalId, reason);
+        return guildCouncil._callGuildsToVote(guildsId, proposalId, reason);
     }
 
     function getChainId()
         internal
-        pure
+       view
         returns (uint)
     {
         uint chainId;
@@ -601,7 +602,7 @@ contract MerchantRepublic {
 
     modifier onlyGuildCouncil()
     {
-        require(msg.sender == guildCouncil, "Guild::onlyGuildCouncil::wrong_address");
+        require(msg.sender == address(guildCouncil), "Guild::onlyGuildCouncil::wrong_address");
         _;
     }
 }
