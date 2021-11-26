@@ -3,6 +3,9 @@ pragma solidity ^0.8.9;
 
 import "./merchantRepublicI.sol";
 import "./guildI.sol";
+// import "./guild.sol";
+import "./constitutionI.sol";
+import "./tokensI.sol";
 
 
 //TODO: Breadk down guild coiuncil into a different file
@@ -10,11 +13,11 @@ contract GuildCouncil {
 
     event GuildEstablished(uint256 guildId, address guildAddress);
     event GuildDecision(uint256 indexed guildId, uint256 indexed proposalId, bool guildAgreement);
-    event BuddgetIssued(uint256 indexed guildId, uint256 budget);
-    event SilverSent(uint256 indexed guildId, uint256 indexed recipientCommoner,
-                     uint256 indexed senderCommoner, uint256 silverAmmount);
+    event BudgetIssued(uint256 indexed guildId, uint256 budget);
+    event SilverSent(uint256 indexed guildId, address indexed recipientCommoner,
+                     address indexed senderCommoner, uint256 silverAmmount);
 
-    mapping(uint256 => address) activeGuildVotes;
+    mapping(uint256 => uint256) activeGuildVotes;
 
     uint256 activeGuildVotesCounter;
 
@@ -33,53 +36,53 @@ contract GuildCouncil {
 
     bool constant defaultGuildDecision = true;
 
+    uint48 constant minimumFoundingMembers = 3;
+
     MerchantRepublicI merchantRepublic;
 
     ConstitutionI constitution;
 
     address highGuildMaster;
 
-    constructor(address merchantRepublicAddress, address constitutionAddress) public
+    mapping(uint256 => uint48) proposalTimestamp;
+
+    constructor(address merchantRepublicAddress, address constitutionAddress)
     {
         guildCounter = 0;
-        securityCouncil[merchantRepublic] = 2;
-        securityCouncil[constitution] = 3;
+        securityCouncil[merchantRepublicAddress] = 2;
+        securityCouncil[constitutionAddress] = 3;
         merchantRepublic = MerchantRepublicI(merchantRepublicAddress);
-        constitution = constitutionI(constitutionAddress);
+        constitution = ConstitutionI(constitutionAddress);
         highGuildMaster = msg.sender;
     }
 
-    // For every Guild, there is an ERC1155 token
-    // Every guild member is an owner of that erc1155 token
-    // Override transfer function so that people can't transfer or trade this. It's a badge.
-    // When creating the svg, gravitas should show.
+    // This function assumes that the Guild is not a black box, but incorporated in the GuildCouncil
+    // smart contracta.
+    // The alternative is to deplo the Guild and simply invoke this function to register its' address
 
-    function establishGuild(bytes32 guildName, uint256 gravitasThreshold, uint256 timeOutPeriod,
-                            uint256 banishmentThreshold,uint256 maxGuildMembers, address[] foundingMembers)
+    function establishGuild(address guildAddress)
         public
         onlyConstitution
         returns(uint256 id)
     {
-        require(guildName.length != 0, "guildCouncil::constructor::empty_guild_name");
-        require(foundingMembers.length >= minimumFoundingMembers, "guildCouncil::constructor::minimum_founding_members");
+        require( guildAddress != address(0), "guildCouncil::establishGuild::wrong_address");
+        guilds.push(guildAddress);
+        securityCouncil[guildAddress] = 1;
+        emit GuildEstablished(guildCounter, guildAddress);
         guildCounter++;
-        guilds.push(address(newGuild));
-        Guild newGuild = new Guild(guildName, gravitasThreshold, timeOutPeriod, banishmnentThreshold, maxGuildMembers, foundingMembers);
-        securityCouncil[address(newGuild)] = 1;
-        emit GuildEstablished(guildId, guildAddress);
         return guildCounter;
     }
-    // check if msg.sender == activeGuildvotes[proposalid]
-    // TODO: Impelemnt logic to bypass deadlock, aka a guild is not returning an answer
 
-    function _guildVerdict(uint256 proposalId, bool guildAgreement, int256 proposedChangeToStake)
-        external
+    // check if msg.sender == activeGuildvotes[proposalid]
+
+    function _guildVerdict(uint256 proposalId, bool guildAgreement)
+        public
         onlyGuild
-        returns(bool success)
     {
-        require(msg.sender == activeGuildVotes[proposalId],
+        uint256 guildId = activeGuildVotes[proposalId];
+        require(msg.sender == guilds[guildId],
                 "guildCouncil::guildVerdict::incorrect_active_guild_vote");
-        emit GuildDecision(guildId,  proposalid, guildAgreement);
+        emit GuildDecision(guildId,  proposalId, guildAgreement);
         if(guildAgreement == false){
             activeGuildVotesCounter = 0;
             merchantRepublic.guildsVerdict(proposalId, false);
@@ -89,7 +92,7 @@ contract GuildCouncil {
         }
         else {
             activeGuildVotesCounter = 0;
-            mercnantRepublic.guiildsVerdict(proposalId, true);
+            merchantRepublic.guildsVerdict(proposalId, true);
         }
     }
     // in case of a guild not returning a verdict, this is a safeguard to continue the process
@@ -97,14 +100,14 @@ contract GuildCouncil {
         external
         onlyHighGuildMaster
     {
-        require(now() - proposalTimestamp > guildDecisionTimeLimit, "guildCouncil::forceDecision::decision_still_in_time_limit");
+        require(block.timestamp - proposalTimestamp[proposalId] > guildDecisionTimeLimit, "guildCouncil::forceDecision::decision_still_in_time_limit");
         merchantRepublic.guildsVerdict(proposalId, defaultGuildDecision);
     }
 
     // If guildMembersCount = 0, then skip
     // guildAddress = guilds[guildId]
     // activeGuildVotes[proposalid] = guildAddress
-    function _callGuildsToVote(uint256[] guildsId, uint256 proposalId, bytes32 reason)
+    function _callGuildsToVote(uint256[] calldata guildsId, uint256 proposalId)
        external
        onlyGuild
        onlyMerchantRepublic
@@ -113,9 +116,10 @@ contract GuildCouncil {
         bool success = false;
         for(uint256 i=0;i < guildsId.length; i++){
             GuildI guild = GuildI(guilds[guildsId[i]]);
-            if (guild.addressList.length != 0) {
-                activeGuildVotes[proposalId] = guilds[Id];
+            if (guild.inquireAddressList().length != 0) {
+                activeGuildVotes[proposalId] = guildsId[i];
                 activeGuildVotesCounter++;
+                proposalTimestamp[proposalId] = uint48(block.timestamp);
                 guild.guildVoteRequest(proposalId);
                 success = true;
             }
@@ -129,22 +133,20 @@ contract GuildCouncil {
     function availableGuilds()
         external
         view
-        returns(address[])
+        returns(address[] memory)
     {
         return guilds;
     }
     function guildInformation(uint256 guildId)
         external
-        pure
-        returns(Guild)
+        returns(GuildI.GuildBook memory)
     {
         return guildInformation(guilds[guildId]);
     }
 
     function guildInformation(address guildAddress)
         public
-        pure
-        returns(bytes)
+        returns(GuildI.GuildBook memory)
     {
         GuildI guild = GuildI(guildAddress);
         return guild.requestGuildBook();
@@ -154,21 +156,19 @@ contract GuildCouncil {
     function sendSilver(address sender, address receiver, uint256 guildId, uint256 silverAmount)
         external
         onlyMerchantRepublic
-        returns(bool)
+        returns(uint256)
     {
         GuildI guild = GuildI(guilds[guildId]);
-        uint256 gravitas = guild.calculateGravitas(sender, amountOfSilver);
+        uint256 gravitas = guild.calculateGravitas(sender, silverAmount);
         uint256 memberGravitas = guild.modifyGravitas(receiver, gravitas);
         guild.appendChainOfResponsibility(receiver, sender);
         emit SilverSent(guildId, receiver, sender, silverAmount);
         return memberGravitas;
     }
 
-
-
     // budget for every guidl is proposed as a protocol proposal, voted upon and then
     // this function is called by the governance smart contract to issue the budget
-    function issueBudget(address budgetSender, uint256 guildId, uint256 budgetAmount, IERC20 tokens)
+    function issueBudget(address budgetSender, uint256 guildId, uint256 budgetAmount, TokensI tokens)
         external
         onlyConstitution
         onlyMerchantRepublic

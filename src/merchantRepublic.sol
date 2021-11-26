@@ -4,14 +4,14 @@ pragma solidity ^0.8.9;
 import "./tokensI.sol";
 import "./constitutionI.sol";
 import "./guildCouncilI.sol";
+import "./merchantRepublicI.sol";
 
 contract MerchantRepublic {
 
 
     /// @notice An event emitted when a new proposal is created
     event ProposalCreated(uint id, address proposer, address[] targets, uint[] values, string[] signatures,
-                          bytes[] calldatas, uint startBlock, uint endBlock, string description, uint256[] guildsId,
-                          string guildsReason, bool guildsCallSuccess);
+                          bytes[] calldatas, uint startBlock, uint endBlock, string description);
 
     /// @notice An event emitted when a vote has been cast on a proposal
     /// @param voter The address which casted a vote
@@ -51,6 +51,35 @@ contract MerchantRepublic {
 
     /// @notice Emitted when pendingDoge is accepted, which means doge is updated
     event NewDoge(address oldDoge, address newDoge);
+
+    event GuildsVerdict(uint256 proposalId, bool verdict);
+
+    event newSilverSeason(uint256 silverSeason);
+
+    event CallGuildsToVote(uint256[] guilds, uint256 proposalId);
+
+
+    /// @notice The delay before voting on a proposal may take place, once proposed, in blocks
+    uint public votingDelay;
+
+    /// @notice The duration of voting on a proposal, in blocks
+    uint public votingPeriod;
+
+    /// @notice The number of votes required in order for a voter to become a proposer
+    uint public proposalThreshold;
+
+    /// @notice The total number of proposals
+    uint public proposalCount;
+
+    /// @notice The official record of all proposals ever proposed
+    mapping (uint => Proposal) public proposals;
+
+    /// @notice The latest proposal for each proposer
+    mapping (address => uint) public latestProposalIds;
+
+
+    /// @notice Initial proposal id set at become
+    uint public initialProposalId;
 
     struct Proposal {
 
@@ -103,9 +132,9 @@ contract MerchantRepublic {
         bool guildsAgreement;
 
         /// @notice Receipts of ballots for the entire set of voters
-        mapping (address => Receipt) receipts;
-
     }
+
+    mapping (uint256 => mapping (address => Receipt)) receipts;
 
     /// @notice Ballot receipt record for a voter
     struct Receipt {
@@ -121,8 +150,9 @@ contract MerchantRepublic {
 
     /// @notice Possible states that a proposal may be in
     enum ProposalState {
-        PendingCommonerVote,
-        PendingGuildVote,
+        PendingCommonersVoteStart,
+        PendingCommonersVote,
+        PendingGuildsVote,
         Canceled,
         Defeated,
         Succeeded,
@@ -134,10 +164,12 @@ contract MerchantRepublic {
     // silver = balanceOf$TOKENS[address]*tokensToSilverRatio
     // addressToSilver["0x..34"] = [block.timestamp, silver]
     // silver is valid for block.timestamp + SeasonLengthInSeconds
-    mapping(address => uint256[]) addressToSilver;
+    mapping(address => uint256) addressToSilver;
 
     ///
     uint32 tokensToSilverRatio;
+
+    GuildCouncilI guildCouncil;
 
 // https://medium.com/@novablitz/storing-structs-is-costing-you-gas-774da988895e`
 
@@ -159,13 +191,26 @@ contract MerchantRepublic {
     /// @notice The EIP-712 typehash for the ballot struct used by the contract
     bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint256 proposalId,uint8 support)");
 
-    function initialize(address constitutionAddress, address tokensAddress, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_) public {
+    ConstitutionI constitution;
+
+    TokensI tokens;
+
+    address doge;
+
+    address pendingDoge;
+
+    uint256 silverIssuanceSeason;
+
+    mapping(address => uint256) addressToLastSilverIssuance;
+
+    function initialize(address constitutionAddress, address tokensAddress, address guildCouncilAddress, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_) public {
         require(msg.sender == doge, "MerchantRepublic::initialize: doge only");
         constitution = ConstitutionI(constitutionAddress);
         tokens = TokensI(tokensAddress);
         votingPeriod = votingPeriod_;
         votingDelay = votingDelay_;
         proposalThreshold = proposalThreshold_;
+        guildCouncil =  GuildCouncilI(guildCouncilAddress);
 
     }
 
@@ -178,9 +223,16 @@ contract MerchantRepublic {
         require(msg.sender == doge, "MerchantRepublic::_initiate: doge only");
         require(initialProposalId == 0, "MerchantRepublic::_initiate: can only initiate once");
         // Optional if merchantRepublic migrates, otherwise = 0;
-        proposalCount = PreviousMerchantRepublicI(previousMerchantRepublic).proposalCount();
-        initialProposalId = proposalCount;
+        initialProposalId = MerchantRepublicI(previousMerchantRepublic).getProposalCount();
         constitution.acceptDoge();
+    }
+
+    function getProposalCount()
+        external
+        view
+        returns (uint256 count)
+    {
+        return proposalCount;
     }
 
 
@@ -225,20 +277,21 @@ contract MerchantRepublic {
         Proposal storage proposal = proposals[proposalId];
         proposal.executed = true;
         for (uint i = 0; i < proposal.targets.length; i++) {
-            constitution.executeTransaction.value(proposal.values[i])(proposal.targets[i], proposal.values[i],
+            constitution.executeTransaction{value: proposal.values[i]}(proposal.targets[i], proposal.values[i],
                                               proposal.signatures[i], proposal.calldatas[i], proposal.eta);
         }
         emit ProposalExecuted(proposalId);
     }
 
+
     function propose(address[] calldata targets, uint[] calldata values, string[] calldata signatures, bytes[] calldata calldatas,
-                     string calldata description, uint256[] calldata guildsId, string calldata guildsReason)
-            public
+                     string calldata description, uint256[] calldata guildsId)
+            external
             returns (uint)
     {
-        // Reject proposals before initiating as Governor
+        {
         require(initialProposalId != 0, "MerchantRepublic::propose: The MerchantRepublic is has not convened yet");
-        require(comp.getPriorVotes(msg.sender, sub256(block.number, 1)) > proposalThreshold,
+        require(tokens.getPriorVotes(msg.sender, block.number -1) > proposalThreshold,
                 "MerchantRepublic::propose: proposer votes below proposal threshold");
         require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length,
                 "MerchantRepublic::propose: proposal function information arity mismatch");
@@ -248,44 +301,54 @@ contract MerchantRepublic {
         uint latestProposalId = latestProposalIds[msg.sender];
         if (latestProposalId != 0) {
           ProposalState proposersLatestProposalState = state(latestProposalId);
-          require(proposersLatestProposalState != ProposalState.PendingComonersVote,
+          require(proposersLatestProposalState != ProposalState.PendingCommonersVote,
                   "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending commoner's vote");
           require(proposersLatestProposalState != ProposalState.PendingGuildsVote,
                   "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending guilds vote");
         }
+        }
+        createProposal(targets, values, signatures, calldatas, guildsId);
+        announceProposal(targets, values, signatures, calldatas, description);
 
-        uint startBlock = block.number + votingDelay;
-        uint endBlock = startBlock + votingPeriod;
-
-        proposalCount++;
-        Proposal memory newProposal = Proposal({
-            id: proposalCount,
-            proposer: msg.sender,
-            eta: 0,
-            targets: targets,
-            values: values,
-            signatures: signatures,
-            calldatas: calldatas,
-            startBlock: startBlock,
-            endBlock: endBlock,
-            forVotes: 0,
-            againstVotes: 0,
-            abstainVotes: 0,
-            canceled: false,
-            executed: false,
-            guildsVerdict: false,
-            guildsAgreement: false
-
-        });
-
-        proposals[newProposal.id] = newProposal;
-        latestProposalIds[newProposal.proposer] = newProposal.id;
-        bool success = callGuildsToVote(guildsId, proposalId, guildsReason);
-        emit ProposalCreated(newProposal.id, msg.sender, targets, values, signatures,
-                             calldatas, startBlock, endBlock, description, guildsId, guildsReason, success);
-        return newProposal.id;
+        return  proposalCount;
     }
 
+        function announceProposal(address[] calldata targets, uint[] calldata values,
+                                  string[] calldata signatures, bytes[] calldata calldatas,
+                                  string calldata description) private
+        {
+        emit ProposalCreated(proposalCount, msg.sender, targets, values, signatures,
+                             calldatas,  block.number + votingDelay, block.number + votingDelay + votingPeriod, description);
+        }
+
+        function createProposal(address[] calldata targets, uint[] calldata values,
+                                string[] calldata signatures, bytes[] calldata calldatas,
+                                uint256[] calldata guildsId)
+                    private
+        {
+            proposalCount++;
+            Proposal memory newProposal = Proposal({
+                id: proposalCount,
+                proposer: msg.sender,
+                eta: 0,
+                targets: targets,
+                values: values,
+                signatures: signatures,
+                calldatas: calldatas,
+                startBlock: block.number + votingDelay,
+                endBlock: block.number + votingDelay + votingPeriod,
+                forVotes: 0,
+                againstVotes: 0,
+                abstainVotes: 0,
+                canceled: false,
+                executed: false,
+                guildsVerdict: false,
+                guildsAgreement: false
+            });
+            proposals[proposalCount] = newProposal;
+            latestProposalIds[msg.sender] = proposalCount;
+            callGuildsToVote(guildsId, proposalCount);
+        }
     function cancel(uint256 proposalId)
         external
     {
@@ -298,13 +361,9 @@ contract MerchantRepublic {
     {
         require(state(proposalId) == ProposalState.PendingGuildsVote,
                 "merchantRepublic::guildsVerdict::not_pending_guilds_vote");
-        if (verdict == true){
-            proposal.guildsVerdict = true;
-        }
-        else {
-            proposal.guildsVerdict = false;
-        }
-        emit GuildsVerdict(proposalId, guildsVerdict);
+
+        proposals[proposalId].guildsVerdict = verdict;
+        emit GuildsVerdict(proposalId, verdict);
     }
 
 // ~~~~~~~~~~~~~~~~~~~~~
@@ -318,7 +377,7 @@ contract MerchantRepublic {
     }
 
     function getReceipt(uint proposalId, address voter) external view returns (Receipt memory) {
-        return proposals[proposalId].receipts[voter];
+        return receipts[proposalId][voter];
     }
 
 // ~~~~~~ VOTE ~~~~~~~~~
@@ -356,19 +415,19 @@ contract MerchantRepublic {
     }
 
     function _castVote(address voter, uint proposalId, uint8 support) internal returns (uint96) {
-        require(state(proposalId) == ProposalState.Active, "MerchantRepublic::_castVote: voting is closed");
+        require(state(proposalId) == ProposalState.PendingCommonersVote, "MerchantRepublic::_castVote: voting is closed");
         require(support <= 2, "MerchantRepublic::_castVote: invalid vote type");
         Proposal storage proposal = proposals[proposalId];
-        Receipt storage receipt = proposal.receipts[voter];
+        Receipt storage receipt = receipts[proposalId][voter];
         require(receipt.hasVoted == false, "MerchantRepublic::_castVote: voter already voted");
-        uint96 votes = comp.getPriorVotes(voter, proposal.startBlock);
+        uint96 votes = tokens.getPriorVotes(voter, proposal.startBlock);
 
         if (support == 0) {
-            proposal.againstVotes = add256(proposal.againstVotes, votes);
+            proposal.againstVotes = proposal.againstVotes + votes;
         } else if (support == 1) {
-            proposal.forVotes = add256(proposal.forVotes, votes);
+            proposal.forVotes = proposal.forVotes + votes;
         } else if (support == 2) {
-            proposal.abstainVotes = add256(proposal.abstainVotes, votes);
+            proposal.abstainVotes = proposal.abstainVotes + votes;
         }
 
         receipt.hasVoted = true;
@@ -511,10 +570,9 @@ contract MerchantRepublic {
     // set flag for this season
     function setSilverSeason()
         external
-        onlyDoge
         returns (bool)
     {
-
+        require(msg.sender == doge, "merchantRepublic::setSilverSeason::wrong_address");
         silverIssuanceSeason = block.number;
         emit newSilverSeason(silverIssuanceSeason);
         return true;
@@ -531,7 +589,7 @@ contract MerchantRepublic {
     //  guild member has a different gravitas for every guild.
     // Instead of the user having to issue silver in a seperate action,
     // we issue the silver during the first "spend".
-    function sendSilver(address receiver, uint256 silverAmount)
+    function sendSilver(address receiver, uint256 silverAmount, uint256 guildId)
         public
         returns(uint256)
     {
@@ -539,27 +597,34 @@ contract MerchantRepublic {
             issueSilver();
     }
         uint256 silver = addressToSilver[msg.sender];
-        silver = silver - amount;
+        silver = silver - silverAmount;
         // It returns the new gravitas of the receiver, but it's better that the function
         // returns the remain silver in the sender's account.
-        guildCouncil.sendSilver(msg.sender, receiver, guildId, silverAmount);
-        return silver;
+        guildCouncil.sendSilver(msg.sender, receiver, guildId, silver);
+        return silverAmount;
     }
 
-    function callGuildsToVote(uint256[] calldata guildsId, uint256 proposalId, bytes32 reason)
+    function callGuildsToVote(uint256[] calldata guildsId, uint256 proposalId)
         internal
         returns(bool)
     {
-        return guildCouncil._callGuildToVote(guildsId, proposalId, reason);
+        emit CallGuildsToVote(guildsId, proposalId);
+        return guildCouncil._callGuildsToVote(guildsId, proposalId);
     }
 
     function getChainId()
         internal
-        pure
+       view
         returns (uint)
     {
         uint chainId;
         assembly { chainId := chainid() }
         return chainId;
+    }
+
+    modifier onlyGuildCouncil()
+    {
+        require(msg.sender == address(guildCouncil), "Guild::onlyGuildCouncil::wrong_address");
+        _;
     }
 }
