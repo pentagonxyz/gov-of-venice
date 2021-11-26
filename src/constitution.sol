@@ -23,8 +23,6 @@ contract Constitution {
         delay = delay_;
     }
 
-    fallback() external payable { }
-
     function setDelay(uint delay_) public {
         require(msg.sender == address(this), "Constitution::setDelay: Call must come from Constitution.");
         require(delay_ >= MINIMUM_DELAY, "Constitution::setDelay: Delay must exceed minimum delay.");
@@ -76,8 +74,8 @@ contract Constitution {
         } else {
             callData = abi.encodePacked(bytes4(keccak256(bytes(signature))), data);
         }
-        // solium-disable-next-line security/no-call-value
-        (bool success, bytes memory returnData) = target.call.value(value)(callData);
+        // Should we allow the user to define a "gas" parameter, alongside value.
+        (bool success, bytes memory returnData) = target.call{value: value}(callData);
         require(success, "Constitution::executeTransaction: Transaction execution reverted.");
         emit ExecuteTransaction(txHash, target, value, signature, data, eta);
 
@@ -88,5 +86,7 @@ contract Constitution {
         // solium-disable-next-line security/no-block-members
         return block.timestamp;
     }
+
+    receive() external payable {}
 
 }

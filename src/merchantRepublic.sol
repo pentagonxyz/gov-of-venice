@@ -52,6 +52,33 @@ contract MerchantRepublic {
     /// @notice Emitted when pendingDoge is accepted, which means doge is updated
     event NewDoge(address oldDoge, address newDoge);
 
+    event GuildsVerdict(uint256 proposalId, bool verdict);
+
+    event newSilverSeason(uint256 silverSeason);
+
+
+    /// @notice The delay before voting on a proposal may take place, once proposed, in blocks
+    uint public votingDelay;
+
+    /// @notice The duration of voting on a proposal, in blocks
+    uint public votingPeriod;
+
+    /// @notice The number of votes required in order for a voter to become a proposer
+    uint public proposalThreshold;
+
+    /// @notice The total number of proposals
+    uint public proposalCount;
+
+    /// @notice The official record of all proposals ever proposed
+    mapping (uint => Proposal) public proposals;
+
+    /// @notice The latest proposal for each proposer
+    mapping (address => uint) public latestProposalIds;
+
+
+    /// @notice Initial proposal id set at become
+    uint public initialProposalId;
+
     struct Proposal {
 
         /// @notice Unique id for looking up a proposal
@@ -161,6 +188,18 @@ contract MerchantRepublic {
     /// @notice The EIP-712 typehash for the ballot struct used by the contract
     bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint256 proposalId,uint8 support)");
 
+    ConstitutionI constitution;
+
+    TokensI tokens;
+
+    address doge;
+
+    address pendingDoge;
+
+    uint256 silverIssuanceSeason;
+
+    mapping(address => uint256) addressToLastSilverIssuance;
+
     function initialize(address constitutionAddress, address tokensAddress, address guildCouncilAddress, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_) public {
         require(msg.sender == doge, "MerchantRepublic::initialize: doge only");
         constitution = ConstitutionI(constitutionAddress);
@@ -181,7 +220,6 @@ contract MerchantRepublic {
         require(msg.sender == doge, "MerchantRepublic::_initiate: doge only");
         require(initialProposalId == 0, "MerchantRepublic::_initiate: can only initiate once");
         // Optional if merchantRepublic migrates, otherwise = 0;
-        proposalCount = PreviousMerchantRepublicI(previousMerchantRepublic).proposalCount();
         initialProposalId = proposalCount;
         constitution.acceptDoge();
     }
@@ -241,7 +279,7 @@ contract MerchantRepublic {
     {
         // Reject proposals before initiating as Governor
         require(initialProposalId != 0, "MerchantRepublic::propose: The MerchantRepublic is has not convened yet");
-        require(comp.getPriorVotes(msg.sender, sub256(block.number, 1)) > proposalThreshold,
+        require(tokens.getPriorVotes(msg.sender, block.number -1) > proposalThreshold,
                 "MerchantRepublic::propose: proposer votes below proposal threshold");
         require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length,
                 "MerchantRepublic::propose: proposal function information arity mismatch");
@@ -281,9 +319,9 @@ contract MerchantRepublic {
 
         });
 
-        proposals[newProposal.id] = newProposal;
-        latestProposalIds[newProposal.proposer] = newProposal.id;
-        bool success = callGuildsToVote(guildsId, proposalId, guildsReason);
+        proposals[proposalCount] = newProposal;
+        latestProposalIds[newProposal.proposer] = proposalCount;
+        bool success = callGuildsToVote(guildsId, proposalCount, guildsReason);
         emit ProposalCreated(newProposal.id, msg.sender, targets, values, signatures,
                              calldatas, startBlock, endBlock, description, guildsId, guildsReason, success);
         return newProposal.id;
@@ -301,13 +339,9 @@ contract MerchantRepublic {
     {
         require(state(proposalId) == ProposalState.PendingGuildsVote,
                 "merchantRepublic::guildsVerdict::not_pending_guilds_vote");
-        if (verdict == true){
-            proposal.guildsVerdict = true;
-        }
-        else {
-            proposal.guildsVerdict = false;
-        }
-        emit GuildsVerdict(proposalId, guildsVerdict);
+
+        proposals[proposalId].guildsVerdict = verdict;
+        emit GuildsVerdict(proposalId, verdict);
     }
 
 // ~~~~~~~~~~~~~~~~~~~~~
@@ -364,14 +398,14 @@ contract MerchantRepublic {
         Proposal storage proposal = proposals[proposalId];
         Receipt storage receipt = proposal.receipts[voter];
         require(receipt.hasVoted == false, "MerchantRepublic::_castVote: voter already voted");
-        uint96 votes = comp.getPriorVotes(voter, proposal.startBlock);
+        uint96 votes = tokens.getPriorVotes(voter, proposal.startBlock);
 
         if (support == 0) {
-            proposal.againstVotes = add256(proposal.againstVotes, votes);
+            proposal.againstVotes = proposal.againstVotes + votes;
         } else if (support == 1) {
-            proposal.forVotes = add256(proposal.forVotes, votes);
+            proposal.forVotes = proposal.forVotes + votes;
         } else if (support == 2) {
-            proposal.abstainVotes = add256(proposal.abstainVotes, votes);
+            proposal.abstainVotes = proposal.abstainVotes + votes;
         }
 
         receipt.hasVoted = true;
@@ -533,7 +567,7 @@ contract MerchantRepublic {
     //  guild member has a different gravitas for every guild.
     // Instead of the user having to issue silver in a seperate action,
     // we issue the silver during the first "spend".
-    function sendSilver(address receiver, uint256 silverAmount)
+    function sendSilver(address receiver, uint256 silverAmount, uint48 guildId)
         public
         returns(uint256)
     {
@@ -541,11 +575,11 @@ contract MerchantRepublic {
             issueSilver();
     }
         uint256 silver = addressToSilver[msg.sender];
-        silver = silver - amount;
+        silver = silver - silverAmount;
         // It returns the new gravitas of the receiver, but it's better that the function
         // returns the remain silver in the sender's account.
         guildCouncil.sendSilver(msg.sender, receiver, guildId, silverAmount);
-        return silver;
+        return silverAmount;
     }
 
     function callGuildsToVote(uint256[] calldata guildsId, uint256 proposalId, bytes32 reason)

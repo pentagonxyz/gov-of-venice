@@ -108,7 +108,7 @@ contract GuildCouncil {
     // If guildMembersCount = 0, then skip
     // guildAddress = guilds[guildId]
     // activeGuildVotes[proposalid] = guildAddress
-    function _callGuildsToVote(uint256[] guildsId, uint256 proposalId, bytes32 reason)
+    function _callGuildsToVote(uint256[] calldata guildsId, uint256 proposalId, bytes32 reason)
        external
        onlyGuild
        onlyMerchantRepublic
@@ -134,7 +134,7 @@ contract GuildCouncil {
     function availableGuilds()
         external
         view
-        returns(address[])
+        returns(address[] memory)
     {
         return guilds;
     }
