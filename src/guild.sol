@@ -581,26 +581,6 @@ contract  Guild is ERC1155{
         emit GuildMasterVoteResult(newGuildMasterElect, result);
     }
 
-    function getLastProposalVote()
-        external
-        returns (Vote memory)
-    {
-        return proposalVote;
-    }
-
-    function getLastGuildMasterVote()
-        external
-        returns (Vote memory)
-    {
-        return guildMasterVote;
-    }
-
-    function getLastBanishmentVote()
-        external
-        returns (Vote memory)
-    {
-        return banishmentVote;
-    }
 
     function requestGuildBook()
         external
