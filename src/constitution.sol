@@ -57,7 +57,7 @@ contract Constitution {
 
     function queueTransaction(address target, uint value, string memory signature, bytes memory data, uint eta) public returns (bytes32) {
         require(msg.sender == doge, "Constitution::queueTransaction: Call must come from doge.");
-        require(eta >= getBlockTimestamp().add(delay), "Constitution::queueTransaction: Estimated execution block must satisfy delay.");
+        require(eta >= getBlockTimestamp() + delay, "Constitution::queueTransaction: Estimated execution block must satisfy delay.");
 
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
         queuedTransactions[txHash] = true;
@@ -81,7 +81,7 @@ contract Constitution {
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
         require(queuedTransactions[txHash], "Constitution::executeTransaction: Transaction hasn't been queued.");
         require(getBlockTimestamp() >= eta, "Constitution::executeTransaction: Transaction hasn't surpassed time lock.");
-        require(getBlockTimestamp() <= eta.add(GRACE_PERIOD), "Constitution::executeTransaction: Transaction is stale.");
+        require(getBlockTimestamp() <= eta + GRACE_PERIOD), "Constitution::executeTransaction: Transaction is stale.");
 
         queuedTransactions[txHash] = false;
 
