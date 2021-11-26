@@ -10,8 +10,7 @@ contract MerchantRepublic {
 
     /// @notice An event emitted when a new proposal is created
     event ProposalCreated(uint id, address proposer, address[] targets, uint[] values, string[] signatures,
-                          bytes[] calldatas, uint startBlock, uint endBlock, string description, uint256[] guildsId,
-                          bytes32 guildsReason, bool guildsCallSuccess);
+                          bytes[] calldatas, uint startBlock, uint endBlock, string description);
 
     /// @notice An event emitted when a vote has been cast on a proposal
     /// @param voter The address which casted a vote
@@ -55,6 +54,8 @@ contract MerchantRepublic {
     event GuildsVerdict(uint256 proposalId, bool verdict);
 
     event newSilverSeason(uint256 silverSeason);
+
+    event CallGuildsToVote(uint256[] guilds, uint256 proposalId);
 
 
     /// @notice The delay before voting on a proposal may take place, once proposed, in blocks
@@ -279,7 +280,7 @@ contract MerchantRepublic {
             external
             returns (uint)
     {
-        // Reject proposals before initiating as Governor
+        {
         require(initialProposalId != 0, "MerchantRepublic::propose: The MerchantRepublic is has not convened yet");
         require(tokens.getPriorVotes(msg.sender, block.number -1) > proposalThreshold,
                 "MerchantRepublic::propose: proposer votes below proposal threshold");
@@ -296,38 +297,47 @@ contract MerchantRepublic {
           require(proposersLatestProposalState != ProposalState.PendingGuildsVote,
                   "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending guilds vote");
         }
+        }
+        createProposal(targets, values, signatures, calldatas, description, guildsId);
+        announceProposal(targets, values, signatures, calldatas, description);
 
-        uint startBlock = block.number + votingDelay;
-        uint endBlock = startBlock + votingPeriod;
-
-        proposalCount++;
-        Proposal memory newProposal = Proposal({
-            id: proposalCount,
-            proposer: msg.sender,
-            eta: 0,
-            targets: targets,
-            values: values,
-            signatures: signatures,
-            calldatas: calldatas,
-            startBlock: startBlock,
-            endBlock: endBlock,
-            forVotes: 0,
-            againstVotes: 0,
-            abstainVotes: 0,
-            canceled: false,
-            executed: false,
-            guildsVerdict: false,
-            guildsAgreement: false
-        });
-
-        proposals[proposalCount] = newProposal;
-        latestProposalIds[msg.sender] = proposalCount;
-        bool success = callGuildsToVote(guildsId, proposalCount, "");
-        emit ProposalCreated(proposalCount, msg.sender, targets, values, signatures,
-                             calldatas, startBlock, endBlock, description, guildsId,"", success);
         return  proposalCount;
     }
 
+        function announceProposal(address[] calldata targets, uint[] calldata values, string[] calldata signatures, bytes[] calldata calldatas,
+                     string calldata description) private
+        {
+        emit ProposalCreated(proposalCount, msg.sender, targets, values, signatures,
+                             calldatas,  block.number + votingDelay, block.number + votingDelay + votingPeriod, description);
+        }
+
+        function createProposal(address[] calldata targets, uint[] calldata values, string[] calldata signatures, bytes[] calldata calldatas,
+                     string calldata description, uint256[] calldata guildsId)
+                    private
+        {
+            proposalCount++;
+            Proposal memory newProposal = Proposal({
+                id: proposalCount,
+                proposer: msg.sender,
+                eta: 0,
+                targets: targets,
+                values: values,
+                signatures: signatures,
+                calldatas: calldatas,
+                startBlock: block.number + votingDelay,
+                endBlock: block.number + votingDelay + votingPeriod,
+                forVotes: 0,
+                againstVotes: 0,
+                abstainVotes: 0,
+                canceled: false,
+                executed: false,
+                guildsVerdict: false,
+                guildsAgreement: false
+            });
+            proposals[proposalCount] = newProposal;
+            latestProposalIds[msg.sender] = proposalCount;
+            callGuildsToVote(guildsId, proposalCount);
+        }
     function cancel(uint256 proposalId)
         external
     {
@@ -583,11 +593,12 @@ contract MerchantRepublic {
         return silverAmount;
     }
 
-    function callGuildsToVote(uint256[] calldata guildsId, uint256 proposalId, bytes32 reason)
+    function callGuildsToVote(uint256[] calldata guildsId, uint256 proposalId)
         internal
         returns(bool)
     {
-        return guildCouncil._callGuildsToVote(guildsId, proposalId, reason);
+        emit CallGuildsToVote(guildsId, proposalId);
+        return guildCouncil._callGuildsToVote(guildsId, proposalId, "");
     }
 
     function getChainId()
