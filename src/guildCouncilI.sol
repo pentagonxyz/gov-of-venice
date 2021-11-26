@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 interface GuildCouncilI {
 
-    function _guildVerdict(uint256 proposalId, bool guildAgreement, int256 proposedChangeToStake)
+    function _guildVerdict(bool guildAgreement, uint256 proposalId)
         external
         returns(bool success);
 

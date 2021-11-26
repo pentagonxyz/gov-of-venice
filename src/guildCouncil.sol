@@ -76,7 +76,7 @@ contract GuildCouncil {
     // check if msg.sender == activeGuildvotes[proposalid]
     // TODO: Impelemnt logic to bypass deadlock, aka a guild is not returning an answer
 
-    function _guildVerdict(uint256 proposalId, bool guildAgreement, int256 proposedChangeToStake)
+    function _guildVerdict(uint256 proposalId, bool guildAgreement)
         public
         onlyGuild
         returns(bool success)
