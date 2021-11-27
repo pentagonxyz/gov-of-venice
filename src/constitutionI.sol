@@ -9,4 +9,5 @@ interface ConstitutionI {
     function queueTransaction(address target, uint value, string calldata signature, bytes calldata data, uint eta) external returns (bytes32);
     function cancelTransaction(address target, uint value, string calldata signature, bytes calldata data, uint eta) external;
     function executeTransaction(address target, uint value, string calldata signature, bytes calldata data, uint eta) external payable returns (bytes memory);
+    function acceptConstitution() external;
 }

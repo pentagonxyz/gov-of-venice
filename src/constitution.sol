@@ -32,8 +32,10 @@ contract Constitution {
         emit NewDelay(delay);
     }
 
-    function acceptConstitution() public {
-        require(msg.sender == pendingMerchantRepublic, "Constitution::acceptDoge: Call must come from pendingDoge.");
+    function acceptConstitution()
+        external
+    {
+        require(msg.sender == pendingMerchantRepublic, "Constitution::acceptConstitution::address_must_be_merchantRepublic");
         merchantRepublic = msg.sender;
         pendingMerchantRepublic = address(0);
         emit NewMerchantRepublic(merchantRepublic);
