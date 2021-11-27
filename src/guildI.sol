@@ -16,7 +16,7 @@ interface GuildI {
         external;
     function requestGuildBook() external returns(GuildBook memory);
     function inquireAddressList() external returns(address[] memory);
-    function claimChainRewards(address rewardee) external returns(uint256 reward)
+    function claimChainRewards(address rewardee) external returns(uint256 reward);
     struct GuildBook{
         bytes32 name;
         uint8 id;

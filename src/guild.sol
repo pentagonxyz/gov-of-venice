@@ -3,11 +3,11 @@ pragma solidity ^0.8.9;
 
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/constracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./guildCouncilI.sol";
 import "./tokensI.sol";
 
-contract  Guild is ERC1155, ReentrancyGuard{
+contract  Guild is ERC1155, ReentrancyGuard {
 
     // ~~~~~~~~~~ EVENTS ~~~~~~~~~~~~~~~~~~~
 
@@ -441,15 +441,15 @@ contract  Guild is ERC1155, ReentrancyGuard{
         }
         emit ChainOfResponsibilityRewarded(chain, reward);
     }
-
+    //
+    //
     function claimChainReward(address rewardee)
         external
+        view
         onlyGuildCouncil
-        returns(uint256 chainReward)
+        returns(uint256 reward)
     {
-        uint256 chainReward = reward*chainRewardMultiplier;
-        uint256 reward = calculateMemberReward(msg.sender);
-        return chainRewards(rewardee);
+        return chainRewards[rewardee];
     }
 
 

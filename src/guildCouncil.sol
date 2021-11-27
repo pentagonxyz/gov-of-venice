@@ -46,7 +46,9 @@ contract GuildCouncil {
 
     mapping(uint256 => uint48) proposalTimestamp;
 
-    constructor(address merchantRepublicAddress, address constitutionAddress)
+    TokensI tokens;
+
+    constructor(address merchantRepublicAddress, address constitutionAddress, address tokensAddress)
     {
         guildCounter = 0;
         securityCouncil[merchantRepublicAddress] = 2;
@@ -54,6 +56,7 @@ contract GuildCouncil {
         merchantRepublic = MerchantRepublicI(merchantRepublicAddress);
         constitution = ConstitutionI(constitutionAddress);
         highGuildMaster = msg.sender;
+        tokens = TokensI(tokensAddress);
     }
 
     // This function assumes that the Guild is not a black box, but incorporated in the GuildCouncil
@@ -182,7 +185,7 @@ contract GuildCouncil {
 
     // budget for every guidl is proposed as a protocol proposal, voted upon and then
     // this function is called by the governance smart contract to issue the budget
-    function issueBudget(address budgetSender, uint256 guildId, uint256 budgetAmount, TokensI tokens)
+    function issueBudget(address budgetSender, uint256 guildId, uint256 budgetAmount)
         external
         onlyConstitution
         onlyMerchantRepublic
