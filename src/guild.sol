@@ -3,11 +3,11 @@ pragma solidity ^0.8.9;
 
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/constracts/security/ReentrancyGuard.sol"
+import "@openzeppelin/constracts/security/ReentrancyGuard.sol";
 import "./guildCouncilI.sol";
 import "./tokensI.sol";
 
-contract  Guild is ERC1155 ReentrancyGuard{
+contract  Guild is ERC1155, ReentrancyGuard{
 
     // ~~~~~~~~~~ EVENTS ~~~~~~~~~~~~~~~~~~~
 
@@ -164,6 +164,7 @@ contract  Guild is ERC1155 ReentrancyGuard{
 
     uint256 guildMemberReward;
 
+    mapping(address => uint256) chainRewards;
 //---------- Constructor ----------------
 
     constructor(bytes32 guildName, uint32 newGravitasThreshold, uint32 timeOutPeriod,
@@ -431,14 +432,26 @@ contract  Guild is ERC1155 ReentrancyGuard{
     {
         address[] memory chain = addressToGuildMember[guildMemberAddress].chainOfResponsibility;
         for(uint256 i=0; i < chain.length; i++) {
+            address rewardee = chain[i];
             // this is SUM(1/2^(j)) series for j =[0,1,2,...i] = 2 - 2^(-i)
             // assume 4 people in the chain
             // total reward: 2*reward - reward * 1/(2^4 = reward * (2-1/16))~=2*reward
             // then 1/2*SUM(1/(2^j)) ~= reward
-            tokens.transferFrom(address(this), chain[i], reward / (2 * (2 ** i) ) );
+            chainRewards[rewardee] = chainRewards[rewardee] + (reward / (2 * (2 ** i) ));
         }
         emit ChainOfResponsibilityRewarded(chain, reward);
     }
+
+    function claimChainReward(address rewardee)
+        external
+        onlyGuildCouncil
+        returns(uint256 chainReward)
+    {
+        uint256 chainReward = reward*chainRewardMultiplier;
+        uint256 reward = calculateMemberReward(msg.sender);
+        return chainRewards(rewardee);
+    }
+
 
     /// Member Reward: R
     /// Member Count: N

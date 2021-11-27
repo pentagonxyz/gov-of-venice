@@ -129,6 +129,19 @@ contract GuildCouncil {
         }
         return success;
     }
+    // naively, go over all the guilds and see how many rewards the
+    // user has accumulated from being part of a chainOfResponsibility
+    // for some guild member in every guild
+    function chainOfResponsibilityClaim()
+        external
+    {
+        for(uint i=0; i<guilds.length; i++){
+            address guildAddress = guilds[i];
+            GuildI guild = GuildI(guildAddress);
+            uint256 guildReward = guild.claimChainRewards(msg.sender);
+            tokens.transferFrom(guildAddress, msg.sender, guildReward);
+        }
+    }
 
     function availableGuilds()
         external
@@ -137,6 +150,7 @@ contract GuildCouncil {
     {
         return guilds;
     }
+
     function guildInformation(uint256 guildId)
         external
         returns(GuildI.GuildBook memory)
