@@ -414,8 +414,10 @@ contract  Guild is ERC1155 ReentrancyGuard{
         onlyGuildMember
     {
         uint256 reward = calculateMemberReward(msg.sender);
+        uint256 chainReward = reward*chainRewardMultiplier;
+        budget = budget - reward - chainReward;
         tokens.transfer( msg.sender, reward * (1 - chainRewardMultiplier));
-        _rewardChainOfResponsibility(reward*chainRewardMultiplier, msg.sender);
+        _rewardChainOfResponsibility(chainReward, msg.sender);
     }
 
     // Simple power law based on index
@@ -433,7 +435,6 @@ contract  Guild is ERC1155 ReentrancyGuard{
             // assume 4 people in the chain
             // total reward: 2*reward - reward * 1/(2^4 = reward * (2-1/16))~=2*reward
             // then 1/2*SUM(1/(2^j)) ~= reward
-
             tokens.transferFrom(address(this), chain[i], reward / (2 * (2 ** i) ) );
         }
         emit ChainOfResponsibilityRewarded(chain, reward);
