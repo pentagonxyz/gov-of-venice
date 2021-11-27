@@ -349,10 +349,18 @@ contract MerchantRepublic {
             latestProposalIds[msg.sender] = proposalCount;
             callGuildsToVote(guildsId, proposalCount);
         }
-    function cancel(uint256 proposalId)
+    function cancel(uint proposalId)
         external
     {
-
+        ProposalState proposalState = state(proposalId);
+        require(proposalState!= ProposalState.Executed, "MerchantRepublic::cancel: cannot cancel executed proposal");
+        Proposal storage proposal = proposals[proposalId];
+        require(msg.sender == proposal.proposer || tokens.getPriorVotes(proposal.proposer, block.number - 1) < proposalThreshold, "GovernorBravo::cancel: proposer above threshold");
+        proposal.canceled = true;
+        for (uint i = 0; i < proposal.targets.length; i++) {
+            constitution.cancelTransaction(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], proposal.eta);
+        }
+        emit ProposalCanceled(proposalId);
     }
 
     function guildsVerdict(uint256 proposalId, bool verdict)
