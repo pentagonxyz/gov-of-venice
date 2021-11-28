@@ -7,7 +7,6 @@ import "./constitutionI.sol";
 import "./tokensI.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-//TODO: Breadk down guild coiuncil into a different file
 contract GuildCouncil is ReentrancyGuard{
 
     event GuildEstablished(uint256 guildId, address guildAddress);
