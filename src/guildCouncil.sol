@@ -137,13 +137,13 @@ contract GuildCouncil is ReentrancyGuard{
         external
         nonReentrant
     {
-        uint256 guildRewards = 0;
+        uint256 guildRewards;
         for(uint i=0; i<guilds.length; i++){
             address guildAddress = guilds[i];
             GuildI guild = GuildI(guildAddress);
-            guildRewards = guildRewards + guild.claimChainRewards(msg.sender);
+            guildRewards =  guild.claimChainRewards(msg.sender);
+            tokens.transferFrom(guildAddress, msg.sender, guildRewards);
         }
-        tokens.transferFrom(guildAddress, msg.sender, guildRewards);
     }
 
     function availableGuilds()
