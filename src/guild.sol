@@ -164,8 +164,6 @@ contract  Guild is ERC1155, ReentrancyGuard {
 
     uint256 guildMemberReward;
 
-    mapping(address => uint256) chainRewards;
-
     mapping(address => address[]) sponsorsToMembers;
 
 //---------- Constructor ----------------
@@ -422,29 +420,8 @@ contract  Guild is ERC1155, ReentrancyGuard {
         uint256 chainReward = reward*chainRewardMultiplier;
         budget = getBudget()- reward - chainReward;
         tokens.transfer( msg.sender, reward * (1 - chainRewardMultiplier));
-        _rewardChainOfResponsibility(chainReward, msg.sender);
     }
 
-    // Simple power law based on index
-    // loop over the address array of chainOfResponsibility
-    // send over the reward weighted by the invert power law of their index
-    // As addresses are entered serially, the first addresses will get higher rewards
-    // than others
-
-    function _rewardChainOfResponsibility(uint256 reward, address guildMemberAddress)
-        private
-    {
-        address[] memory chain = addressToGuildMember[guildMemberAddress].chainOfResponsibility;
-        for(uint256 i=0; i < chain.length; i++) {
-            address rewardee = chain[i];
-            // this is SUM(1/2^(j)) series for j =[0,1,2,...i] = 2 - 2^(-i)
-            // assume 4 people in the chain
-            // total reward: 2*reward - reward * 1/(2^4 = reward * (2-1/16))~=2*reward
-            // then 1/2*SUM(1/(2^j)) ~= reward
-            chainRewards[rewardee] = chainRewards[rewardee] + (reward / (2 * (2 ** i) ));
-        }
-        emit ChainOfResponsibilityRewarded(chain, reward);
-    }
     // This function is called by a commoner to calculate
     // the total accrued rewards for sendingSilver (sponsoring)
     // a member and helping it out to join the guild.
