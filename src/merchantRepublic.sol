@@ -597,8 +597,8 @@ contract MerchantRepublic {
     function issueSilver()
         internal
     {
-        addressToSilver[msg.sender] = tokens.balanceOf(msg.sender);
         addressToLastSilverIssuance[msg.sender] = block.number;
+        addressToSilver[msg.sender] = tokens.balanceOf(msg.sender);
     }
 
     // Silver is a common resource for all guilds, but every
