@@ -165,6 +165,9 @@ contract  Guild is ERC1155, ReentrancyGuard {
     uint256 guildMemberReward;
 
     mapping(address => uint256) chainRewards;
+
+    mapping(address => address[]) sponsorsToMembers;
+
 //---------- Constructor ----------------
 
     constructor(bytes32 guildName, uint32 newGravitasThreshold, uint32 timeOutPeriod,
@@ -250,6 +253,7 @@ contract  Guild is ERC1155, ReentrancyGuard {
         returns (bool success)
     {
         addressToGuildMember[guildMember].chainOfResponsibility.push(commoner);
+        sponsorsToMembers[commoner].push(guildMember);
         return true;
     }
 
@@ -441,16 +445,46 @@ contract  Guild is ERC1155, ReentrancyGuard {
         }
         emit ChainOfResponsibilityRewarded(chain, reward);
     }
+    // This function is called by a commoner to calculate
+    // the total accrued rewards for sendingSilver (sponsoring)
+    // a member and helping it out to join the guild.
+    // To do that, we need:
+    // a) A list of all the memmbers that the commoners has sponsored (sponsoredMembers)
+    // b) The place at which every member was sponsored (chainIndex). This is because
+    // the reward system is weighted towards the first sponsors of a member. People are incentivized to vote for new people.
+    // c) The reward that particular guild member has accrued up to this point
+    // d) Total number of sponsors for that particular member
     //
     //
     function claimChainReward(address rewardee)
         external
         view
         onlyGuildCouncil
-        returns(uint256 reward)
+        returns(uint256 rewards)
     {
-        return chainRewards[rewardee];
-    }
+        address[] memory sponsoredMembers = sponsorsToMembers[rewardee];
+        uint256 totalReward = 0;
+        for(uint256 i=0;i<sponsoredMembers.length;i++){
+            address member = sponsoredMembers[i];
+            GuildMember memory guildMember = addressToGuildMember[member];
+            uint256 chainIndex;
+            // alternative implementation is a mapping(address => mappping(address => uint))
+            // index = members[address][sponsor];
+            uint l = guildMember.chainOfResponsibility.length;
+            for(uint j=0;j<l;j++){
+                address sponsor = guildMember.chainOfResponsibility[j];
+                if(sponsor == rewardee){
+                    chainIndex = j;
+                    break;
+                }
+            }
+            uint256 reward = calculateMemberReward(member);
+            uint256 chainReward = reward*chainRewardMultiplier;
+            uint256 totalRewardees = addressToGuildMember[member].chainOfResponsibility.length;
+            totalReward = totalReward + (chainReward / (reward / (2 * (2 ** chainIndex) ) ) );
+        }
+        return totalReward;
+}
 
 
     /// Member Reward: R
