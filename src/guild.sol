@@ -458,7 +458,6 @@ contract  Guild is ERC1155, ReentrancyGuard {
     function claimChainReward(address rewardee)
         external
         view
-        onlyGuildCouncil
         returns(uint256 rewards)
     {
         // Get the guild members that were sponsored by "rewardee"
@@ -487,7 +486,7 @@ contract  Guild is ERC1155, ReentrancyGuard {
             uint256 reward = calculateMemberReward(member);
             uint256 chainReward = reward*chainRewardMultiplier;
             uint256 totalRewardees = addressToGuildMember[member].chainOfResponsibility.length;
-            totalReward = totalReward + ((chainReward / (reward / (2 * (2 ** chainIndex) ) ))/totalRewardees);
+            totalReward = totalReward +  (chainReward / (reward / (2 * (2 ** chainIndex) ) ) )/totalRewardees);
         }
         return totalReward;
 }
@@ -656,8 +655,7 @@ contract  Guild is ERC1155, ReentrancyGuard {
     }
 //---------------------------------------------------------
 
-    receive() external payable {
-    }
+    receive() external payable {}
 
 // -------------------- calculate and modify Gravitas ------
 
@@ -666,6 +664,7 @@ contract  Guild is ERC1155, ReentrancyGuard {
         view
         returns (uint256 gravitas)
     {
+        // gravitas = silver_sent + gravitas of the sender * weight
         return silverAmount + addressToGravitas[commonerAddress]*gravitasWeight;
     }
 
