@@ -461,15 +461,22 @@ contract  Guild is ERC1155, ReentrancyGuard {
         onlyGuildCouncil
         returns(uint256 rewards)
     {
+        // Get the guild members that were sponsored by "rewardee"
         address[] memory sponsoredMembers = sponsorsToMembers[rewardee];
+        if (sponsoredMembers.length == 0){
+            return 0
+        }
         uint256 totalReward = 0;
         for(uint256 i=0;i<sponsoredMembers.length;i++){
+            // for every member, get the place of the rewardee
+            // in the guild member's (sponsored) chainOfResponsibility.
+            // Early backers receiver higher rewards
             address member = sponsoredMembers[i];
             GuildMember memory guildMember = addressToGuildMember[member];
             uint256 chainIndex;
-            // alternative implementation is a mapping(address => mappping(address => uint))
-            // index = members[address][sponsor];
             uint l = guildMember.chainOfResponsibility.length;
+            // To find the index, we loop through the chain list
+            // and find the address that equals to rewardee
             for(uint j=0;j<l;j++){
                 address sponsor = guildMember.chainOfResponsibility[j];
                 if(sponsor == rewardee){
