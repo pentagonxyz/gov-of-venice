@@ -348,12 +348,12 @@ contract  Guild is ERC1155, ReentrancyGuard {
     }
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    function inquireGuildBudget()
+    function getBudget()
         view
-        external
+        public
         returns(uint256)
     {
-       return budget;
+       return tokens.balanceOf(address(this));
     }
 /// ---------------- Start Voting ---------------------
 
@@ -416,7 +416,7 @@ contract  Guild is ERC1155, ReentrancyGuard {
     {
         uint256 reward = calculateMemberReward(msg.sender);
         uint256 chainReward = reward*chainRewardMultiplier;
-        budget = budget - reward - chainReward;
+        budget = getBudget()- reward - chainReward;
         tokens.transfer( msg.sender, reward * (1 - chainRewardMultiplier));
         _rewardChainOfResponsibility(chainReward, msg.sender);
     }
@@ -618,10 +618,6 @@ contract  Guild is ERC1155, ReentrancyGuard {
 //---------------------------------------------------------
 
     receive() external payable {
-        if(msg.value > 0){
-            budget = budget + msg.value;
-            emit GuildReceivedFunds(budget, msg.sender);
-        }
     }
 
 // -------------------- calculate and modify Grafitas ------
