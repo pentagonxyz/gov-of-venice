@@ -154,12 +154,16 @@ contract  Guild is ERC1155, ReentrancyGuard {
     /// that should go to the chain of responsibility
     uint256 public chainRewardMultiplier;
 
-
-    uint48 minimumFoundingMembers;
+    uint48 constant minimumFoundingMembers = 3;
 
     uint256 guildMemberReward;
 
     mapping(address => address[]) sponsorsToMembers;
+
+    mapping(address => uint256) chainClaimedReward;
+
+    mapping(address => uint256) membersClaimedReward;
+
 
 //---------- Constructor ----------------
 
@@ -441,8 +445,9 @@ contract  Guild is ERC1155, ReentrancyGuard {
         onlyGuildMember
     {
         uint256 reward = calculateMemberReward(msg.sender);
-        uint256 chainReward = reward*chainRewardMultiplier;
-        tokens.transfer( msg.sender, reward * (1 - chainRewardMultiplier));
+        uint256 claimed = membersClaimedReward[msg.sender];
+        membersClaimedReward[msg.sender] = reward + claimed;
+        tokens.transfer( msg.sender, (reward - claimed) * (1 - chainRewardMultiplier));
     }
 
     // This function is called by a commoner to calculate
@@ -463,7 +468,7 @@ contract  Guild is ERC1155, ReentrancyGuard {
         // Get the guild members that were sponsored by "rewardee"
         address[] memory sponsoredMembers = sponsorsToMembers[rewardee];
         if (sponsoredMembers.length == 0){
-            return 0
+            return 0;
         }
         uint256 totalReward = 0;
         for(uint256 i=0;i<sponsoredMembers.length;i++){
@@ -486,10 +491,16 @@ contract  Guild is ERC1155, ReentrancyGuard {
             uint256 reward = calculateMemberReward(member);
             uint256 chainReward = reward*chainRewardMultiplier;
             uint256 totalRewardees = addressToGuildMember[member].chainOfResponsibility.length;
-            totalReward = totalReward +  (chainReward / (reward / (2 * (2 ** chainIndex) ) ) )/totalRewardees);
+            totalReward = totalReward +  (chainReward / (reward / (2 * (2 ** chainIndex) ) ) ) / totalRewardees;
+            uint256 claimed = chainClaimedReward[rewardee];
+            if(totalReward < claimed){
+                return 0;
+            }
+            else{
+                return totalReward - claimed;
+            }
         }
-        return totalReward;
-}
+    }
 
 
     /// Member Reward: R
@@ -507,13 +518,15 @@ contract  Guild is ERC1155, ReentrancyGuard {
     {
         uint8 multiplier;
         uint48 weightedReward  = uint48(memberRewardPerEpoch / addressList.length);
+        GuildMember memory guildMember = addressToGuildMember[member];
         if (member == guildMasterAddress){
                 multiplier = guildMasterRewardMultiplier;
         }
         else {
             multiplier = 1;
         }
-        return ((uint48(block.timestamp) - addressToGuildMember[member].joinEpoch) ** 2 ) * weightedReward  * multiplier;
+        uint256 reward =  (uint48(block.timestamp) - guildMember.joinEpoch ** 2 ) * weightedReward  * multiplier;
+        return reward;
     }
 
     /// It is called if a member doesn't vote for X amount of times
