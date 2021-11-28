@@ -3,13 +3,12 @@ pragma solidity ^0.8.9;
 
 import "./merchantRepublicI.sol";
 import "./guildI.sol";
-// import "./guild.sol";
 import "./constitutionI.sol";
 import "./tokensI.sol";
-
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 //TODO: Breadk down guild coiuncil into a different file
-contract GuildCouncil {
+contract GuildCouncil is ReentrancyGuard{
 
     event GuildEstablished(uint256 guildId, address guildAddress);
     event GuildDecision(uint256 indexed guildId, uint256 indexed proposalId, bool guildAgreement);
@@ -137,6 +136,7 @@ contract GuildCouncil {
     // for some guild member in every guild
     function chainOfResponsibilityClaim()
         external
+        nonReentrant
     {
         for(uint i=0; i<guilds.length; i++){
             address guildAddress = guilds[i];
