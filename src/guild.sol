@@ -93,11 +93,6 @@ contract  Guild is ERC1155, ReentrancyGuard {
     /// The amount of gravitas that the guild member will lose
     uint256 public guildMemberSlash;
 
-    // if timestamp + votingPeriod >= uint48(block.timestamp), that means an active vote
-    // is underway. the vote can be either for electing master or banishing a member
-    // https://medium.com/@novablitz/storing-structs-is-costing-you-gas-774da988895e
-
-
    // To keep costs down, we only keep a single vote receipt from the latest vote for each guild member.
     // if lastVoteTimestamp + votinPeriod >= uint48(block.timestamp), that means that the member voted in the current vote
     // Else, disregard the rest of the receipt, let the member vote and populate receipt with up to date information
@@ -447,7 +442,6 @@ contract  Guild is ERC1155, ReentrancyGuard {
     {
         uint256 reward = calculateMemberReward(msg.sender);
         uint256 chainReward = reward*chainRewardMultiplier;
-        budget = getBudget()- reward - chainReward;
         tokens.transfer( msg.sender, reward * (1 - chainRewardMultiplier));
     }
 
