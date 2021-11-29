@@ -40,7 +40,6 @@ contract  Guild is ReentrancyGuard {
         bytes32 name;
         uint32 gravitasThreshold;
         uint32 timeOutPeriod;
-        uint32 banishmentThreshold;
         uint32 maxGuildMembers;
         uint32 votingPeriod;
     }
@@ -167,16 +166,14 @@ contract  Guild is ReentrancyGuard {
 
 //---------- Constructor ----------------
 
-    constructor(bytes32 guildName, uint32 newGravitasThreshold, uint32 timeOutPeriod,
-                uint32 banishmentThreshold,uint32 newMaxGuildMembers,
+    constructor(bytes32 guildName, uint32 newGravitasThreshold, uint32 timeOutPeriod, uint32 newMaxGuildMembers,
                 address[] memory foundingMembers, uint32 newVotingPeriod, address tokensAddress, address constitutionAddress)
     {
         require(guildName.length != 0, "guild::constructor::empty_guild_name");
         require(foundingMembers.length >= minimumFoundingMembers, "guild::constructor::minimum_founding_members");
         guildCouncil = GuildCouncilI(msg.sender);
         guildCouncilAddress = msg.sender;
-        guildBook = GuildBook(guildName, newGravitasThreshold, timeOutPeriod,
-                                            banishmentThreshold, newMaxGuildMembers, newVotingPeriod);
+        guildBook = GuildBook(guildName, newGravitasThreshold, timeOutPeriod, newMaxGuildMembers, newVotingPeriod);
         for(uint256 i=0;i<foundingMembers.length;i++) {
             GuildMember memory guildMember = GuildMember(new address[](0), 0, 0, uint48(block.timestamp), uint8(i));
             address member = foundingMembers[i];
@@ -457,11 +454,12 @@ contract  Guild is ReentrancyGuard {
     {
         // Get the guild members that were sponsored by "rewardee"
         address[] memory sponsoredMembers = sponsorsToMembers[rewardee];
-        if (sponsoredMembers.length == 0){
+        uint256 length = sponsoredMembers.length;
+        if (length == 0){
             return 0;
         }
         uint256 totalReward = 0;
-        for(uint256 i=0;i<sponsoredMembers.length;i++){
+        for(uint256 i=0;i<length;i++){
             // for every member, get the place of the rewardee
             // in the guild member's (sponsored) chainOfResponsibility.
             // Early backers receiver higher rewards
