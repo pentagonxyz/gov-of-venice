@@ -16,10 +16,20 @@ contract Constitution {
     address public pendingMerchantRepublic;
     uint public delay;
     mapping (bytes32 => bool) public queuedTransactions;
-    constructor(address merchantRepublicAddress, uint delay_){
+
+    constructor(){
+        founder = msg.sender;
+    }
+
+    function signTheConstitution(address merchantRepublicAddress, uint delay_)
+        external
+    {
+        require(msg.sender == founder, "Constitution::constructor::wrong_address");
         require(delay_ >= MINIMUM_DELAY, "Constitution::constructor: Delay must exceed minimum delay.");
         require(delay_ <= MAXIMUM_DELAY, "Constitution::setDelay: Delay must not exceed maximum delay.");
         merchantRepublic = merchantRepublicAddress;
+        // effectively block this function from running a second time
+        founder = merchantRepublic;
         delay = delay_;
     }
 
