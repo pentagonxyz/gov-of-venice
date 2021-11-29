@@ -7,4 +7,4 @@
     ignore = dirty
 [submodule "lib/solmate"]
 	path = lib/solmate
-	url = https://github.com/Rari-Capital/solmate
+	url = https://github.com/dapphub/solmate
