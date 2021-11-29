@@ -164,12 +164,14 @@ contract  Guild is ERC1155, ReentrancyGuard {
 
     mapping(address => uint256) membersClaimedReward;
 
+    address constitution;
+
 
 //---------- Constructor ----------------
 
     constructor(bytes32 guildName, uint32 newGravitasThreshold, uint32 timeOutPeriod,
                 uint32 banishmentThreshold,uint32 newMaxGuildMembers,
-                address[] memory foundingMembers, uint32 newVotingPeriod, address tokensAddress) ERC1155("")
+                address[] memory foundingMembers, uint32 newVotingPeriod, address tokensAddress, address constitutionAddress) ERC1155("")
     {
         require(guildName.length != 0, "guild::constructor::empty_guild_name");
         require(foundingMembers.length >= minimumFoundingMembers, "guild::constructor::minimum_founding_members");
@@ -185,6 +187,7 @@ contract  Guild is ERC1155, ReentrancyGuard {
             _mint(member, guildMemberNftId, 1, "");
         }
         tokens = TokensI(tokensAddress);
+        constitution = constitutionAddress;
     }
 // -------------- ERC1155 overrided functions ----------------------
 
@@ -382,6 +385,13 @@ contract  Guild is ERC1155, ReentrancyGuard {
         returns(uint256)
     {
        return tokens.balanceOf(address(this));
+    }
+
+    function withdraw(address receiver, uint256 amount)
+        external
+    {
+        require(msg.sender == constitution, "Guild::withdraw::wrong_address");
+        tokens.transferFrom(address(this), receiver, amount);
     }
 
 
