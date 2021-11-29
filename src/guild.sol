@@ -454,11 +454,12 @@ contract  Guild is ReentrancyGuard {
     {
         // Get the guild members that were sponsored by "rewardee"
         address[] memory sponsoredMembers = sponsorsToMembers[rewardee];
-        if (sponsoredMembers.length == 0){
+        uint256 length = sponsoredMembers.length;
+        if (length == 0){
             return 0;
         }
         uint256 totalReward = 0;
-        for(uint256 i=0;i<sponsoredMembers.length;i++){
+        for(uint256 i=0;i<length;i++){
             // for every member, get the place of the rewardee
             // in the guild member's (sponsored) chainOfResponsibility.
             // Early backers receiver higher rewards
