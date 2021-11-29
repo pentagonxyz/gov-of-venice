@@ -160,6 +160,10 @@ contract  Guild is ReentrancyGuard {
 
     address constitution;
 
+    uint256 lastSlash;
+
+    uint256 slashForCashReward;
+
 
 //---------- Constructor ----------------
 
@@ -273,6 +277,27 @@ contract  Guild is ReentrancyGuard {
         }
         emit GuildMemberBanished(guildMemberAddress);
     }
+    // first come, first served naive solution. Could degenerate
+    // into a gas battle in the MEV domain.
+    function slashForCash()
+        external
+        returns(uint256 removedMembers)
+    {
+        uint256 voteTime = proposalVote.startTimestamp;
+        require(uint48(lastSlash) < voteTime, "Guild::slashForInnactivity::members_already_slashed");
+        uint256 length = addressList.length;
+        lastSlash = block.timestamp;
+        uint256 counter=0;
+        for(uint256 i=0;i<length;i++){
+            address guildMember = addressList[i];
+            if( proposalVote.lastTimestamp[guildMember] < voteTime){
+                counter++;
+                _slashGuildMember(guildMember);
+            }
+        }
+        tokens.transfer(msg.sender, slashForCashReward);
+        return counter;
+    }
 
 /// ____ Guild Master Functions _____
     function inviteGuildsToProposal(uint256[] calldata guildId, uint256 proposalId)
@@ -323,6 +348,14 @@ contract  Guild is ReentrancyGuard {
     {
         emit GuildParameterChanged("guildMemberSlash", guildMemberSlash, slash);
         guildMemberSlash = slash;
+    }
+
+    function changeSlashForCashReward(uint256 newReward)
+        external
+        onlyGuildMaster
+    {
+        emit GuildParameterChanged("slashForCashReward", slashForCashReward, newReward);
+        slashForCashReward = newReward;
     }
 // ----------------------------------------------------
 // --------------- Accounting -------------------------
