@@ -280,13 +280,14 @@ contract  Guild is ReentrancyGuard {
         external
         returns(uint256 removedMembers)
     {
-        require(uint48(lastSlash) < proposalVote.startTimestamp, "Guild::slashForInnactivity::members_already_slashed");
+        uint256 voteTime = proposalVote.startTimestamp;
+        require(uint48(lastSlash) < voteTime, "Guild::slashForInnactivity::members_already_slashed");
         uint256 length = addressList.length;
         lastSlash = block.timestamp;
         uint256 counter=0;
         for(uint256 i=0;i<length;i++){
             address guildMember = addressList[i];
-            if( proposalVote.lastTimestamp[guildMember] < proposalVote.startTimestamp ){
+            if( proposalVote.lastTimestamp[guildMember] < voteTime){
                 counter++;
                 _slashGuildMember(guildMember);
             }
