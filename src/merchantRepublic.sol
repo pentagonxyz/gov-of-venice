@@ -58,6 +58,7 @@ contract MerchantRepublic {
 
     event CallGuildsToVote(uint256[] guilds, uint256 proposalId);
 
+    event ConstitutionChanged(address constitution);
 
     /// @notice The delay before voting on a proposal may take place, once proposed, in blocks
     uint public votingDelay;
@@ -444,7 +445,8 @@ contract MerchantRepublic {
 
         return votes;
     }
-// ~~~~~~~~~~~~~~~~~~~~~~~~~
+//  -----------------------------------------------------------------------------
+// --------------- Doge functions -----------------------------------------------
     /*
      * @notice Doge function for setting the voting delay
      * @param newVotingDelay new voting delay, in blocks
@@ -529,6 +531,20 @@ contract MerchantRepublic {
         emit NewPendingDoge(oldPendingDoge, pendingDoge);
     }
 
+    function _acceptConstitution(address newConstitutionAddress)
+        external
+    {
+        require(msg.sender == pendingDoge && msg.sender != address(0), "MerchantRepublic::_acceptDoge: doge only");
+        ConstitutionI newConstitution = ConstitutionI(newConstitutionAddress);
+        newConstitution.acceptConstitution();
+        constitution = newConstitution;
+        emit ConstitutionChanged(address(constitution));
+    }
+
+
+//-------------------------------------------------------------------------------------
+
+
     function state(uint proposalId) public view returns (ProposalState) {
         require(proposalCount >= proposalId && proposalId > initialProposalId, "MerchantRepublic::state: invalid proposal id");
         Proposal storage proposal = proposals[proposalId];
@@ -589,8 +605,8 @@ contract MerchantRepublic {
     function issueSilver()
         internal
     {
-        addressToSilver[msg.sender] = tokens.balanceOf(msg.sender);
         addressToLastSilverIssuance[msg.sender] = block.number;
+        addressToSilver[msg.sender] = tokens.balanceOf(msg.sender);
     }
 
     // Silver is a common resource for all guilds, but every

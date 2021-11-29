@@ -3,13 +3,11 @@ pragma solidity ^0.8.9;
 
 import "./merchantRepublicI.sol";
 import "./guildI.sol";
-// import "./guild.sol";
 import "./constitutionI.sol";
 import "./tokensI.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-
-//TODO: Breadk down guild coiuncil into a different file
-contract GuildCouncil {
+contract GuildCouncil is ReentrancyGuard{
 
     event GuildEstablished(uint256 guildId, address guildAddress);
     event GuildDecision(uint256 indexed guildId, uint256 indexed proposalId, bool guildAgreement);
@@ -46,7 +44,9 @@ contract GuildCouncil {
 
     mapping(uint256 => uint48) proposalTimestamp;
 
-    constructor(address merchantRepublicAddress, address constitutionAddress)
+    TokensI tokens;
+
+    constructor(address merchantRepublicAddress, address constitutionAddress, address tokensAddress)
     {
         guildCounter = 0;
         securityCouncil[merchantRepublicAddress] = 2;
@@ -54,6 +54,7 @@ contract GuildCouncil {
         merchantRepublic = MerchantRepublicI(merchantRepublicAddress);
         constitution = ConstitutionI(constitutionAddress);
         highGuildMaster = msg.sender;
+        tokens = TokensI(tokensAddress);
     }
 
     // This function assumes that the Guild is not a black box, but incorporated in the GuildCouncil
@@ -129,6 +130,21 @@ contract GuildCouncil {
         }
         return success;
     }
+    // naively, go over all the guilds and see how many rewards the
+    // user has accumulated from being part of a chainOfResponsibility
+    // for some guild member in every guild
+    function chainOfResponsibilityClaim()
+        external
+        nonReentrant
+    {
+        uint256 guildRewards;
+        for(uint i=0; i<guilds.length; i++){
+            address guildAddress = guilds[i];
+            GuildI guild = GuildI(guildAddress);
+            guildRewards =  guild.claimChainRewards(msg.sender);
+            tokens.transferFrom(guildAddress, msg.sender, guildRewards);
+        }
+    }
 
     function availableGuilds()
         external
@@ -137,6 +153,7 @@ contract GuildCouncil {
     {
         return guilds;
     }
+
     function guildInformation(uint256 guildId)
         external
         returns(GuildI.GuildBook memory)
@@ -168,7 +185,7 @@ contract GuildCouncil {
 
     // budget for every guidl is proposed as a protocol proposal, voted upon and then
     // this function is called by the governance smart contract to issue the budget
-    function issueBudget(address budgetSender, uint256 guildId, uint256 budgetAmount, TokensI tokens)
+    function issueBudget(address budgetSender, uint256 guildId, uint256 budgetAmount)
         external
         onlyConstitution
         onlyMerchantRepublic

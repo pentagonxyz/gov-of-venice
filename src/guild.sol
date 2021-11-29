@@ -3,10 +3,11 @@ pragma solidity ^0.8.9;
 
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./guildCouncilI.sol";
 import "./tokensI.sol";
 
-contract  Guild is ERC1155{
+contract  Guild is ERC1155, ReentrancyGuard {
 
     // ~~~~~~~~~~ EVENTS ~~~~~~~~~~~~~~~~~~~
 
@@ -92,11 +93,6 @@ contract  Guild is ERC1155{
     /// The amount of gravitas that the guild member will lose
     uint256 public guildMemberSlash;
 
-    // if timestamp + votingPeriod >= uint48(block.timestamp), that means an active vote
-    // is underway. the vote can be either for electing master or banishing a member
-    // https://medium.com/@novablitz/storing-structs-is-costing-you-gas-774da988895e
-
-
    // To keep costs down, we only keep a single vote receipt from the latest vote for each guild member.
     // if lastVoteTimestamp + votinPeriod >= uint48(block.timestamp), that means that the member voted in the current vote
     // Else, disregard the rest of the receipt, let the member vote and populate receipt with up to date information
@@ -158,16 +154,24 @@ contract  Guild is ERC1155{
     /// that should go to the chain of responsibility
     uint256 public chainRewardMultiplier;
 
-
-    uint48 minimumFoundingMembers;
+    uint48 constant minimumFoundingMembers = 3;
 
     uint256 guildMemberReward;
+
+    mapping(address => address[]) sponsorsToMembers;
+
+    mapping(address => uint256) chainClaimedReward;
+
+    mapping(address => uint256) membersClaimedReward;
+
+    address constitution;
+
 
 //---------- Constructor ----------------
 
     constructor(bytes32 guildName, uint32 newGravitasThreshold, uint32 timeOutPeriod,
                 uint32 banishmentThreshold,uint32 newMaxGuildMembers,
-                address[] memory foundingMembers, uint32 newVotingPeriod, address tokensAddress) ERC1155("")
+                address[] memory foundingMembers, uint32 newVotingPeriod, address tokensAddress, address constitutionAddress) ERC1155("")
     {
         require(guildName.length != 0, "guild::constructor::empty_guild_name");
         require(foundingMembers.length >= minimumFoundingMembers, "guild::constructor::minimum_founding_members");
@@ -183,6 +187,7 @@ contract  Guild is ERC1155{
             _mint(member, guildMemberNftId, 1, "");
         }
         tokens = TokensI(tokensAddress);
+        constitution = constitutionAddress;
     }
 // -------------- ERC1155 overrided functions ----------------------
 
@@ -248,6 +253,7 @@ contract  Guild is ERC1155{
         returns (bool success)
     {
         addressToGuildMember[guildMember].chainOfResponsibility.push(commoner);
+        sponsorsToMembers[commoner].push(guildMember);
         return true;
     }
 
@@ -281,12 +287,39 @@ contract  Guild is ERC1155{
         private
     {
         uint48 index = addressToGuildMember[guildMemberAddress].addressListIndex;
+        // Get the chainOfResponsibility from the GuildMember struct for the guild member
+        // that is banished from the guild
+        address[] memory chain = addressToGuildMember[guildMemberAddress].chainOfResponsibility;
+        uint length = chain.length;
+        // for every sponsor (address) in the chain:
+        for(uint i=0;i<length;i++){
+            // get the list of guild members that are sponsored from that sponsor
+            address[] memory sponsored = sponsorsToMembers[chain[i]];
+            uint256 length2 = sponsored.length;
+            // for every address in that list, if it  matches with the guild member
+            // to be banished, then remove it from the list. To remove it, take the last
+            // element, put it in the place of the address to be removed and remove
+            // the last element.
+            for(uint j=0;j<length2;j++)
+                if(sponsored[j] == guildMemberAddress){
+                    sponsorsToMembers[chain[i]][j] = sponsored[length - 1];
+                    delete sponsorsToMembers[chain[i]][length2 - 1];
+                }
+        }
+        // delete the GuildMember Struct for the banished guild member
         delete addressToGuildMember[guildMemberAddress];
+        // Remove the banished guild member from the list of the guild members.
+        // Take the last element of the list, put it in place of the removed and remove
+        // the last element of the list.
         address movedAddress = addressList[addressList.length - 1];
         addressList[index] =  movedAddress;
         delete addressList[addressList.length - 1];
         addressToGuildMember[movedAddress].addressListIndex = index;
+        // burn the guild member NFT
         _burn(guildMemberAddress, guildMemberNftId, 1);
+        // If the guild member is GuildMaster, then the guild is headless.
+        // In order to function properly, the guild members must initiate a vote to
+        // appoint a new guild master.
         if (guildMemberAddress == guildMaster){
             guildMaster = address(0);
             _burn(guildMemberAddress, guildMasterNftId, 1);
@@ -344,15 +377,24 @@ contract  Guild is ERC1155{
         emit GuildParameterChanged("guildMemberSlash", guildMemberSlash, slash);
         guildMemberSlash = slash;
     }
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    function inquireGuildBudget()
+// ----------------------------------------------------
+// --------------- Accounting -------------------------
+    function getBudget()
         view
-        external
+        public
         returns(uint256)
     {
-       return budget;
+       return tokens.balanceOf(address(this));
     }
+
+    function withdraw(address receiver, uint256 amount)
+        external
+    {
+        require(msg.sender == constitution, "Guild::withdraw::wrong_address");
+        tokens.transfer(receiver, amount);
+    }
+
+
 /// ---------------- Start Voting ---------------------
 
     function startGuildmasterVote(address member)
@@ -409,32 +451,67 @@ contract  Guild is ERC1155{
     // go to chainOfResponsibility (e.g 10%)
     function claimReward()
         external
+        nonReentrant
         onlyGuildMember
     {
         uint256 reward = calculateMemberReward(msg.sender);
-        tokens.transfer( msg.sender, reward * (1 - chainRewardMultiplier));
-        _rewardChainOfResponsibility(reward*chainRewardMultiplier, msg.sender);
+        uint256 claimed = membersClaimedReward[msg.sender];
+        membersClaimedReward[msg.sender] = reward + claimed;
+        tokens.transfer( msg.sender, (reward - claimed) * (1 - chainRewardMultiplier));
     }
 
-    // Simple power law based on index
-    // loop over the address array of chainOfResponsibility
-    // send over the reward weighted by the invert power law of their index
-    // As addresses are entered serially, the first addresses will get higher rewards
-    // than others
-
-    function _rewardChainOfResponsibility(uint256 reward, address guildMemberAddress)
-        private
+    // This function is called by a commoner to calculate
+    // the total accrued rewards for sending Silver (sponsoring)
+    // to a member and helping it out to join the guild.
+    // To do that, we need:
+    // a) A list of all the memmbers that the commoners has sponsored (sponsoredMembers)
+    // b) The place at which every member was sponsored (chainIndex). This is because
+    // the reward system is weighted towards the first sponsors of a member. People are incentivized to vote for new people.
+    // c) The reward that particular guild member has accrued up to this point
+    // d) Total number of sponsors for that particular member
+    //
+    function claimChainReward(address rewardee)
+        external
+        view
+        returns(uint256 rewards)
     {
-        address[] memory chain = addressToGuildMember[guildMemberAddress].chainOfResponsibility;
-        for(uint256 i=0; i < chain.length; i++) {
-            // this is SUM(1/2^(j)) series for j =[0,1,2,...i] = 2 - 2^(-i)
-            // assume 4 people in the chain
-            // total reward: 2*reward - reward * 1/(2^4 = reward * (2-1/16))~=2*reward
-            // then 1/2*SUM(1/(2^j)) ~= reward
-            tokens.transferFrom(address(this), chain[i], reward / (2 * (2 ** i) ) );
+        // Get the guild members that were sponsored by "rewardee"
+        address[] memory sponsoredMembers = sponsorsToMembers[rewardee];
+        if (sponsoredMembers.length == 0){
+            return 0;
         }
-        emit ChainOfResponsibilityRewarded(chain, reward);
+        uint256 totalReward = 0;
+        for(uint256 i=0;i<sponsoredMembers.length;i++){
+            // for every member, get the place of the rewardee
+            // in the guild member's (sponsored) chainOfResponsibility.
+            // Early backers receiver higher rewards
+            address member = sponsoredMembers[i];
+            GuildMember memory guildMember = addressToGuildMember[member];
+            uint256 chainIndex;
+            uint l = guildMember.chainOfResponsibility.length;
+            // To find the index, we loop through the chain list
+            // and find the address that equals to rewardee
+            for(uint j=0;j<l;j++){
+                address sponsor = guildMember.chainOfResponsibility[j];
+                if(sponsor == rewardee){
+                    chainIndex = j;
+                    break;
+                }
+            }
+            uint256 reward = calculateMemberReward(member);
+            uint256 chainReward = reward*chainRewardMultiplier;
+            uint256 totalRewardees = addressToGuildMember[member].chainOfResponsibility.length;
+            totalReward = totalReward +  (chainReward / (reward / (2 * (2 ** chainIndex) ) ) ) / totalRewardees;
+            uint256 claimed = chainClaimedReward[rewardee];
+            if(totalReward < claimed){
+                return 0;
+            }
+            else{
+                return totalReward - claimed;
+            }
+        }
     }
+
 
     /// Member Reward: R
     /// Member Count: N
@@ -451,13 +528,15 @@ contract  Guild is ERC1155{
     {
         uint8 multiplier;
         uint48 weightedReward  = uint48(memberRewardPerEpoch / addressList.length);
+        GuildMember memory guildMember = addressToGuildMember[member];
         if (member == guildMasterAddress){
                 multiplier = guildMasterRewardMultiplier;
         }
         else {
             multiplier = 1;
         }
-        return ((uint48(block.timestamp) - addressToGuildMember[member].joinEpoch) ** 2 ) * weightedReward  * multiplier;
+        uint256 reward =  (uint48(block.timestamp) - guildMember.joinEpoch ** 2 ) * weightedReward  * multiplier;
+        return reward;
     }
 
     /// It is called if a member doesn't vote for X amount of times
@@ -493,7 +572,6 @@ contract  Guild is ERC1155{
         }
         proposalVote.count += 1;
         proposalVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
-
         if(proposalVote.aye > (addressList.length * proposalQuorum / 100)){
             proposalVote.active = false;
             guildCouncil._guildVerdict(true, proposalId);
@@ -600,20 +678,16 @@ contract  Guild is ERC1155{
     }
 //---------------------------------------------------------
 
-    receive() external payable {
-        if(msg.value > 0){
-            budget = budget + msg.value;
-            emit GuildReceivedFunds(budget, msg.sender);
-        }
-    }
+    receive() external payable {}
 
-// -------------------- calculate and modify Grafitas ------
+// -------------------- calculate and modify Gravitas ------
 
     function calculateGravitas(address commonerAddress, uint256 silverAmount)
         public
         view
         returns (uint256 gravitas)
     {
+        // gravitas = silver_sent + gravitas of the sender * weight
         return silverAmount + addressToGravitas[commonerAddress]*gravitasWeight;
     }
 
