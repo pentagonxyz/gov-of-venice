@@ -391,7 +391,7 @@ contract  Guild is ERC1155, ReentrancyGuard {
         external
     {
         require(msg.sender == constitution, "Guild::withdraw::wrong_address");
-        tokens.transferFrom(address(this), receiver, amount);
+        tokens.transfer(receiver, amount);
     }
 
 
