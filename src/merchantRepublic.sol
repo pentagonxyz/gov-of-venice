@@ -292,7 +292,7 @@ contract MerchantRepublic {
     {
         {
         require(initialProposalId != 0, "MerchantRepublic::propose: The MerchantRepublic is has not convened yet");
-        require(tokens.getPriorVotes(msg.sender, block.number -1) > proposalThreshold,
+        require(tokens.getPastVotes(msg.sender, block.number -1) > proposalThreshold,
                 "MerchantRepublic::propose: proposer votes below proposal threshold");
         require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length,
                 "MerchantRepublic::propose: proposal function information arity mismatch");
@@ -356,7 +356,7 @@ contract MerchantRepublic {
         ProposalState proposalState = state(proposalId);
         require(proposalState!= ProposalState.Executed, "MerchantRepublic::cancel: cannot cancel executed proposal");
         Proposal storage proposal = proposals[proposalId];
-        require(msg.sender == proposal.proposer || tokens.getPriorVotes(proposal.proposer, block.number - 1) < proposalThreshold, "GovernorBravo::cancel: proposer above threshold");
+        require(msg.sender == proposal.proposer || tokens.getPastVotes(proposal.proposer, block.number - 1) < proposalThreshold, "GovernorBravo::cancel: proposer above threshold");
         proposal.canceled = true;
         for (uint i = 0; i < proposal.targets.length; i++) {
             constitution.cancelTransaction(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], proposal.eta);
@@ -429,7 +429,7 @@ contract MerchantRepublic {
         Proposal storage proposal = proposals[proposalId];
         Receipt storage receipt = receipts[proposalId][voter];
         require(receipt.hasVoted == false, "MerchantRepublic::_castVote: voter already voted");
-        uint96 votes = tokens.getPriorVotes(voter, proposal.startBlock);
+        uint96 votes = tokens.getPastVotes(voter, proposal.startBlock);
 
         if (support == 0) {
             proposal.againstVotes = proposal.againstVotes + votes;
