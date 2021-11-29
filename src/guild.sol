@@ -2,12 +2,11 @@
 pragma solidity ^0.8.9;
 
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./guildCouncilI.sol";
 import "./tokensI.sol";
 
-contract  Guild is ERC1155, ReentrancyGuard {
+contract  Guild is ReentrancyGuard {
 
     // ~~~~~~~~~~ EVENTS ~~~~~~~~~~~~~~~~~~~
 
@@ -70,7 +69,6 @@ contract  Guild is ERC1155, ReentrancyGuard {
 
     uint48 gravitasWeight;
 
-    bool private nftTransfers;
 
     address public guildMasterAddress;
 
@@ -138,10 +136,6 @@ contract  Guild is ERC1155, ReentrancyGuard {
     ///
     uint48 public constant banishmentQuorum = 74;
 
-    uint8 private constant guildMemberNftId = 69;
-
-    uint8 private constant guildMasterNftId = 42;
-
     uint8 public guildMasterRewardMultiplier;
 
     /// @notice The duration of voting on a proposal, in UNIX timestamp seconds;
@@ -171,7 +165,7 @@ contract  Guild is ERC1155, ReentrancyGuard {
 
     constructor(bytes32 guildName, uint32 newGravitasThreshold, uint32 timeOutPeriod,
                 uint32 banishmentThreshold,uint32 newMaxGuildMembers,
-                address[] memory foundingMembers, uint32 newVotingPeriod, address tokensAddress, address constitutionAddress) ERC1155("")
+                address[] memory foundingMembers, uint32 newVotingPeriod, address tokensAddress, address constitutionAddress)
     {
         require(guildName.length != 0, "guild::constructor::empty_guild_name");
         require(foundingMembers.length >= minimumFoundingMembers, "guild::constructor::minimum_founding_members");
@@ -184,50 +178,12 @@ contract  Guild is ERC1155, ReentrancyGuard {
             address member = foundingMembers[i];
             addressToGuildMember[member] = guildMember;
             addressList.push(member);
-            _mint(member, guildMemberNftId, 1, "");
         }
         tokens = TokensI(tokensAddress);
         constitution = constitutionAddress;
     }
-// -------------- ERC1155 overrided functions ----------------------
 
-// The ERC1155 should not be tradeable.
-
-
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 id,
-        uint256 amount,
-        bytes memory data
-    )
-        public
-        override
-    {
-        require(nftTransfers == true, "ERC1155-transfers-disabled");
-        require(
-            from == _msgSender() || isApprovedForAll(from, _msgSender()),
-            "ERC1155: caller is not owner nor approved"
-        );
-        _safeTransferFrom(from, to, id, amount, data);
-    }
-    function safeBatchTransferFrom(
-        address from,
-        address to,
-        uint256[] memory ids,
-        uint256[] memory amounts,
-        bytes memory data
-    ) public override {
-        require(nftTransfers == true, "ERC1155-transfers-disabled");
-        require(
-            from == _msgSender() || isApprovedForAll(from, _msgSender()),
-            "ERC1155: transfer caller is not owner nor approved"
-        );
-        _safeBatchTransferFrom(from, to, ids, amounts, data);
-    }
-
-
-// ------------- Guild Member lifecycle -----------------------
+ // ------------- Guild Member lifecycle -----------------------
 
     // cooloff period before getting voted to a guild and actually joining it. This is added
     // so that it's harder to game the system
@@ -244,7 +200,6 @@ contract  Guild is ERC1155, ReentrancyGuard {
             GuildMember memory guildMember = GuildMember(new address[](0), 0, 0, uint48(block.timestamp), uint48(addressList.length - 1));
             addressToGuildMember[msg.sender] = guildMember;
             addressList.push(msg.sender);
-            _mint(msg.sender, guildMemberNftId, 1, "");
         }
 
     function appendChainOfResponsbility(address guildMember, address commoner)
@@ -263,11 +218,11 @@ contract  Guild is ERC1155, ReentrancyGuard {
         view
         returns(bool)
     {
-        if(balanceOf(commoner, guildMemberNftId) == 1){
-            return true;
+        if (addressToGuildMember[commoner].joinEpoch == 0){
+            return false;
         }
         else {
-            return false;
+            return true;
         }
     }
 
@@ -276,13 +231,8 @@ contract  Guild is ERC1155, ReentrancyGuard {
     {
         require(msg.sender == guildMasterElect && msg.sender != address(0), "Guild::guildMasterAcceptanceCeremony::wrong_guild_master_elect");
         guildMaster = msg.sender;
-        _mint(msg.sender, guildMasterNftId, 1, "");
     }
 
-    // invoke _burn to remove the Guild ERC1155 from the member
-    // delete guildMember struct
-    // remove addr from list and move last item of list in it's place
-    // burn erc1155
     function _banishGuildMember(address guildMemberAddress)
         private
     {
@@ -315,14 +265,11 @@ contract  Guild is ERC1155, ReentrancyGuard {
         addressList[index] =  movedAddress;
         delete addressList[addressList.length - 1];
         addressToGuildMember[movedAddress].addressListIndex = index;
-        // burn the guild member NFT
-        _burn(guildMemberAddress, guildMemberNftId, 1);
         // If the guild member is GuildMaster, then the guild is headless.
         // In order to function properly, the guild members must initiate a vote to
         // appoint a new guild master.
         if (guildMemberAddress == guildMaster){
             guildMaster = address(0);
-            _burn(guildMemberAddress, guildMasterNftId, 1);
         }
         emit GuildMemberBanished(guildMemberAddress);
     }
