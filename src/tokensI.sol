@@ -9,6 +9,6 @@ interface TokensI {
         address recipient,
         uint256 amount
     ) external returns (bool);
-    function getPriorVotes(address account, uint256 blockNumber) external view returns(uint96);
+    function getPastVotes(address account, uint256 blockNumber) external view returns(uint96);
 }
 
