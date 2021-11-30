@@ -16,7 +16,7 @@ contract Constitution {
     address public pendingMerchantRepublic;
     uint public delay;
     mapping (bytes32 => bool) public queuedTransactions;
-
+    address public founder;
     constructor(){
         founder = msg.sender;
     }
