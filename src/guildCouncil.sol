@@ -71,7 +71,7 @@ contract GuildCouncil is ReentrancyGuard{
         securityCouncil[guildAddress] = 1;
         emit GuildEstablished(guildCounter, guildAddress);
         guildCounter++;
-        return guildCounter;
+        return guildCounter-1;
     }
 
     // check if msg.sender == activeGuildvotes[proposalid]
