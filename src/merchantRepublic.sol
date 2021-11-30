@@ -204,7 +204,7 @@ contract MerchantRepublic {
 
     mapping(address => uint256) addressToLastSilverIssuance;
 
-    function initialize(address constitutionAddress, address tokensAddress, address guildCouncilAddress, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_) public {
+    function initialize(address firstDoge, address constitutionAddress, address tokensAddress, address guildCouncilAddress, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_) public {
         require(msg.sender == doge, "MerchantRepublic::initialize: doge only");
         constitution = ConstitutionI(constitutionAddress);
         tokens = TokensI(tokensAddress);
@@ -212,6 +212,7 @@ contract MerchantRepublic {
         votingDelay = votingDelay_;
         proposalThreshold = proposalThreshold_;
         guildCouncil =  GuildCouncilI(guildCouncilAddress);
+        doge = firstDoge;
 
     }
 
@@ -224,8 +225,8 @@ contract MerchantRepublic {
         require(msg.sender == doge, "MerchantRepublic::_initiate: doge only");
         require(initialProposalId == 0, "MerchantRepublic::_initiate: can only initiate once");
         // Optional if merchantRepublic migrates, otherwise = 0;
-        initialProposalId = MerchantRepublicI(previousMerchantRepublic).getProposalCount();
-        constitution.acceptDoge();
+        initialProposalId = 0
+        // initialProposalId = MerchantRepublicI(previousMerchantRepublic).getProposalCount();
     }
 
     function getProposalCount()
