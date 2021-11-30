@@ -655,7 +655,6 @@ contract  Guild is ReentrancyGuard {
     }
 //---------------------------------------------------------
 
-    receive() external payable {}
 
 // -------------------- calculate and modify Gravitas ------
 
