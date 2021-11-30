@@ -99,6 +99,4 @@ contract Constitution {
         return block.timestamp;
     }
 
-    receive() external payable {}
-
 }
