@@ -147,7 +147,7 @@ contract  Guild is ReentrancyGuard {
     /// that should go to the chain of responsibility
     uint256 public chainRewardMultiplier;
 
-    uint48 constant minimumFoundingMembers = 3;
+    uint48 constant minimumFoundingMembers = 1;
 
     uint256 guildMemberReward;
 
@@ -166,8 +166,7 @@ contract  Guild is ReentrancyGuard {
 
 //---------- Constructor ----------------
 
-    constructor(bytes32 guildName, uint32 newGravitasThreshold, uint32 timeOutPeriod, uint32 newMaxGuildMembers,
-                address[] memory foundingMembers, uint32 newVotingPeriod, address tokensAddress, address constitutionAddress)
+    constructor(bytes32 guildName, address[] memory foundingMembers, uint32 newGravitasThreshold, uint32 timeOutPeriod, uint32 newMaxGuildMembers, uint32 newVotingPeriod, address tokensAddress, address constitutionAddress)
     {
         require(guildName.length != 0, "guild::constructor::empty_guild_name");
         require(foundingMembers.length >= minimumFoundingMembers, "guild::constructor::minimum_founding_members");
