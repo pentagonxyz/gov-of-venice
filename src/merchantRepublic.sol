@@ -633,7 +633,7 @@ contract MerchantRepublic {
         addressToSilver[msg.sender] = silver - silverAmount;
         // It returns the new gravitas of the receiver, but it's better that the function
         // returns the remain silver in the sender's account.
-        guildCouncil.sendSilver(msg.sender, receiver, guildId, silver);
+        guildCouncil.sendSilver(msg.sender, receiver, guildId, silverAmount);
         return silver - silverAmount;
     }
 
