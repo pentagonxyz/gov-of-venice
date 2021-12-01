@@ -21,7 +21,7 @@ contract  Guild is ReentrancyGuard {
     event GuildMasterChanged(address newGuildMaster);
     event GuildMemberRewardClaimed(address indexed guildMember, uint256 reward);
     event ChainOfResponsibilityRewarded(address[] chain, uint256 baseReward);
-    event GravitasChanged(address indexed commoner, uint256 oldGravitas, uint256 newGravitas);
+    event GravitasChanged(address commoner, uint256 oldGravitas, uint256 newGravitas);
     event GuildMasterVoteResult(address guildMasterElect, bool result);
     event GuildReceivedFunds(uint256 funds, address sender);
 
@@ -170,8 +170,6 @@ contract  Guild is ReentrancyGuard {
     {
         require(guildName.length != 0, "guild::constructor::empty_guild_name");
         require(foundingMembers.length >= minimumFoundingMembers, "guild::constructor::minimum_founding_members");
-        guildCouncil = GuildCouncilI(msg.sender);
-        guildCouncilAddress = msg.sender;
         guildBook = GuildBook(guildName, newGravitasThreshold, timeOutPeriod, newMaxGuildMembers, newVotingPeriod);
         for(uint256 i=0;i<foundingMembers.length;i++) {
             GuildMember memory guildMember = GuildMember(new address[](0), 0, 0, uint48(block.timestamp), uint8(i));
@@ -181,6 +179,15 @@ contract  Guild is ReentrancyGuard {
         }
         tokens = TokensI(tokensAddress);
         constitution = constitutionAddress;
+    }
+
+    function setGuildCouncil(address guildCouncilAddress_)
+        external
+        onlyConstitution
+    {
+
+        guildCouncil = GuildCouncilI(guildCouncilAddress_);
+        guildCouncilAddress = guildCouncilAddress_;
     }
 
  // ------------- Guild Member lifecycle -----------------------
@@ -205,11 +212,9 @@ contract  Guild is ReentrancyGuard {
     function appendChainOfResponsbility(address guildMember, address commoner)
         external
         onlyGuildCouncil
-        returns (bool success)
     {
         addressToGuildMember[guildMember].chainOfResponsibility.push(commoner);
         sponsorsToMembers[commoner].push(guildMember);
-        return true;
     }
 
 
@@ -365,8 +370,8 @@ contract  Guild is ReentrancyGuard {
 
     function withdraw(address receiver, uint256 amount)
         external
+        onlyConstitution
     {
-        require(msg.sender == constitution, "Guild::withdraw::wrong_address");
         tokens.transfer(receiver, amount);
     }
 
@@ -690,6 +695,11 @@ contract  Guild is ReentrancyGuard {
 
     modifier onlyGuildMember() {
         require(addressToGuildMember[msg.sender].joinEpoch != 0, "Guild::OnlyeGuildMember::wrong_address");
+        _;
+    }
+
+    modifier onlyConstitution(){
+        require(msg.sender == constitution, "Guild::withdraw::wrong_address");
         _;
     }
 
