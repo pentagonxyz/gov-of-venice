@@ -5,6 +5,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./guildCouncilI.sol";
 import "./tokensI.sol";
+// import {DSTestPlus} from "solmate/test/utils/DSTestPlus.sol";
 
 contract  Guild is ReentrancyGuard {
 
@@ -55,7 +56,6 @@ contract  Guild is ReentrancyGuard {
         address targetAddress;
         uint256 id;
     }
-
     GuildCouncilI guildCouncil;
 
     TokensI tokens;
@@ -66,7 +66,9 @@ contract  Guild is ReentrancyGuard {
 
     mapping(address => uint48) addressToGravitas;
 
-    uint48 gravitasWeight;
+    uint48 constant senderGravitasWeight =  50;
+
+    uint48 constant silverToGravitasWeight = 10;
 
 
     address public guildMasterAddress;
@@ -176,6 +178,7 @@ contract  Guild is ReentrancyGuard {
             address member = foundingMembers[i];
             addressToGuildMember[member] = guildMember;
             addressList.push(member);
+            addressToGravitas[member] = newGravitasThreshold;
         }
         tokens = TokensI(tokensAddress);
         constitution = constitutionAddress;
@@ -663,13 +666,15 @@ contract  Guild is ReentrancyGuard {
 
 // -------------------- calculate and modify Gravitas ------
 
+//TODO: rename functions to CRUD-like (get, post, put)
+
     function calculateGravitas(address commonerAddress, uint256 silverAmount)
         public
-        view
         returns (uint256 gravitas)
     {
         // gravitas = silver_sent + gravitas of the sender * weight
-        return silverAmount + addressToGravitas[commonerAddress]*gravitasWeight;
+        return  (silverAmount*silverToGravitasWeight +
+                addressToGravitas[commonerAddress]*senderGravitasWeight) / 100;
     }
 
     function modifyGravitas(address guildMember, uint256 newGravitas)
@@ -680,6 +685,14 @@ contract  Guild is ReentrancyGuard {
         emit GravitasChanged(guildMember, addressToGravitas[guildMember], newGravitas);
         addressToGravitas[guildMember] = uint48(newGravitas);
         return newGravitas;
+    }
+
+    function getGravitas(address member)
+        external
+        view
+        returns(uint256)
+    {
+        return addressToGravitas[member];
     }
 
 // ------------------------- Modifiers -------------------------
