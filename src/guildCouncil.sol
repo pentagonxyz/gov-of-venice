@@ -170,13 +170,16 @@ contract GuildCouncil is ReentrancyGuard{
     }
 
    // Returns the new gravitas of the receiver
+   // perhaps this functionality should be pushed inside the guild and
+   // guild council functions only as a proxy
+   // between the merchant republic and guild
     function sendSilver(address sender, address receiver, uint256 guildId, uint256 silverAmount)
         external
         onlyMerchantRepublic
         returns(uint256)
     {
         GuildI guild = GuildI(guilds[guildId]);
-        uint256 gravitas = guild.calculateGravitas(sender, silverAmount);
+        uint256 gravitas = guild.calculateGravitas(sender, silverAmount) + guild.getGravitas(receiver);
         uint256 memberGravitas = guild.modifyGravitas(receiver, gravitas);
         guild.appendChainOfResponsibility(receiver, sender);
         emit SilverSent(guildId, receiver, sender, silverAmount);
