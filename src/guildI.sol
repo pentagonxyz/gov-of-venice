@@ -10,8 +10,7 @@ interface GuildI {
         external
         returns (uint256 newGuildMemberGravitas);
     function appendChainOfResponsibility(address guildMember, address commoner)
-        external
-        returns (bool success);
+        external;
     function guildVoteRequest(uint256 proposalId)
         external;
     function requestGuildBook() external returns(GuildBook memory);

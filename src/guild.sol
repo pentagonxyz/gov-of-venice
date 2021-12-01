@@ -209,7 +209,7 @@ contract  Guild is ReentrancyGuard {
             addressList.push(msg.sender);
         }
 
-    function appendChainOfResponsbility(address guildMember, address commoner)
+    function appendChainOfResponsibility(address guildMember, address commoner)
         external
         onlyGuildCouncil
     {

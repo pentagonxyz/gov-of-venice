@@ -180,7 +180,6 @@ contract GuildCouncil is ReentrancyGuard{
         uint256 memberGravitas = guild.modifyGravitas(receiver, gravitas);
         guild.appendChainOfResponsibility(receiver, sender);
         emit SilverSent(guildId, receiver, sender, silverAmount);
-        return memberGravitas;
     }
 
     // budget for every guidl is proposed as a protocol proposal, voted upon and then
