@@ -208,7 +208,11 @@ contract MerchantRepublic {
         doge = firstDoge;
     }
 
-    function initialize(address constitutionAddress, address tokensAddress, address guildCouncilAddress, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_) public {
+    function initialize(address constitutionAddress, address tokensAddress,
+                        address guildCouncilAddress, uint votingPeriod_,
+                        uint votingDelay_, uint proposalThreshold_)
+        public
+    {
         require(msg.sender == doge, "MerchantRepublic::initialize: doge only");
         constitution = ConstitutionI(constitutionAddress);
         tokens = TokensI(tokensAddress);
@@ -227,6 +231,7 @@ contract MerchantRepublic {
     function _initiate(address previousMerchantRepublic) external {
         require(msg.sender == doge, "MerchantRepublic::_initiate: doge only");
         require(initialProposalId == 0, "MerchantRepublic::_initiate: can only initiate once");
+
         // Optional if merchantRepublic migrates, otherwise = 0;
         initialProposalId = 0;
         // initialProposalId = MerchantRepublicI(previousMerchantRepublic).getProposalCount();
@@ -621,15 +626,15 @@ contract MerchantRepublic {
         public
         returns(uint256)
     {
-        if (addressToLastSilverIssuance[msg.sender] < silverIssuanceSeason){
+        if (addressToLastSilverIssuance[msg.sender] <= silverIssuanceSeason){
             issueSilver();
     }
         uint256 silver = addressToSilver[msg.sender];
-        silver = silver - silverAmount;
+        addressToSilver[msg.sender] = silver - silverAmount;
         // It returns the new gravitas of the receiver, but it's better that the function
         // returns the remain silver in the sender's account.
         guildCouncil.sendSilver(msg.sender, receiver, guildId, silver);
-        return silverAmount;
+        return silver - silverAmount;
     }
 
     function callGuildsToVote(uint256[] calldata guildsId, uint256 proposalId)
