@@ -17,6 +17,34 @@ contract GuildTest is Gov2Test {
         assertEq(50 + 265 + 0, agnello.getGravitas(2));
  }
 
+ function testFailJoinGuildNoApprentiship() public {
+        uint256 remain2 = john.sendSilver(address(agnello), 3000, 2);
+        assertEq(300 + 250 + 0, agnello.getGravitas(2));
+        agnello.joinGuild(2);
+ }
+
+
+ function testJoinGuildYesApprentiship() public {
+        uint256 remain2 = john.sendSilver(address(agnello), 3000, 2);
+        assertEq(300 + 250 + 0, agnello.getGravitas(2));
+        agnello.startApprentiship(2);
+        //threshold = 1;
+        hevm.warp(block.timestamp + 10);
+        Guild.GuildMember memory ag = agnello.joinGuild(2);
+        address[] memory chain = ag.chainOfResponsibility;
+        uint8 absence = ag.absenceCounter;
+        uint48 lastClaim = ag.lastClaimTimestamp;
+        uint48 join = ag.joinEpoch;
+        uint48 index = ag.addressListIndex;
+        assertEq(0, absence);
+        assertEq(0, lastClaim);
+        assertEq(join, block.timestamp);
+        assertEq(index, 1);
+        assertEq(chain[0], address(john));
+ }
+
+
+
 
 
 }

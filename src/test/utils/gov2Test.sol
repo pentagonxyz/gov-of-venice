@@ -98,6 +98,14 @@ contract Commoner is DSTestPlus{
         mr.initialize(conAddr, tokAddr, gcAddr, votingPeriod, votingDelay, propThres);
         mr._initiate(address(0));
     }
+
+    function startApprentiship(uint guild) public {
+        Guild(guilds[guild]).startApprentiship();
+    }
+    function joinGuild(uint guild) public returns (Guild.GuildMember memory){
+        return Guild(guilds[guild]).joinGuild();
+    }
+
 }
 
 contract Gov2Test is DSTestPlus {
@@ -195,7 +203,7 @@ contract Gov2Test is DSTestPlus {
         // mint $ducats
         ursusDucats = 10000;
         agnelloDucats = 20000;
-        johnDucats = 1000;
+        johnDucats = 10000;
         pipinDucats = 500;
         mockDucat.mint(address(ursus), ursusDucats);
         mockDucat.mint(address(agnello), agnelloDucats);
