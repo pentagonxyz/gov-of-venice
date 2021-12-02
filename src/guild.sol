@@ -70,7 +70,6 @@ contract  Guild is ReentrancyGuard {
 
     uint48 constant silverToGravitasWeight = 10;
 
-
     address public guildMasterAddress;
 
     mapping(address => GuildMember) public addressToGuildMember;
@@ -205,11 +204,13 @@ contract  Guild is ReentrancyGuard {
     }
     function joinGuild()
             external
+            returns(GuildMember memory)
         {
-            require(apprentishipStart[msg.sender] + timeOutThreshold < uint48(block.timestamp), "Guild::joinGuild::user_has_not_done_apprentiship");
-            GuildMember memory guildMember = GuildMember(new address[](0), 0, 0, uint48(block.timestamp), uint48(addressList.length - 1));
-            addressToGuildMember[msg.sender] = guildMember;
+            require(apprentishipStart[msg.sender] != 0 && apprentishipStart[msg.sender] + timeOutThreshold < uint48(block.timestamp), "Guild::joinGuild::user_has_not_done_apprentiship");
             addressList.push(msg.sender);
+            addressToGuildMember[msg.sender].joinEpoch = uint48(block.timestamp);
+            addressToGuildMember[msg.sender].addressListIndex = uint48(addressList.length - 1);
+            return addressToGuildMember[msg.sender];
         }
 
     function appendChainOfResponsibility(address guildMember, address commoner)
