@@ -125,9 +125,6 @@ contract  Guild is ReentrancyGuard {
     // ----------- CONSTANTS ---------------
 
     ///
-    uint256 public constant timeOutThreshold = 1;
-
-    ///
     uint48 public constant proposalQuorum = 50;
 
     ///
@@ -137,9 +134,6 @@ contract  Guild is ReentrancyGuard {
     uint48 public constant banishmentQuorum = 74;
 
     uint8 public guildMasterRewardMultiplier;
-
-    /// @notice The duration of voting on a proposal, in UNIX timestamp seconds;
-    uint256 public constant votingPeriod = 604800;
 
     // -----------------------
     uint48 public memberRewardPerEpoch;
@@ -167,10 +161,12 @@ contract  Guild is ReentrancyGuard {
 
 //---------- Constructor ----------------
 
-    constructor(bytes32 guildName, address[] memory foundingMembers, uint32 newGravitasThreshold, uint32 timeOutPeriod, uint32 newMaxGuildMembers, uint32 newVotingPeriod, address tokensAddress, address constitutionAddress)
+    constructor(bytes32 guildName, address[] memory foundingMembers, uint32 newGravitasThreshold, uint32 timeOutPeriod,
+                uint32 newMaxGuildMembers, uint32 newVotingPeriod, address tokensAddress, address constitutionAddress)
     {
         require(guildName.length != 0, "guild::constructor::empty_guild_name");
         require(foundingMembers.length >= minimumFoundingMembers, "guild::constructor::minimum_founding_members");
+        require(foundingMembers.length <= newMaxGuildMembers, "guild::constructor::max_founding_members_exceeded");
         guildBook = GuildBook(guildName, newGravitasThreshold, timeOutPeriod, newMaxGuildMembers, newVotingPeriod);
         for(uint256 i=0;i<foundingMembers.length;i++) {
             GuildMember memory guildMember = GuildMember(new address[](0), 0, 0, uint48(block.timestamp), uint8(i));
@@ -206,7 +202,9 @@ contract  Guild is ReentrancyGuard {
             external
             returns(GuildMember memory)
         {
-            require(apprentishipStart[msg.sender] != 0 && apprentishipStart[msg.sender] + timeOutThreshold < uint48(block.timestamp), "Guild::joinGuild::user_has_not_done_apprentiship");
+            require(apprentishipStart[msg.sender] != 0 && apprentishipStart[msg.sender] + guildBook.timeOutPeriod< uint48(block.timestamp),
+                    "Guild::joinGuild::user_has_not_done_apprentiship");
+            require(addressList.length + 1 <= guildBook.maxGuildMembers, "Guild::joinGuild::max_guild_members_reached");
             addressList.push(msg.sender);
             addressToGuildMember[msg.sender].joinEpoch = uint48(block.timestamp);
             addressToGuildMember[msg.sender].addressListIndex = uint48(addressList.length - 1);
@@ -238,7 +236,8 @@ contract  Guild is ReentrancyGuard {
     function guildMasterAcceptanceCeremony()
         external
     {
-        require(msg.sender == guildMasterElect && msg.sender != address(0), "Guild::guildMasterAcceptanceCeremony::wrong_guild_master_elect");
+        require(msg.sender == guildMasterElect && msg.sender != address(0),
+                "Guild::guildMasterAcceptanceCeremony::wrong_guild_master_elect");
         guildMaster = msg.sender;
     }
 
@@ -549,7 +548,8 @@ contract  Guild is ReentrancyGuard {
         require(support == 1 || support == 0, "Guild::castVote::wrong_support_value");
         require(proposalVote.lastTimestamp[msg.sender] < proposalVote.startTimestamp,
                 "Guild::castVoteForProposal::account_already_voted");
-        require(uint48(block.timestamp) - proposalVote.startTimestamp>= votingPeriod, "Guild::castVoteForProposal::_voting_period_ended");
+        require(uint48(block.timestamp) - proposalVote.startTimestamp>= guildBook.votingPeriod,
+                "Guild::castVoteForProposal::_voting_period_ended");
         if (support == 1){
             proposalVote.aye += 1;
         }
@@ -578,7 +578,7 @@ contract  Guild is ReentrancyGuard {
                 "Guild::castVoteForGuildMaster::wrong_guild_master_address");
         require(guildMasterVote.lastTimestamp[msg.sender] < guildMasterVote.startTimestamp,
                 "Guild::castVoteForGuildMaster::account_already_voted");
-        require(uint48(block.timestamp) - guildMasterVote.startTimestamp >= votingPeriod, "Guild::castVoteForGuildMaster::_voting_period_ended");
+        require(uint48(block.timestamp) - guildMasterVote.startTimestamp >= guildBook.votingPeriod, "Guild::castVoteForGuildMaster::_voting_period_ended");
         require(votedAddress == guildMasterVote.targetAddress, "Guild::casteVoteForGuildMaster::wrong_voted_address");
         if (support == 1){
             guildMasterVote.aye += 1;
@@ -609,7 +609,7 @@ contract  Guild is ReentrancyGuard {
                 "Guild::castVoteForBanishment::no_active_vote");
         require(banishmentVote.lastTimestamp[msg.sender] < banishmentVote.startTimestamp,
                 "Guild::vastVoteForBanishmnet::account_already_voted");
-        require(uint48(block.timestamp) - banishmentVote.startTimestamp >= votingPeriod,
+        require(uint48(block.timestamp) - banishmentVote.startTimestamp >= guildBook.votingPeriod,
                 "Guild::castVoteForBanishment::_voting_period_ended");
         require(memberToBanish == banishmentVote.targetAddress,
                 "Guild::castVoteForBanishment::wrong_voted_address");
