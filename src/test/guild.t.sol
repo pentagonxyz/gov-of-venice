@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "./utils/gov2Test.sol";
 
-contract GuildTest is Gov2Test {
+contract GuildCommonersTest is Gov2Test {
 
 //
 //
@@ -29,7 +29,7 @@ contract GuildTest is Gov2Test {
         assertEq(300 + 250 + 0, agnello.getGravitas(2));
         agnello.startApprentiship(2);
         //threshold = 1;
-        hevm.warp(block.timestamp + 10);
+        hevm.warp(block.timestamp + 30 days);
         Guild.GuildMember memory ag = agnello.joinGuild(2);
         address[] memory chain = ag.chainOfResponsibility;
         uint8 absence = ag.absenceCounter;
@@ -43,8 +43,39 @@ contract GuildTest is Gov2Test {
         assertEq(chain[0], address(john));
  }
 
+ function testIsGuildMember() public {
+     assertTrue(john.isGuildMember(2));
+     assertFalse(agnello.isGuildMember(2));
+ }
 
+}
 
+contract GuildMembersTest is Gov2Test {
+    function initMembers() public{
+        facelessMen = new Commoner[](20);
+        address[] memory facelessAddresses = new address[](20);
+        uint32 facelessGT = 400;
+        uint ducats = 10000;
+        for(uint i=0;i<facelessMen.length;i++){
+            facelessMen[i] = new Commoner();
+            facelessMen[i].init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
+            facelessAddresses[i] = address(facelessMen[i]);
+            for(uint j=0;j<guilds.length;j++){
+                facelessMen[i].setGuild(guilds[j], j);
+            }
+            mockDucat.mint(address(facelessMen[i]), ducats);
+        }
+        facelessGuild = new Guild("faceless", facelessAddresses , facelessGT, 25 days, 20, 14 days, address(mockDucat), address(constitution));
 
+    }
+
+    function testFacelessGuild() public {
+        initMembers();
+        Guild.GuildBook memory gb = facelessGuild.requestGuildBook();
+        assertEq(400, gb.gravitasThreshold);
+        assertEq(25 days, gb.timeOutPeriod);
+        assertEq(14 days, gb.votingPeriod);
+        assertEq(20, gb.maxGuildMembers);
+    }
 
 }

@@ -105,6 +105,9 @@ contract Commoner is DSTestPlus{
     function joinGuild(uint guild) public returns (Guild.GuildMember memory){
         return Guild(guilds[guild]).joinGuild();
     }
+    function isGuildMember(uint guild) public returns(bool) {
+        return Guild(guilds[guild]).isGuildMember(address(this));
+    }
 
 }
 
@@ -129,6 +132,7 @@ contract Gov2Test is DSTestPlus {
     Guild internal locksmiths;
     Guild internal blacksmiths;
     Guild internal judges;
+    Guild internal facelessGuild;
 
     uint256 agnelloDucats;
     uint256 johnDucats;
@@ -138,6 +142,10 @@ contract Gov2Test is DSTestPlus {
     uint32 locksmithsGT;
     uint32 blacksmithsGT;
     uint32 judgesGT;
+
+    Commoner[] internal facelessMen;
+
+    address[] internal guilds;
 
     function setUp() public virtual {
         ursus = new Commoner();
@@ -185,10 +193,10 @@ contract Gov2Test is DSTestPlus {
 
         // Register the guilds with the GuildCouncil
         uint256 locksmithsId = constitution.mockEstablishGuild(address(locksmiths));
-        uint256 blacksmithsId = constitution.mockEstablishGuild(address(blacksmiths));
+        uint256 blacksmithsId= constitution.mockEstablishGuild(address(blacksmiths));
         uint256 judgesId = constitution.mockEstablishGuild(address(judges));
 
-        address[] memory guilds = guildCouncil.availableGuilds();
+        guilds = guildCouncil.availableGuilds();
         // register the guilds to the commoners
         for (uint i=0;i<guilds.length;i++){
            ursus.setGuild(guilds[i], i);
@@ -212,52 +220,5 @@ contract Gov2Test is DSTestPlus {
 
         // Ursus is the Doge and sets the silver season
         ursus.setSilverSeason();
-
-
-
     }
-    function startMeasuringGas(string memory label) internal override {
-        checkpointLabel = label;
-        checkpointGasLeft = gasleft();
-    }
-    function uint2str(uint _i) internal pure returns (string memory _uintAsString) {
-        if (_i == 0) {
-            return "0";
-        }
-        uint j = _i;
-        uint len;
-        while (j != 0) {
-            len++;
-            j /= 10;
-        }
-        bytes memory bstr = new bytes(len);
-        uint k = len;
-        while (_i != 0) {
-            k = k-1;
-            uint8 temp = (48 + uint8(_i - _i / 10 * 10));
-            bytes1 b1 = bytes1(temp);
-            bstr[k] = b1;
-            _i /= 10;
-        }
-        return string(bstr);
-    }
-    function stopMeasuringGas() internal override {
-        uint256 checkpointGasLeft2 = gasleft();
-
-        string memory label = checkpointLabel;
-
-        string memory gas = uint2str(checkpointGasLeft2);
-
-        string[] memory args = new string[](2);
-
-        args[0] = "scripts/gas-cost.sh";
-
-        args[1] = gas;
-
-        // bytes memory res = hevm.ffi(args);
-        // emit log_bytes(res);
-
-        emit log_named_uint(string(abi.encodePacked(label, " Gas")), checkpointGasLeft - checkpointGasLeft2);
-    }
-
 }
