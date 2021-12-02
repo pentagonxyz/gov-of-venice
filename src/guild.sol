@@ -433,6 +433,7 @@ contract  Guild is ReentrancyGuard {
     function castVoteForProposal(uint256 proposalId, uint8 support)
         external
         onlyGuildMember
+        returns(bool)
     {
         require(proposalVote.active == true, "Guild::castVote::no_active_proposal_vote");
         require(proposalVote.id == proposalId, "Guild::castVote::wrong_proposal_id");
@@ -447,17 +448,24 @@ contract  Guild is ReentrancyGuard {
         else {
             proposalVote.nay += 1;
         }
+        bool cont;
         proposalVote.count += 1;
         proposalVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
         if(proposalVote.aye > (addressList.length * proposalQuorum / 100)){
             proposalVote.active = false;
             guildCouncil._guildVerdict(true, proposalId);
+            cont = false;
         }
         else if (proposalVote.nay > (addressList.length * proposalQuorum / 100)) {
             proposalVote.active = false;
             guildCouncil._guildVerdict(false, proposalId);
+            cont = false;
+        }
+        else {
+            cont = true;
         }
         emit ProposalVote(msg.sender, proposalId);
+        return cont;
     }
 
 
@@ -504,6 +512,7 @@ contract  Guild is ReentrancyGuard {
     function castVoteForBanishment(uint8 support, address memberToBanish)
         external
         onlyGuildMember
+        returns (bool)
     {
         require(banishmentVote.active == true,
                 "Guild::castVoteForBanishment::no_active_vote");
@@ -519,19 +528,26 @@ contract  Guild is ReentrancyGuard {
         else {
             banishmentVote.nay++;
         }
+        bool cont;
         banishmentVote.count++;
         banishmentVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
         if(banishmentVote.aye > (addressList.length * banishmentQuorum / 100)){
             banishmentVote.active = false;
             _banishGuildMember(memberToBanish);
+            cont = false;
 
         }
         else if (banishmentVote.nay > (addressList.length * banishmentQuorum / 100)) {
             banishmentVote.active = false;
             address sponsor = banishmentVote.sponsor;
             modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
+            cont = false;
+        }
+        else {
+            cont = true;
         }
         emit BanishMemberVote(msg.sender, guildMaster);
+        return cont;
     }
 
 //---------------------------------------------------------
