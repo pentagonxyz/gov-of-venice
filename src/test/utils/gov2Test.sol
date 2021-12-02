@@ -109,6 +109,19 @@ contract Commoner is DSTestPlus{
         return Guild(guilds[guild]).isGuildMember(address(this));
     }
 
+    function castVoteForGuildMaster(uint8 support, address gm, uint guild) public returns(bool){
+        return Guild(guilds[guild]).castVoteForGuildMaster(support, gm);
+    }
+    function startGuildmasterVote(address gm, uint guild) public {
+        Guild(guilds[guild]).startGuildmasterVote(gm);
+    }
+    function getVoteInfoGuildMaster(uint guild) public
+        returns(uint48, uint48, uint48,
+                uint48, bool, address, address,
+                uint256)
+    {
+       return Guild(guilds[guild]).getVoteInfo(1);
+    }
 }
 
 contract Gov2Test is DSTestPlus {

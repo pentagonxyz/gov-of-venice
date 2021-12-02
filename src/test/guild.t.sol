@@ -66,7 +66,11 @@ contract GuildMembersTest is Gov2Test {
             mockDucat.mint(address(facelessMen[i]), ducats);
         }
         facelessGuild = new Guild("faceless", facelessAddresses , facelessGT, 25 days, 20, 14 days, address(mockDucat), address(constitution));
-
+        constitution.mockEstablishGuild(address(facelessGuild));
+        guilds = guildCouncil.availableGuilds();
+        for(uint i=0;i<facelessMen.length;i++){
+            facelessMen[i].setGuild(guilds[3], 3);
+        }
     }
 
     function testFacelessGuild() public {
@@ -76,6 +80,31 @@ contract GuildMembersTest is Gov2Test {
         assertEq(25 days, gb.timeOutPeriod);
         assertEq(14 days, gb.votingPeriod);
         assertEq(20, gb.maxGuildMembers);
+    }
+
+    function testGuidMasterVote() public {
+        initMembers();
+        address gm = address(facelessMen[1]);
+        facelessMen[0].startGuildmasterVote(gm,3);
+        uint start = block.timestamp;
+        hevm.warp(block.timestamp + 1);
+        for(uint i=0;i<facelessMen.length;i++){
+            if(!facelessMen[i].castVoteForGuildMaster( 1, gm,3 )){
+                break;
+            }
+        }
+
+    (uint48 aye, uint48 nay,
+     uint48 count, uint48 startTimestamp,
+     bool active, address sponsor,
+     address targetAddress, uint256 id ) = facelessMen[0].getVoteInfoGuildMaster(3);
+    // default quorum for new guild master is 75% of guild members.
+        assertEq(15, aye);
+        assertEq(15, count);
+        assertEq(start, startTimestamp);
+        assertFalse(active);
+        assertEq(address(facelessMen[0]), sponsor);
+        assertEq(gm, targetAddress);
     }
 
 }
