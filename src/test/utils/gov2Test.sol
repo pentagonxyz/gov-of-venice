@@ -112,7 +112,14 @@ contract Commoner is DSTestPlus{
     function castVoteForGuildMaster(uint8 support, address gm, uint48 guild) public returns(bool){
         return Guild(guilds[guild]).castVoteForGuildMaster(support, gm);
     }
-    function startGuildmasterVote(address gm, uint48 guild) public {
+
+    function castVoteForBanishment(uint8 support, address target, uint guild) public returns(bool){
+        return Guild(guilds[guild]).castVoteForBanishment(support, target);
+    }
+    function startBanishmentVote(address target, uint guild) public {
+        Guild(guilds[guild]).startBanishmentVote(target);
+    }
+    function startGuildmasterVote(address gm, uint guild) public {
         Guild(guilds[guild]).startGuildmasterVote(gm);
     }
     function getVoteInfoGuildMaster(uint48 guild) public
@@ -123,7 +130,15 @@ contract Commoner is DSTestPlus{
        return Guild(guilds[guild]).getVoteInfo(1);
     }
 
-    function guildMasterAcceptanceCeremony(uint48 guild) public
+    function getVoteInfoBanishment(uint guild) public
+        returns(uint48, uint48, uint48,
+                uint48, bool, address, address,
+                uint256)
+    {
+       return Guild(guilds[guild]).getVoteInfo(2);
+    }
+
+    function guildMasterAcceptanceCeremony(uint guild) public
         returns(bool)
     {
         return Guild(guilds[guild]).guildMasterAcceptanceCeremony();

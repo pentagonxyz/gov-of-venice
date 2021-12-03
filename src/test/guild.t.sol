@@ -134,5 +134,30 @@ contract GuildMembersTest is Gov2Test {
         uint slashedGravitas = facelessMen[0].getGravitas(3);
         assertEq(originalGravitas + facelessGuild.guildMemberSlash(), slashedGravitas);
     }
+    function testBanishmentSuccess() public {
+        initMembers();
+        Commoner sponsor = facelessMen[0];
+        Commoner target = facelessMen[19];
+        sponsor.startBanishmentVote(address(target), 3);
+        uint start = block.timestamp;
+        hevm.warp(block.timestamp + 1);
+        for(uint i=0;i<facelessMen.length;i++){
+            if(!facelessMen[i].castVoteForBanishment(1, address(target),3 )){
+                break;
+            }
+        }
+        (uint48 aye, uint48 nay,
+         uint48 count, uint48 startTimestamp,
+         bool active, address sponsorAddress,
+         address targetAddress, uint256 id ) = facelessMen[0].getVoteInfoBanishment(3);
+        // default quorum for new guild master is 75% of guild members.
+        assertEq(15, aye);
+        assertEq(15, count);
+        assertEq(start, startTimestamp);
+        assertFalse(active);
+        assertEq(sponsorAddress, address(sponsor));
+        assertEq(targetAddress, address(target));
+        assertFalse(target.isGuildMember(3));
+    }
 }
 

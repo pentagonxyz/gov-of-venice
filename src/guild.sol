@@ -442,7 +442,7 @@ contract  Guild is ReentrancyGuard {
         require(support == 1 || support == 0, "Guild::castVote::wrong_support_value");
         require(proposalVote.lastTimestamp[msg.sender] < proposalVote.startTimestamp,
                 "Guild::castVoteForProposal::account_already_voted");
-        require(uint48(block.timestamp) - proposalVote.startTimestamp>= guildBook.votingPeriod,
+        require(uint48(block.timestamp) - proposalVote.startTimestamp <= guildBook.votingPeriod,
                 "Guild::castVoteForProposal::_voting_period_ended");
         if (support == 1){
             proposalVote.aye += 1;
@@ -518,7 +518,7 @@ contract  Guild is ReentrancyGuard {
                 "Guild::castVoteForBanishment::no_active_vote");
         require(banishmentVote.lastTimestamp[msg.sender] < banishmentVote.startTimestamp,
                 "Guild::vastVoteForBanishmnet::account_already_voted");
-        require(uint48(block.timestamp) - banishmentVote.startTimestamp >= guildBook.votingPeriod,
+        require(uint48(block.timestamp) - banishmentVote.startTimestamp <= guildBook.votingPeriod,
                 "Guild::castVoteForBanishment::_voting_period_ended");
         require(memberToBanish == banishmentVote.targetAddress,
                 "Guild::castVoteForBanishment::wrong_voted_address");
@@ -705,7 +705,7 @@ contract  Guild is ReentrancyGuard {
             vote = banishmentVote;
         }
         else {
-            revert("wrong option");
+            revert("Guild::getVoteInfo::wrong_option_id");
         }
         uint48 aye = vote.aye;
         uint48 nay = vote.nay;
