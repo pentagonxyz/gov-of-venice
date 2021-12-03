@@ -212,7 +212,7 @@ contract  Guild is ReentrancyGuard {
         }
 
     function appendChainOfResponsibility(address guildMember, address commoner)
-        external
+        public
         onlyGuildCouncil
     {
         addressToGuildMember[guildMember].chainOfResponsibility.push(commoner);
@@ -499,7 +499,7 @@ contract  Guild is ReentrancyGuard {
             guildMasterVote.active = false;
             guildMasterVoteResult(votedAddress, false);
             address sponsor = guildMasterVote.sponsor;
-            modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
+            _modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
             cont = false;
         }
         else {
@@ -539,7 +539,7 @@ contract  Guild is ReentrancyGuard {
         else if (banishmentVote.nay > (addressList.length * banishmentQuorum / 100)) {
             banishmentVote.active = false;
             address sponsor = banishmentVote.sponsor;
-            modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
+            _modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
             cont = false;
         }
         else {
@@ -664,7 +664,7 @@ contract  Guild is ReentrancyGuard {
         private
     {
         uint48 oldGravitas = addressToGravitas[guildMemberAddress];
-        modifyGravitas(guildMemberAddress, oldGravitas - guildMemberSlash);
+        _modifyGravitas(guildMemberAddress, oldGravitas - guildMemberSlash);
         if (oldGravitas < gravitasThreshold) {
             _banishGuildMember(guildMemberAddress);
         }
@@ -723,6 +723,17 @@ contract  Guild is ReentrancyGuard {
 
 //TODO: rename functions to CRUD-like (get, post, put)
 
+    function informGuildOnSilverPayment(address sender, address receiver, uint256 silverAmount)
+        external
+        onlyGuildCouncil
+        returns (uint256)
+    {
+        uint256 gravitas = calculateGravitas(sender, silverAmount) + addressToGravitas[receiver];
+        uint256 memberGravitas = _modifyGravitas(receiver, gravitas);
+        appendChainOfResponsibility(receiver, sender);
+        return memberGravitas;
+    }
+
     function calculateGravitas(address commonerAddress, uint256 silverAmount)
         public
         returns (uint256 gravitas)
@@ -732,9 +743,8 @@ contract  Guild is ReentrancyGuard {
                 addressToGravitas[commonerAddress]*senderGravitasWeight) / 100;
     }
 
-    function modifyGravitas(address guildMember, uint256 newGravitas)
-        public
-        onlyGuildCouncil
+    function _modifyGravitas(address guildMember, uint256 newGravitas)
+        private
         returns (uint256 newGuildMemberGravitas)
     {
         emit GravitasChanged(guildMember, addressToGravitas[guildMember], newGravitas);

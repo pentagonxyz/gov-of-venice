@@ -48,6 +48,7 @@ contract GuildCommonersTest is Gov2Test {
      assertFalse(agnello.isGuildMember(2));
  }
 
+
 }
 
 contract GuildMembersTest is Gov2Test {
@@ -82,7 +83,7 @@ contract GuildMembersTest is Gov2Test {
         assertEq(20, gb.maxGuildMembers);
     }
 
-    function testGuidMasterVote() public {
+    function testGuidMasterVoteSuccess() public {
         initMembers();
         address gm = address(facelessMen[1]);
         facelessMen[0].startGuildmasterVote(gm,3);
@@ -107,6 +108,31 @@ contract GuildMembersTest is Gov2Test {
         assertTrue(facelessMen[1].guildMasterAcceptanceCeremony(3));
         assertEq(gm, facelessGuild.guildMasterAddress());
     }
-
+    function testGuildMasterVoteFail() public {
+        initMembers();
+        address gm = address(facelessMen[1]);
+        facelessMen[0].startGuildmasterVote(gm,3);
+        uint start = block.timestamp;
+        hevm.warp(block.timestamp + 1);
+        uint originalGravitas = facelessMen[0].getGravitas(3);
+        for(uint i=0;i<facelessMen.length;i++){
+            if(!facelessMen[i].castVoteForGuildMaster( 0, gm,3 )){
+                break;
+            }
+        }
+        (uint48 aye, uint48 nay,
+         uint48 count, uint48 startTimestamp,
+         bool active, address sponsor,
+         address targetAddress, uint256 id ) = facelessMen[0].getVoteInfoGuildMaster(3);
+        // default quorum for new guild master is 75% of guild members.
+        assertEq(15, nay);
+        assertEq(15, count);
+        assertEq(start, startTimestamp);
+        assertFalse(active);
+        assertEq(address(facelessMen[0]), sponsor);
+        assertEq(gm, targetAddress);
+        uint slashedGravitas = facelessMen[0].getGravitas(3);
+        assertEq(originalGravitas + facelessGuild.guildMemberSlash(), slashedGravitas);
+    }
 }
 
