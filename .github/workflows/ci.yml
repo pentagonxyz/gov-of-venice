@@ -1,10 +1,6 @@
-on:
-  push:
-    branches:
-      - master
-  pull_request:
-
 name: Tests
+
+on: [push, pull_request]
 
 jobs:
   tests:
@@ -21,8 +17,11 @@ jobs:
       - name: Install dependencies
         run: nix-shell --run 'make'
 
+      - name: Check gas snapshots
+        run: nix-shell --run 'dapp check-snapshot'
+
       - name: Run tests
-        run: nix-shell --run 'make test'
-        # Enable this if using forking tests
-        # env:
-        #  ETH_RPC_URL: https://eth-mainnet.alchemyapi.io/v2/${{ secrets.ALCHEMY_API_KEY }}
+        run: nix-shell --run 'dapp test'
+        env:
+          # Only fuzz deeply if we're pushing to main or this is a PR to main:
+          DEEP_FUZZ: ${{ github.ref == 'refs/heads/main' || github.base_ref == 'main' }}
