@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.9;
 
-import "./tokensI.sol";
-import "./constitutionI.sol";
-import "./guildCouncilI.sol";
-import "./merchantRepublicI.sol";
+import "./Itokens.sol";
+import "./Iconstitution.sol";
+import "./IguildCouncil.sol";
+import "./ImerchantRepublic.sol";
 
 contract MerchantRepublic {
-
 
     /// @notice An event emitted when a new proposal is created
     event ProposalCreated(uint id, address proposer, address[] targets, uint[] values, string[] signatures,

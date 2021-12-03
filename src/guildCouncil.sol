@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.9;
 
-import "./merchantRepublicI.sol";
-import "./guildI.sol";
-import "./constitutionI.sol";
-import "./tokensI.sol";
+import "./ImerchantRepublic.sol";
+import "./Iguild.sol";
+import "./Iconstitution.sol";
+import "./Itokens.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract GuildCouncil is ReentrancyGuard{
@@ -116,7 +116,7 @@ contract GuildCouncil is ReentrancyGuard{
     {
         bool success = false;
         for(uint256 i=0;i < guildsId.length; i++){
-            GuildI guild = GuildI(guilds[guildsId[i]]);
+            IGuild guild = IGuild(guilds[guildsId[i]]);
             if (guild.inquireAddressList().length != 0) {
                 activeGuildVotes[proposalId] = guildsId[i];
                 activeGuildVotesCounter++;
@@ -140,7 +140,7 @@ contract GuildCouncil is ReentrancyGuard{
         uint256 guildRewards;
         for(uint i=0; i<guilds.length; i++){
             address guildAddress = guilds[i];
-            GuildI guild = GuildI(guildAddress);
+            IGuild guild = IGuild(guildAddress);
             guildRewards =  guild.claimChainRewards(msg.sender);
             tokens.transferFrom(guildAddress, msg.sender, guildRewards);
         }
@@ -156,16 +156,16 @@ contract GuildCouncil is ReentrancyGuard{
 
     function guildInformation(uint256 guildId)
         external
-        returns(GuildI.GuildBook memory)
+        returns(IGuild.GuildBook memory)
     {
         return guildInformation(guilds[guildId]);
     }
 
     function guildInformation(address guildAddress)
         public
-        returns(GuildI.GuildBook memory)
+        returns(IGuild.GuildBook memory)
     {
-        GuildI guild = GuildI(guildAddress);
+        IGuild guild = IGuild(guildAddress);
         return guild.requestGuildBook();
     }
 
@@ -178,7 +178,7 @@ contract GuildCouncil is ReentrancyGuard{
         onlyMerchantRepublic
         returns(uint256)
     {
-        GuildI guild = GuildI(guilds[guildId]);
+        IGuild guild = IGuild(guilds[guildId]);
         uint256 gravitas = guild.calculateGravitas(sender, silverAmount) + guild.getGravitas(receiver);
         uint256 memberGravitas = guild.modifyGravitas(receiver, gravitas);
         guild.appendChainOfResponsibility(receiver, sender);
