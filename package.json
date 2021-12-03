@@ -1,9 +1,9 @@
 {
-  "name": "dapptools-template",
-  "author": "Georgios Konstantopoulos",
-  "license": "Unlicense",
+  "name": "gov2-merchant-republic",
+  "author": "Odysseas Lamtzidis",
+  "license": "MIT",
   "version": "1.0.0",
-  "description": "A template for building dapptools projects",
+  "description": "Double the governance, double the fun!",
   "files": [
     "*.sol"
   ],
@@ -19,5 +19,8 @@
     "prepack": "yarn prepublishOnly",
     "postpack": "yarn postpublish",
     "lint": "prettier --write src/**/*.sol"
+  },
+  "dependencies": {
+    "browser-resolve": "^2.0.0"
   }
 }
