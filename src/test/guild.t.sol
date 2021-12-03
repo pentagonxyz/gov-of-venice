@@ -93,18 +93,20 @@ contract GuildMembersTest is Gov2Test {
                 break;
             }
         }
-
-    (uint48 aye, uint48 nay,
-     uint48 count, uint48 startTimestamp,
-     bool active, address sponsor,
-     address targetAddress, uint256 id ) = facelessMen[0].getVoteInfoGuildMaster(3);
-    // default quorum for new guild master is 75% of guild members.
+        (uint48 aye, uint48 nay,
+         uint48 count, uint48 startTimestamp,
+         bool active, address sponsor,
+         address targetAddress, uint256 id ) = facelessMen[0].getVoteInfoGuildMaster(3);
+        // default quorum for new guild master is 75% of guild members.
         assertEq(15, aye);
         assertEq(15, count);
         assertEq(start, startTimestamp);
         assertFalse(active);
         assertEq(address(facelessMen[0]), sponsor);
         assertEq(gm, targetAddress);
+        assertTrue(facelessMen[1].guildMasterAcceptanceCeremony(3));
+        assertEq(gm, facelessGuild.guildMasterAddress());
     }
 
 }
+

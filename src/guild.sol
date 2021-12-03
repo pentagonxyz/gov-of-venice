@@ -235,10 +235,12 @@ contract  Guild is ReentrancyGuard {
 
     function guildMasterAcceptanceCeremony()
         external
+        returns (bool)
     {
         require(msg.sender == guildMasterElect && msg.sender != address(0),
                 "Guild::guildMasterAcceptanceCeremony::wrong_guild_master_elect");
-        guildMaster = msg.sender;
+        guildMasterAddress = msg.sender;
+        return true;
     }
 
     function _banishGuildMember(address guildMemberAddress)
@@ -277,7 +279,7 @@ contract  Guild is ReentrancyGuard {
         // In order to function properly, the guild members must initiate a vote to
         // appoint a new guild master.
         if (guildMemberAddress == guildMaster){
-            guildMaster = address(0);
+            guildMasterAddress = address(0);
         }
         emit GuildMemberBanished(guildMemberAddress);
     }
@@ -492,12 +494,12 @@ contract  Guild is ReentrancyGuard {
         guildMasterVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
         if(guildMasterVote.aye > (addressList.length * guildMasterQuorum / 100)){
             guildMasterVote.active = false;
-            guildMasterVoteResult(guildMaster, true);
+            guildMasterVoteResult(votedAddress, true);
             cont = false;
         }
         else if (guildMasterVote.nay > (addressList.length * guildMasterQuorum / 100)) {
             guildMasterVote.active = false;
-            guildMasterVoteResult(guildMaster, false);
+            guildMasterVoteResult(votedAddress, false);
             address sponsor = guildMasterVote.sponsor;
             modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
             cont = false;
@@ -549,6 +551,16 @@ contract  Guild is ReentrancyGuard {
         emit BanishMemberVote(msg.sender, guildMaster);
         return cont;
     }
+
+    function guildMasterVoteResult(address newGuildMasterElect, bool result)
+        private
+    {
+        if (result == true){
+            guildMasterElect = newGuildMasterElect;
+        }
+        emit GuildMasterVoteResult(newGuildMasterElect, result);
+    }
+
 
 //---------------------------------------------------------
 
@@ -662,14 +674,6 @@ contract  Guild is ReentrancyGuard {
     }
 // ------------ GETTER FUNCTIONS ----------------------------------
 
-    function guildMasterVoteResult(address newGuildMasterElect, bool result)
-        private
-    {
-        if (result == true){
-            guildMasterElect = newGuildMasterElect;
-        }
-        emit GuildMasterVoteResult(newGuildMasterElect, result);
-    }
 
     function requestGuildBook()
         external
@@ -749,7 +753,7 @@ contract  Guild is ReentrancyGuard {
 // ------------------------- Modifiers -------------------------
 
     modifier onlyGuildCouncil() {
-        require(msg.sender == guildCouncilAddress, "Guild::OnlyGuildCouncil::wrong_address");
+        require(msg.sender == guildCouncilAddress, "Guild::onlyGuildCouncil::wrong_address");
         _;
     }
     modifier onlyGuildMaster() {
@@ -758,7 +762,7 @@ contract  Guild is ReentrancyGuard {
     }
 
     modifier onlyGuildMember() {
-        require(addressToGuildMember[msg.sender].joinEpoch != 0, "Guild::OnlyeGuildMember::wrong_address");
+        require(addressToGuildMember[msg.sender].joinEpoch != 0, "Guild::onlyGuildMember::wrong_address");
         _;
     }
 

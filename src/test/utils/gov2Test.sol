@@ -122,6 +122,13 @@ contract Commoner is DSTestPlus{
     {
        return Guild(guilds[guild]).getVoteInfo(1);
     }
+
+    function guildMasterAcceptanceCeremony(uint guild) public
+        returns(bool)
+    {
+        return Guild(guilds[guild]).guildMasterAcceptanceCeremony();
+    }
+
 }
 
 contract Gov2Test is DSTestPlus {
