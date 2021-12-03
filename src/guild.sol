@@ -5,6 +5,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./guildCouncilI.sol";
 import "./tokensI.sol";
+// import {DSTestPlus} from "solmate/test/utils/DSTestPlus.sol";
 
 contract  Guild is ReentrancyGuard {
 
@@ -21,7 +22,7 @@ contract  Guild is ReentrancyGuard {
     event GuildMasterChanged(address newGuildMaster);
     event GuildMemberRewardClaimed(address indexed guildMember, uint256 reward);
     event ChainOfResponsibilityRewarded(address[] chain, uint256 baseReward);
-    event GravitasChanged(address indexed commoner, uint256 oldGravitas, uint256 newGravitas);
+    event GravitasChanged(address commoner, uint256 oldGravitas, uint256 newGravitas);
     event GuildMasterVoteResult(address guildMasterElect, bool result);
     event GuildReceivedFunds(uint256 funds, address sender);
 
@@ -55,7 +56,6 @@ contract  Guild is ReentrancyGuard {
         address targetAddress;
         uint256 id;
     }
-
     GuildCouncilI guildCouncil;
 
     TokensI tokens;
@@ -66,8 +66,9 @@ contract  Guild is ReentrancyGuard {
 
     mapping(address => uint48) addressToGravitas;
 
-    uint48 gravitasWeight;
+    uint48 constant senderGravitasWeight =  50;
 
+    uint48 constant silverToGravitasWeight = 10;
 
     address public guildMasterAddress;
 
@@ -124,9 +125,6 @@ contract  Guild is ReentrancyGuard {
     // ----------- CONSTANTS ---------------
 
     ///
-    uint256 public constant timeOutThreshold = 1;
-
-    ///
     uint48 public constant proposalQuorum = 50;
 
     ///
@@ -137,9 +135,6 @@ contract  Guild is ReentrancyGuard {
 
     uint8 public guildMasterRewardMultiplier;
 
-    /// @notice The duration of voting on a proposal, in UNIX timestamp seconds;
-    uint256 public constant votingPeriod = 604800;
-
     // -----------------------
     uint48 public memberRewardPerEpoch;
 
@@ -147,7 +142,7 @@ contract  Guild is ReentrancyGuard {
     /// that should go to the chain of responsibility
     uint256 public chainRewardMultiplier;
 
-    uint48 constant minimumFoundingMembers = 3;
+    uint48 constant minimumFoundingMembers = 1;
 
     uint256 guildMemberReward;
 
@@ -166,22 +161,31 @@ contract  Guild is ReentrancyGuard {
 
 //---------- Constructor ----------------
 
-    constructor(bytes32 guildName, uint32 newGravitasThreshold, uint32 timeOutPeriod, uint32 newMaxGuildMembers,
-                address[] memory foundingMembers, uint32 newVotingPeriod, address tokensAddress, address constitutionAddress)
+    constructor(bytes32 guildName, address[] memory foundingMembers, uint32 newGravitasThreshold, uint32 timeOutPeriod,
+                uint32 newMaxGuildMembers, uint32 newVotingPeriod, address tokensAddress, address constitutionAddress)
     {
         require(guildName.length != 0, "guild::constructor::empty_guild_name");
         require(foundingMembers.length >= minimumFoundingMembers, "guild::constructor::minimum_founding_members");
-        guildCouncil = GuildCouncilI(msg.sender);
-        guildCouncilAddress = msg.sender;
+        require(foundingMembers.length <= newMaxGuildMembers, "guild::constructor::max_founding_members_exceeded");
         guildBook = GuildBook(guildName, newGravitasThreshold, timeOutPeriod, newMaxGuildMembers, newVotingPeriod);
         for(uint256 i=0;i<foundingMembers.length;i++) {
             GuildMember memory guildMember = GuildMember(new address[](0), 0, 0, uint48(block.timestamp), uint8(i));
             address member = foundingMembers[i];
             addressToGuildMember[member] = guildMember;
             addressList.push(member);
+            addressToGravitas[member] = newGravitasThreshold;
         }
         tokens = TokensI(tokensAddress);
         constitution = constitutionAddress;
+    }
+
+    function setGuildCouncil(address guildCouncilAddress_)
+        external
+        onlyConstitution
+    {
+
+        guildCouncil = GuildCouncilI(guildCouncilAddress_);
+        guildCouncilAddress = guildCouncilAddress_;
     }
 
  // ------------- Guild Member lifecycle -----------------------
@@ -196,21 +200,23 @@ contract  Guild is ReentrancyGuard {
     }
     function joinGuild()
             external
+            returns(GuildMember memory)
         {
-            require(apprentishipStart[msg.sender] + timeOutThreshold < uint48(block.timestamp), "Guild::joinGuild::user_has_not_done_apprentiship");
-            GuildMember memory guildMember = GuildMember(new address[](0), 0, 0, uint48(block.timestamp), uint48(addressList.length - 1));
-            addressToGuildMember[msg.sender] = guildMember;
+            require(apprentishipStart[msg.sender] != 0 && apprentishipStart[msg.sender] + guildBook.timeOutPeriod< uint48(block.timestamp),
+                    "Guild::joinGuild::user_has_not_done_apprentiship");
+            require(addressList.length + 1 <= guildBook.maxGuildMembers, "Guild::joinGuild::max_guild_members_reached");
             addressList.push(msg.sender);
+            addressToGuildMember[msg.sender].joinEpoch = uint48(block.timestamp);
+            addressToGuildMember[msg.sender].addressListIndex = uint48(addressList.length - 1);
+            return addressToGuildMember[msg.sender];
         }
 
-    function appendChainOfResponsbility(address guildMember, address commoner)
+    function appendChainOfResponsibility(address guildMember, address commoner)
         external
         onlyGuildCouncil
-        returns (bool success)
     {
         addressToGuildMember[guildMember].chainOfResponsibility.push(commoner);
         sponsorsToMembers[commoner].push(guildMember);
-        return true;
     }
 
 
@@ -229,9 +235,12 @@ contract  Guild is ReentrancyGuard {
 
     function guildMasterAcceptanceCeremony()
         external
+        returns (bool)
     {
-        require(msg.sender == guildMasterElect && msg.sender != address(0), "Guild::guildMasterAcceptanceCeremony::wrong_guild_master_elect");
-        guildMaster = msg.sender;
+        require(msg.sender == guildMasterElect && msg.sender != address(0),
+                "Guild::guildMasterAcceptanceCeremony::wrong_guild_master_elect");
+        guildMasterAddress = msg.sender;
+        return true;
     }
 
     function _banishGuildMember(address guildMemberAddress)
@@ -270,7 +279,7 @@ contract  Guild is ReentrancyGuard {
         // In order to function properly, the guild members must initiate a vote to
         // appoint a new guild master.
         if (guildMemberAddress == guildMaster){
-            guildMaster = address(0);
+            guildMasterAddress = address(0);
         }
         emit GuildMemberBanished(guildMemberAddress);
     }
@@ -366,8 +375,8 @@ contract  Guild is ReentrancyGuard {
 
     function withdraw(address receiver, uint256 amount)
         external
+        onlyConstitution
     {
-        require(msg.sender == constitution, "Guild::withdraw::wrong_address");
         tokens.transfer(receiver, amount);
     }
 
@@ -381,11 +390,11 @@ contract  Guild is ReentrancyGuard {
     {
         require(guildMasterVote.active == false, "Guild::startGuildMaster::active_vote");
         guildMasterVote.sponsor = msg.sender;
-        proposalVote.startTimestamp = uint48(block.timestamp);
-        proposalVote.active = true;
-        proposalVote.nay = 0;
-        proposalVote.aye = 0;
-        banishmentVote.targetAddress = member;
+        guildMasterVote.startTimestamp = uint48(block.timestamp);
+        guildMasterVote.active = true;
+        guildMasterVote.nay = 0;
+        guildMasterVote.aye = 0;
+        guildMasterVote.targetAddress = member;
         return true;
     }
 
@@ -419,6 +428,141 @@ contract  Guild is ReentrancyGuard {
     }
 // _______________________________________________________________
 
+// ---------- Cast Votes ---------------
+
+// TODO: Add return bool value to easily see if vote continues or stopped
+
+    function castVoteForProposal(uint256 proposalId, uint8 support)
+        external
+        onlyGuildMember
+        returns(bool)
+    {
+        require(proposalVote.active == true, "Guild::castVote::no_active_proposal_vote");
+        require(proposalVote.id == proposalId, "Guild::castVote::wrong_proposal_id");
+        require(support == 1 || support == 0, "Guild::castVote::wrong_support_value");
+        require(proposalVote.lastTimestamp[msg.sender] < proposalVote.startTimestamp,
+                "Guild::castVoteForProposal::account_already_voted");
+        require(uint48(block.timestamp) - proposalVote.startTimestamp>= guildBook.votingPeriod,
+                "Guild::castVoteForProposal::_voting_period_ended");
+        if (support == 1){
+            proposalVote.aye += 1;
+        }
+        else {
+            proposalVote.nay += 1;
+        }
+        bool cont;
+        proposalVote.count += 1;
+        proposalVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
+        if(proposalVote.aye > (addressList.length * proposalQuorum / 100)){
+            proposalVote.active = false;
+            guildCouncil._guildVerdict(true, proposalId);
+            cont = false;
+        }
+        else if (proposalVote.nay > (addressList.length * proposalQuorum / 100)) {
+            proposalVote.active = false;
+            guildCouncil._guildVerdict(false, proposalId);
+            cont = false;
+        }
+        else {
+            cont = true;
+        }
+        emit ProposalVote(msg.sender, proposalId);
+        return cont;
+    }
+
+
+    function castVoteForGuildMaster(uint8 support, address votedAddress)
+        external
+        onlyGuildMember
+        returns(bool)
+    {
+        require(guildMasterVote.active == true,
+                "Guild::castVoteForGuildMaster::guild_master_vote_not_active");
+        require(guildMasterVote.lastTimestamp[msg.sender] < guildMasterVote.startTimestamp,
+                "Guild::castVoteForGuildMaster::account_already_voted");
+        require(uint48(block.timestamp) - guildMasterVote.startTimestamp <= guildBook.votingPeriod,
+                "Guild::castVoteForGuildMaster::_voting_period_ended");
+        require(votedAddress == guildMasterVote.targetAddress, "Guild::casteVoteForGuildMaster::wrong_voted_address");
+        if (support == 1){
+            guildMasterVote.aye += 1;
+        }
+        else {
+            guildMasterVote.nay += 1;
+        }
+        guildMasterVote.count += 1;
+        bool cont;
+        guildMasterVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
+        if(guildMasterVote.aye > (addressList.length * guildMasterQuorum / 100)){
+            guildMasterVote.active = false;
+            guildMasterVoteResult(votedAddress, true);
+            cont = false;
+        }
+        else if (guildMasterVote.nay > (addressList.length * guildMasterQuorum / 100)) {
+            guildMasterVote.active = false;
+            guildMasterVoteResult(votedAddress, false);
+            address sponsor = guildMasterVote.sponsor;
+            modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
+            cont = false;
+        }
+        else {
+            cont = true;
+        }
+        emit GuildMasterVote(msg.sender, guildMaster);
+        return cont;
+    }
+
+    function castVoteForBanishment(uint8 support, address memberToBanish)
+        external
+        onlyGuildMember
+        returns (bool)
+    {
+        require(banishmentVote.active == true,
+                "Guild::castVoteForBanishment::no_active_vote");
+        require(banishmentVote.lastTimestamp[msg.sender] < banishmentVote.startTimestamp,
+                "Guild::vastVoteForBanishmnet::account_already_voted");
+        require(uint48(block.timestamp) - banishmentVote.startTimestamp >= guildBook.votingPeriod,
+                "Guild::castVoteForBanishment::_voting_period_ended");
+        require(memberToBanish == banishmentVote.targetAddress,
+                "Guild::castVoteForBanishment::wrong_voted_address");
+        if (support == 1){
+            banishmentVote.aye++;
+        }
+        else {
+            banishmentVote.nay++;
+        }
+        bool cont;
+        banishmentVote.count++;
+        banishmentVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
+        if(banishmentVote.aye > (addressList.length * banishmentQuorum / 100)){
+            banishmentVote.active = false;
+            _banishGuildMember(memberToBanish);
+            cont = false;
+
+        }
+        else if (banishmentVote.nay > (addressList.length * banishmentQuorum / 100)) {
+            banishmentVote.active = false;
+            address sponsor = banishmentVote.sponsor;
+            modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
+            cont = false;
+        }
+        else {
+            cont = true;
+        }
+        emit BanishMemberVote(msg.sender, guildMaster);
+        return cont;
+    }
+
+    function guildMasterVoteResult(address newGuildMasterElect, bool result)
+        private
+    {
+        if (result == true){
+            guildMasterElect = newGuildMasterElect;
+        }
+        emit GuildMasterVoteResult(newGuildMasterElect, result);
+    }
+
+
+//---------------------------------------------------------
 
 
 // ----------------- Rewards --------------------------
@@ -528,116 +672,8 @@ contract  Guild is ReentrancyGuard {
             _banishGuildMember(guildMemberAddress);
         }
     }
+// ------------ GETTER FUNCTIONS ----------------------------------
 
-// -------------------------------------
-// ---------- Cast Votes ---------------
-
-    function castVoteForProposal(uint256 proposalId, uint8 support)
-        external
-        onlyGuildMember
-    {
-        require(proposalVote.active == true, "Guild::castVote::no_active_proposal_vote");
-        require(proposalVote.id == proposalId, "Guild::castVote::wrong_proposal_id");
-        require(support == 1 || support == 0, "Guild::castVote::wrong_support_value");
-        require(proposalVote.lastTimestamp[msg.sender] < proposalVote.startTimestamp,
-                "Guild::castVoteForProposal::account_already_voted");
-        require(uint48(block.timestamp) - proposalVote.startTimestamp>= votingPeriod, "Guild::castVoteForProposal::_voting_period_ended");
-        if (support == 1){
-            proposalVote.aye += 1;
-        }
-        else {
-            proposalVote.nay += 1;
-        }
-        proposalVote.count += 1;
-        proposalVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
-        if(proposalVote.aye > (addressList.length * proposalQuorum / 100)){
-            proposalVote.active = false;
-            guildCouncil._guildVerdict(true, proposalId);
-        }
-        else if (proposalVote.nay > (addressList.length * proposalQuorum / 100)) {
-            proposalVote.active = false;
-            guildCouncil._guildVerdict(false, proposalId);
-        }
-        emit ProposalVote(msg.sender, proposalId);
-    }
-
-
-    function castVoteForGuildMaster(uint8 support, address votedAddress)
-        external
-        onlyGuildMember
-    {
-        require(guildMasterVote.active == true,
-                "Guild::castVoteForGuildMaster::wrong_guild_master_address");
-        require(guildMasterVote.lastTimestamp[msg.sender] < guildMasterVote.startTimestamp,
-                "Guild::castVoteForGuildMaster::account_already_voted");
-        require(uint48(block.timestamp) - guildMasterVote.startTimestamp >= votingPeriod, "Guild::castVoteForGuildMaster::_voting_period_ended");
-        require(votedAddress == guildMasterVote.targetAddress, "Guild::casteVoteForGuildMaster::wrong_voted_address");
-        if (support == 1){
-            guildMasterVote.aye += 1;
-        }
-        else {
-            guildMasterVote.nay += 1;
-        }
-        guildMasterVote.count += 1;
-        guildMasterVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
-        if(guildMasterVote.aye > (addressList.length * guildMasterQuorum / 100)){
-            guildMasterVote.active = false;
-            guildMasterVoteResult(guildMaster, true);
-        }
-        else if (guildMasterVote.nay > (addressList.length * guildMasterQuorum / 100)) {
-            proposalVote.active = false;
-            guildMasterVoteResult(guildMaster, false);
-            address sponsor = guildMasterVote.sponsor;
-            modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
-        }
-        emit GuildMasterVote(msg.sender, guildMaster);
-    }
-
-    function castVoteForBanishment(uint8 support, address memberToBanish)
-        external
-        onlyGuildMember
-    {
-        require(banishmentVote.active == true,
-                "Guild::castVoteForBanishment::no_active_vote");
-        require(banishmentVote.lastTimestamp[msg.sender] < banishmentVote.startTimestamp,
-                "Guild::vastVoteForBanishmnet::account_already_voted");
-        require(uint48(block.timestamp) - banishmentVote.startTimestamp >= votingPeriod,
-                "Guild::castVoteForBanishment::_voting_period_ended");
-        require(memberToBanish == banishmentVote.targetAddress,
-                "Guild::castVoteForBanishment::wrong_voted_address");
-        if (support == 1){
-            banishmentVote.aye++;
-        }
-        else {
-            banishmentVote.nay++;
-        }
-        banishmentVote.count++;
-        banishmentVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
-        if(banishmentVote.aye > (addressList.length * banishmentQuorum / 100)){
-            banishmentVote.active = false;
-            _banishGuildMember(memberToBanish);
-
-        }
-        else if (banishmentVote.nay > (addressList.length * banishmentQuorum / 100)) {
-            banishmentVote.active = false;
-            address sponsor = banishmentVote.sponsor;
-            modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
-        }
-        emit GuildMasterVote(msg.sender, guildMaster);
-    }
-
-//---------------------------------------------------------
-
-//--------------------- Get Vote receipts -----------------
-
-    function guildMasterVoteResult(address newGuildMasterElect, bool result)
-        private
-    {
-        if (result == true){
-            guildMasterElect = newGuildMasterElect;
-        }
-        emit GuildMasterVoteResult(newGuildMasterElect, result);
-    }
 
     function requestGuildBook()
         external
@@ -654,19 +690,46 @@ contract  Guild is ReentrancyGuard {
     {
         return addressList;
     }
+
+    function getVoteInfo(uint8 what)
+        external
+        returns(uint48, uint48, uint48,
+                uint48, bool, address, address,
+                uint256)
+    {
+        Vote storage vote;
+        if (what == 0){
+            vote = proposalVote;
+        }
+        else if (what == 1) {
+            vote = guildMasterVote;
+        }
+        else if (what == 2) {
+            vote = banishmentVote;
+        }
+        else {
+            revert("wrong option");
+        }
+        return (vote.aye, vote.nay, vote.count, vote.startTimestamp,
+                vote.active, vote.sponsor, vote.targetAddress, vote.id);
+    }
+
+
+
 //---------------------------------------------------------
 
-    receive() external payable {}
 
 // -------------------- calculate and modify Gravitas ------
 
+//TODO: rename functions to CRUD-like (get, post, put)
+
     function calculateGravitas(address commonerAddress, uint256 silverAmount)
         public
-        view
         returns (uint256 gravitas)
     {
         // gravitas = silver_sent + gravitas of the sender * weight
-        return silverAmount + addressToGravitas[commonerAddress]*gravitasWeight;
+        return  (silverAmount*silverToGravitasWeight +
+                addressToGravitas[commonerAddress]*senderGravitasWeight) / 100;
     }
 
     function modifyGravitas(address guildMember, uint256 newGravitas)
@@ -679,10 +742,18 @@ contract  Guild is ReentrancyGuard {
         return newGravitas;
     }
 
+    function getGravitas(address member)
+        external
+        view
+        returns(uint256)
+    {
+        return addressToGravitas[member];
+    }
+
 // ------------------------- Modifiers -------------------------
 
     modifier onlyGuildCouncil() {
-        require(msg.sender == guildCouncilAddress, "Guild::OnlyGuildCouncil::wrong_address");
+        require(msg.sender == guildCouncilAddress, "Guild::onlyGuildCouncil::wrong_address");
         _;
     }
     modifier onlyGuildMaster() {
@@ -691,7 +762,12 @@ contract  Guild is ReentrancyGuard {
     }
 
     modifier onlyGuildMember() {
-        require(addressToGuildMember[msg.sender].joinEpoch != 0, "Guild::OnlyeGuildMember::wrong_address");
+        require(addressToGuildMember[msg.sender].joinEpoch != 0, "Guild::onlyGuildMember::wrong_address");
+        _;
+    }
+
+    modifier onlyConstitution(){
+        require(msg.sender == constitution, "Guild::withdraw::wrong_address");
         _;
     }
 

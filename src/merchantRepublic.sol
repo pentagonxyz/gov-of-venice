@@ -202,9 +202,17 @@ contract MerchantRepublic {
 
     uint256 silverIssuanceSeason;
 
-    mapping(address => uint256) addressToLastSilverIssuance;
 
-    function initialize(address constitutionAddress, address tokensAddress, address guildCouncilAddress, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_) public {
+    mapping(address => uint256) addressToLastSilverIssuance;
+    constructor(address firstDoge){
+        doge = firstDoge;
+    }
+
+    function initialize(address constitutionAddress, address tokensAddress,
+                        address guildCouncilAddress, uint votingPeriod_,
+                        uint votingDelay_, uint proposalThreshold_)
+        public
+    {
         require(msg.sender == doge, "MerchantRepublic::initialize: doge only");
         constitution = ConstitutionI(constitutionAddress);
         tokens = TokensI(tokensAddress);
@@ -223,9 +231,10 @@ contract MerchantRepublic {
     function _initiate(address previousMerchantRepublic) external {
         require(msg.sender == doge, "MerchantRepublic::_initiate: doge only");
         require(initialProposalId == 0, "MerchantRepublic::_initiate: can only initiate once");
+
         // Optional if merchantRepublic migrates, otherwise = 0;
-        initialProposalId = MerchantRepublicI(previousMerchantRepublic).getProposalCount();
-        constitution.acceptDoge();
+        initialProposalId = 0;
+        // initialProposalId = MerchantRepublicI(previousMerchantRepublic).getProposalCount();
     }
 
     function getProposalCount()
@@ -292,7 +301,7 @@ contract MerchantRepublic {
     {
         {
         require(initialProposalId != 0, "MerchantRepublic::propose: The MerchantRepublic is has not convened yet");
-        require(tokens.getPriorVotes(msg.sender, block.number -1) > proposalThreshold,
+        require(tokens.getPastVotes(msg.sender, block.number -1) > proposalThreshold,
                 "MerchantRepublic::propose: proposer votes below proposal threshold");
         require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length,
                 "MerchantRepublic::propose: proposal function information arity mismatch");
@@ -356,7 +365,7 @@ contract MerchantRepublic {
         ProposalState proposalState = state(proposalId);
         require(proposalState!= ProposalState.Executed, "MerchantRepublic::cancel: cannot cancel executed proposal");
         Proposal storage proposal = proposals[proposalId];
-        require(msg.sender == proposal.proposer || tokens.getPriorVotes(proposal.proposer, block.number - 1) < proposalThreshold, "GovernorBravo::cancel: proposer above threshold");
+        require(msg.sender == proposal.proposer || tokens.getPastVotes(proposal.proposer, block.number - 1) < proposalThreshold, "GovernorBravo::cancel: proposer above threshold");
         proposal.canceled = true;
         for (uint i = 0; i < proposal.targets.length; i++) {
             constitution.cancelTransaction(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], proposal.eta);
@@ -429,7 +438,7 @@ contract MerchantRepublic {
         Proposal storage proposal = proposals[proposalId];
         Receipt storage receipt = receipts[proposalId][voter];
         require(receipt.hasVoted == false, "MerchantRepublic::_castVote: voter already voted");
-        uint96 votes = tokens.getPriorVotes(voter, proposal.startBlock);
+        uint96 votes = tokens.getPastVotes(voter, proposal.startBlock);
 
         if (support == 0) {
             proposal.againstVotes = proposal.againstVotes + votes;
@@ -617,15 +626,15 @@ contract MerchantRepublic {
         public
         returns(uint256)
     {
-        if (addressToLastSilverIssuance[msg.sender] < silverIssuanceSeason){
+        if (addressToLastSilverIssuance[msg.sender] <= silverIssuanceSeason){
             issueSilver();
     }
         uint256 silver = addressToSilver[msg.sender];
-        silver = silver - silverAmount;
+        addressToSilver[msg.sender] = silver - silverAmount;
         // It returns the new gravitas of the receiver, but it's better that the function
         // returns the remain silver in the sender's account.
-        guildCouncil.sendSilver(msg.sender, receiver, guildId, silver);
-        return silverAmount;
+        guildCouncil.sendSilver(msg.sender, receiver, guildId, silverAmount);
+        return silver - silverAmount;
     }
 
     function callGuildsToVote(uint256[] calldata guildsId, uint256 proposalId)

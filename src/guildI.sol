@@ -10,12 +10,12 @@ interface GuildI {
         external
         returns (uint256 newGuildMemberGravitas);
     function appendChainOfResponsibility(address guildMember, address commoner)
-        external
-        returns (bool success);
+        external;
     function guildVoteRequest(uint256 proposalId)
         external;
     function requestGuildBook() external returns(GuildBook memory);
     function inquireAddressList() external returns(address[] memory);
+    function getGravitas(address member) external returns(uint256);
     function claimChainRewards(address rewardee) external returns(uint256 reward);
     struct GuildBook{
         bytes32 name;
