@@ -3,8 +3,8 @@ pragma solidity ^0.8.9;
 
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "./guildCouncilI.sol";
-import "./tokensI.sol";
+import "./IguildCouncil.sol";
+import "./Itokens.sol";
 // import {DSTestPlus} from "solmate/test/utils/DSTestPlus.sol";
 
 contract  Guild is ReentrancyGuard {

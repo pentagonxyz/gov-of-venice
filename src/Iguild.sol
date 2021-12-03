@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 
-interface GuildI {
+interface IGuild{
     function calculateGravitas(address commonerAddress, uint256 silverAmount)
         external
         returns (uint256 gravitas);
