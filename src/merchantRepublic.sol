@@ -81,6 +81,12 @@ contract MerchantRepublic {
     /// @notice Initial proposal id set at become
     uint public initialProposalId;
 
+    enum GuildVerdict {
+            Pending,
+            Possitive,
+            Negative
+        }
+
     struct Proposal {
 
         /// @notice Unique id for looking up a proposal
@@ -125,11 +131,8 @@ contract MerchantRepublic {
         /// @notice Flag marking whether the proposal has been executed
         bool executed;
 
-        /// Whether guilds have reached a decision about the proposal
-        bool guildsVerdict;
-
-        ///Whether the guilds agree or disagree with the proposal
-        bool guildsAgreement;
+        /// @notice The state of the guild's response about the particular proposal
+        GuildVerdict guildVerdict;
 
         /// @notice Receipts of ballots for the entire set of voters
     }
@@ -351,8 +354,7 @@ contract MerchantRepublic {
                 abstainVotes: 0,
                 canceled: false,
                 executed: false,
-                guildsVerdict: false,
-                guildsAgreement: false
+                guildVerdict: GuildVerdict.Pending
             });
             proposals[proposalCount] = newProposal;
             latestProposalIds[msg.sender] = proposalCount;
@@ -379,7 +381,12 @@ contract MerchantRepublic {
         require(state(proposalId) == ProposalState.PendingGuildsVote,
                 "merchantRepublic::guildsVerdict::not_pending_guilds_vote");
 
-        proposals[proposalId].guildsVerdict = verdict;
+        if(verdict){
+            proposals[proposalId].guildVerdict = GuildVerdict.Possitive;
+        }
+        else {
+            proposals[proposalId].guildVerdict = GuildVerdict.Negative;
+        }
         emit GuildsVerdict(proposalId, verdict);
     }
 
@@ -559,12 +566,12 @@ contract MerchantRepublic {
         if (proposal.canceled) {
             return ProposalState.Canceled;
         }
-        else if (proposal.guildsVerdict == false) {
+        else if (proposal.guildVerdict == GuildVerdict.Pending) {
             return ProposalState.PendingGuildsVote;
         }
         // To reach here, guilds have reviewed the proposal
         // and have reached a verdict
-        else if (proposal.guildsAgreement == false) {
+        else if (proposal.guildVerdict == GuildVerdict.Negative) {
             return ProposalState.Defeated;
         }
         // To reach here, proposal.guildsAgreeement = true
