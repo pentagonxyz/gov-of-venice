@@ -19,11 +19,9 @@ interface IGuild{
     function claimChainRewards(address rewardee) external returns(uint256 reward);
     struct GuildBook{
         bytes32 name;
-        uint8 id;
-        uint48 gravitasThreshold;
-        uint48 timeOutPeriod;
-        uint8 banishmentThreshold;
-        uint8 maxGuildMembers;
-        uint48 votingPeriod;
+        uint64 gravitasThreshold;
+        uint64 timeOutPeriod;
+        uint64 maxGuildMembers;
+        uint64 votingPeriod;
     }
 }
