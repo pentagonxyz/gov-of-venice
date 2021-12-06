@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 contract GuildCouncil is ReentrancyGuard{
 
     event GuildEstablished(uint256 guildId, address guildAddress);
-    event GuildDecision(uint256 indexed guildId, uint256 indexed proposalId, bool guildAgreement);
+    event GuildDecision(uint256 indexed guildId, uint48 indexed proposalId, bool guildAgreement);
     event BudgetIssued(uint256 indexed guildId, uint256 budget);
     event SilverSent(uint256 indexed guildId, address indexed recipientCommoner,
                      address indexed senderCommoner, uint256 silverAmmount);
@@ -76,7 +76,7 @@ contract GuildCouncil is ReentrancyGuard{
 
     // check if msg.sender == activeGuildvotes[proposalid]
 
-    function _guildVerdict(uint256 proposalId, bool guildAgreement)
+    function _guildVerdict(uint48 proposalId, bool guildAgreement)
         public
         onlyGuild
     {
@@ -97,7 +97,7 @@ contract GuildCouncil is ReentrancyGuard{
         }
     }
     // in case of a guild not returning a verdict, this is a safeguard to continue the process
-    function forceDecision(uint256 proposalId)
+    function forceDecision(uint48 proposalId)
         external
         onlyHighGuildMaster
     {
@@ -108,7 +108,7 @@ contract GuildCouncil is ReentrancyGuard{
     // If guildMembersCount = 0, then skip
     // guildAddress = guilds[guildId]
     // activeGuildVotes[proposalid] = guildAddress
-    function _callGuildsToVote(uint256[] calldata guildsId, uint256 proposalId)
+    function _callGuildsToVote(uint256[] calldata guildsId, uint48 proposalId)
        external
        onlyGuild
        onlyMerchantRepublic

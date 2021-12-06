@@ -11,7 +11,7 @@ interface IGuild{
         returns (uint256 newGuildMemberGravitas);
     function appendChainOfResponsibility(address guildMember, address commoner)
         external;
-    function guildVoteRequest(uint256 proposalId)
+    function guildVoteRequest(uint48 proposalId)
         external;
     function requestGuildBook() external returns(GuildBook memory);
     function inquireAddressList() external returns(address[] memory);

@@ -18,12 +18,12 @@ contract MerchantRepublic {
     /// @param support Support value for the vote. 0=against, 1=for, 2=abstain
     /// @param votes Number of votes which were cast by the voter
     /// @param reason The reason given for the vote by the voter
-    event VoteCast(address indexed voter, uint proposalId, uint8 support, uint votes, string reason);
+    event VoteCast(address indexed voter, uint48 proposalId, uint8 support, uint votes, string reason);
 
     /// @notice An event emitted when a proposal has been canceled
     event ProposalCanceled(uint id);
 
-    event ProposalSubmittedToGuilds(uint256 proposalId, uint256[] guildsId);
+    event ProposalSubmittedToGuilds(uint48 proposalId, uint256[] guildsId);
 
     event ProposalSubmittedToCommoners(uint256 id);
 
@@ -51,11 +51,11 @@ contract MerchantRepublic {
     /// @notice Emitted when pendingDoge is accepted, which means doge is updated
     event NewDoge(address oldDoge, address newDoge);
 
-    event GuildsVerdict(uint256 proposalId, bool verdict);
+    event GuildsVerdict(uint48 proposalId, bool verdict);
 
     event newSilverSeason(uint256 silverSeason);
 
-    event CallGuildsToVote(uint256[] guilds, uint256 proposalId);
+    event CallGuildsToVote(uint256[] guilds, uint48 proposalId);
 
     event ConstitutionChanged(address constitution);
 
@@ -69,13 +69,13 @@ contract MerchantRepublic {
     uint public proposalThreshold;
 
     /// @notice The total number of proposals
-    uint public proposalCount;
+    uint48 public proposalCount;
 
     /// @notice The official record of all proposals ever proposed
     mapping (uint => Proposal) public proposals;
 
     /// @notice The latest proposal for each proposer
-    mapping (address => uint) public latestProposalIds;
+    mapping (address => uint48) public latestProposalIds;
 
 
     /// @notice Initial proposal id set at become
@@ -189,7 +189,7 @@ contract MerchantRepublic {
     bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
 
     /// @notice The EIP-712 typehash for the ballot struct used by the contract
-    bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint256 proposalId,uint8 support)");
+    bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint48 proposalId,uint8 support)");
 
     ConstitutionI constitution;
 
@@ -251,7 +251,7 @@ contract MerchantRepublic {
       * @notice Queues a proposal of state succeeded
       * @param proposalId The id of the proposal to queue
       */
-    function queue(uint proposalId) external {
+    function queue(uint48 proposalId) external {
         require(state(proposalId) == ProposalState.Succeeded,
                 "MerchantRepublic::queue: proposal can only be queued if it is succeeded");
         Proposal storage proposal = proposals[proposalId];
@@ -280,7 +280,7 @@ contract MerchantRepublic {
       * @notice Executes a queued proposal if eta has passed
       * @param proposalId The id of the proposal to execute
       */
-    function execute(uint proposalId) external payable {
+    function execute(uint48 proposalId) external payable {
         require(state(proposalId) == ProposalState.Queued,
                 "MerchantRepublic::execute: proposal can only be executed if it is queued");
         Proposal storage proposal = proposals[proposalId];
@@ -307,7 +307,7 @@ contract MerchantRepublic {
         require(targets.length != 0, "MerchantRepublic::propose: must provide ctions");
         require(targets.length <= proposalMaxOperations(), "MerchantRepublic::propose: too many actions");
         require(guildsId.length !=0, "MerchantRepublic::propose::no_guilds_defined");
-        uint latestProposalId = latestProposalIds[msg.sender];
+        uint48 latestProposalId = latestProposalIds[msg.sender];
         if (latestProposalId != 0) {
           ProposalState proposersLatestProposalState = state(latestProposalId);
           require(proposersLatestProposalState != ProposalState.PendingCommonersVote,
@@ -358,7 +358,7 @@ contract MerchantRepublic {
             latestProposalIds[msg.sender] = proposalCount;
             callGuildsToVote(guildsId, proposalCount);
         }
-    function cancel(uint proposalId)
+    function cancel(uint48 proposalId)
         external
     {
         ProposalState proposalState = state(proposalId);
@@ -372,7 +372,7 @@ contract MerchantRepublic {
         emit ProposalCanceled(proposalId);
     }
 
-    function guildsVerdict(uint256 proposalId, bool verdict)
+    function guildsVerdict(uint48 proposalId, bool verdict)
         external
         onlyGuildCouncil
     {
@@ -386,14 +386,14 @@ contract MerchantRepublic {
 // ~~~~~~~~~~~~~~~~~~~~~
 
 
-    function getActions(uint proposalId) external view returns (address[] memory targets,
+    function getActions(uint48 proposalId) external view returns (address[] memory targets,
                                                                 uint[] memory values, string[] memory signatures,
                                                                 bytes[] memory calldatas) {
         Proposal storage p = proposals[proposalId];
         return (p.targets, p.values, p.signatures, p.calldatas);
     }
 
-    function getReceipt(uint proposalId, address voter) external view returns (Receipt memory) {
+    function getReceipt(uint48 proposalId, address voter) external view returns (Receipt memory) {
         return receipts[proposalId][voter];
     }
 
@@ -404,7 +404,7 @@ contract MerchantRepublic {
       * @param proposalId The id of the proposal to vote on
       * @param support The support value for the vote. 0=against, 1=for, 2=abstain
       */
-    function castVote(uint proposalId, uint8 support) external {
+    function castVote(uint48 proposalId, uint8 support) external {
         emit VoteCast(msg.sender, proposalId, support, _castVote(msg.sender, proposalId, support), "");
     }
 
@@ -414,7 +414,7 @@ contract MerchantRepublic {
       * @param support The support value for the vote. 0=against, 1=for, 2=abstain
       * @param reason The reason given for the vote by the voter
       */
-    function castVoteWithReason(uint proposalId, uint8 support, string calldata reason) external {
+    function castVoteWithReason(uint48 proposalId, uint8 support, string calldata reason) external {
        emit VoteCast(msg.sender, proposalId, support, _castVote(msg.sender, proposalId, support), reason);
     }
 
@@ -422,7 +422,7 @@ contract MerchantRepublic {
       * @notice Cast a vote for a proposal by signature
       * @dev External function that accepts EIP-712 signatures for voting on proposals.
       */
-    function castVoteBySig(uint proposalId, uint8 support, uint8 v, bytes32 r, bytes32 s) external {
+    function castVoteBySig(uint48 proposalId, uint8 support, uint8 v, bytes32 r, bytes32 s) external {
         bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), getChainId(), address(this)));
         bytes32 structHash = keccak256(abi.encode(BALLOT_TYPEHASH, proposalId, support));
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
@@ -431,7 +431,7 @@ contract MerchantRepublic {
         emit VoteCast(signatory, proposalId, support, _castVote(signatory, proposalId, support), "");
     }
 
-    function _castVote(address voter, uint proposalId, uint8 support) internal returns (uint96) {
+    function _castVote(address voter, uint48 proposalId, uint8 support) internal returns (uint96) {
         require(state(proposalId) == ProposalState.PendingCommonersVote, "MerchantRepublic::_castVote: voting is closed");
         require(support <= 2, "MerchantRepublic::_castVote: invalid vote type");
         Proposal storage proposal = proposals[proposalId];
@@ -553,7 +553,7 @@ contract MerchantRepublic {
 //-------------------------------------------------------------------------------------
 
 
-    function state(uint proposalId) public view returns (ProposalState) {
+    function state(uint48 proposalId) public view returns (ProposalState) {
         require(proposalCount >= proposalId && proposalId > initialProposalId, "MerchantRepublic::state: invalid proposal id");
         Proposal storage proposal = proposals[proposalId];
         if (proposal.canceled) {
@@ -636,7 +636,7 @@ contract MerchantRepublic {
         return silver - silverAmount;
     }
 
-    function callGuildsToVote(uint256[] calldata guildsId, uint256 proposalId)
+    function callGuildsToVote(uint256[] calldata guildsId, uint48 proposalId)
         internal
         returns(bool)
     {
