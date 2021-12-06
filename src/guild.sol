@@ -15,10 +15,10 @@ contract  Guild is ReentrancyGuard {
     event GuildMemberBanished(address guildMember);
     event VotingPeriodChanged(uint256 votingPeriod);
     event GuildParameterChanged(bytes32 what, uint256 oldParameter, uint256 newParameter);
-    event GuildInvitedToProposalVote(uint256 indexed guildId, uint256 indexed proposalId);
+    event GuildInvitedToProposalVote(uint256 indexed guildId, uint48 indexed proposalId);
     event GuildMasterVote(address indexed guildMember, address indexed guildMaster);
     event BanishMemberVote(address indexed guildmember, address indexed banished);
-    event ProposalVote(address indexed guildMember, uint256 proposalid);
+    event ProposalVote(address indexed guildMember, uint32 proposalid);
     event GuildMasterChanged(address newGuildMaster);
     event GuildMemberRewardClaimed(address indexed guildMember, uint256 reward);
     event ChainOfResponsibilityRewarded(address[] chain, uint256 baseReward);
@@ -30,30 +30,29 @@ contract  Guild is ReentrancyGuard {
 
     struct GuildMember{
         address[] chainOfResponsibility;
-        uint8 absenceCounter;
-        uint48 lastClaimTimestamp;
-        uint48 joinEpoch;
-        uint48 addressListIndex;
+        uint32 absenceCounter;
+        uint32  addressListIndex;
+        uint96 lastClaimTimestamp;
+        uint96 joinEpoch;
     }
 
 
     struct GuildBook{
         bytes32 name;
-        uint32 gravitasThreshold;
-        uint32 timeOutPeriod;
-        uint32 maxGuildMembers;
-        uint32 votingPeriod;
+        uint64 gravitasThreshold;
+        uint64 timeOutPeriod;
+        uint64 maxGuildMembers;
+        uint64 votingPeriod;
     }
 
     struct Vote {
         uint48 aye;
         uint48 nay;
-        uint48 count;
-        uint48 startTimestamp;
-        mapping (address => uint48) lastTimestamp;
-        bool active;
         address sponsor;
+        uint88 startTimestamp;
         address targetAddress;
+        bool active;
+        mapping (address => uint48) lastTimestamp;
         uint256 id;
     }
     GuildCouncilI guildCouncil;
@@ -125,26 +124,32 @@ contract  Guild is ReentrancyGuard {
     // ----------- CONSTANTS ---------------
 
     ///
-    uint48 public constant proposalQuorum = 50;
+    uint256 public constant proposalQuorum = 50;
 
     ///
-    uint48 public constant guildMasterQuorum = 74;
+    uint256 public constant guildMasterQuorum = 74;
 
     ///
-    uint48 public constant banishmentQuorum = 74;
+    uint256 public constant banishmentQuorum = 74;
 
-    uint8 public guildMasterRewardMultiplier;
+    uint8 public guildMasterRewardMultiplier =2;
 
     // -----------------------
     uint48 public memberRewardPerEpoch;
 
     /// percentage of the total reward to a guild member
     /// that should go to the chain of responsibility
-    uint256 public chainRewardMultiplier;
+    uint48 public chainRewardMultiplier;
 
     uint48 constant minimumFoundingMembers = 1;
 
+    uint96 lastSlash;
+
+    address constitution;
+
     uint256 guildMemberReward;
+
+    uint256 slashForCashReward;
 
     mapping(address => address[]) sponsorsToMembers;
 
@@ -152,11 +157,6 @@ contract  Guild is ReentrancyGuard {
 
     mapping(address => uint256) membersClaimedReward;
 
-    address constitution;
-
-    uint256 lastSlash;
-
-    uint256 slashForCashReward;
 
 
 //---------- Constructor ----------------
@@ -207,7 +207,7 @@ contract  Guild is ReentrancyGuard {
             require(addressList.length + 1 <= guildBook.maxGuildMembers, "Guild::joinGuild::max_guild_members_reached");
             addressList.push(msg.sender);
             addressToGuildMember[msg.sender].joinEpoch = uint48(block.timestamp);
-            addressToGuildMember[msg.sender].addressListIndex = uint48(addressList.length - 1);
+            addressToGuildMember[msg.sender].addressListIndex = uint32(addressList.length) - 1;
             return addressToGuildMember[msg.sender];
         }
 
@@ -246,7 +246,7 @@ contract  Guild is ReentrancyGuard {
     function _banishGuildMember(address guildMemberAddress)
         private
     {
-        uint48 index = addressToGuildMember[guildMemberAddress].addressListIndex;
+        uint32 index = addressToGuildMember[guildMemberAddress].addressListIndex;
         // Get the chainOfResponsibility from the GuildMember struct for the guild member
         // that is banished from the guild
         address[] memory chain = addressToGuildMember[guildMemberAddress].chainOfResponsibility;
@@ -290,9 +290,9 @@ contract  Guild is ReentrancyGuard {
         returns(uint256 removedMembers)
     {
         uint256 voteTime = proposalVote.startTimestamp;
-        require(uint48(lastSlash) < voteTime, "Guild::slashForInnactivity::members_already_slashed");
+        require(lastSlash < voteTime, "Guild::slashForInnactivity::members_already_slashed");
         uint256 length = addressList.length;
-        lastSlash = block.timestamp;
+        lastSlash = uint32(block.timestamp);
         uint256 counter=0;
         for(uint256 i=0;i<length;i++){
             address guildMember = addressList[i];
@@ -306,7 +306,7 @@ contract  Guild is ReentrancyGuard {
     }
 
 /// ____ Guild Master Functions _____
-    function inviteGuildsToProposal(uint256[] calldata guildId, uint256 proposalId)
+    function inviteGuildsToProposal(uint256[] calldata guildId, uint48 proposalId)
         external
         onlyGuildMaster
         returns (bool)
@@ -413,7 +413,7 @@ contract  Guild is ReentrancyGuard {
         return true;
     }
 
-    function guildVoteRequest(uint256 proposalId)
+    function guildVoteRequest(uint48 proposalId)
         external
         onlyGuildCouncil
         returns(bool)
@@ -432,7 +432,7 @@ contract  Guild is ReentrancyGuard {
 
 // TODO: Add return bool value to easily see if vote continues or stopped
 
-    function castVoteForProposal(uint256 proposalId, uint8 support)
+    function castVoteForProposal(uint32 proposalId, uint8 support)
         external
         onlyGuildMember
         returns(bool)
@@ -451,7 +451,6 @@ contract  Guild is ReentrancyGuard {
             proposalVote.nay += 1;
         }
         bool cont;
-        proposalVote.count += 1;
         proposalVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
         if(proposalVote.aye > (addressList.length * proposalQuorum / 100)){
             proposalVote.active = false;
@@ -489,7 +488,6 @@ contract  Guild is ReentrancyGuard {
         else {
             guildMasterVote.nay += 1;
         }
-        guildMasterVote.count += 1;
         bool cont;
         guildMasterVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
         if(guildMasterVote.aye > (addressList.length * guildMasterQuorum / 100)){
@@ -531,7 +529,6 @@ contract  Guild is ReentrancyGuard {
             banishmentVote.nay++;
         }
         bool cont;
-        banishmentVote.count++;
         banishmentVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
         if(banishmentVote.aye > (addressList.length * banishmentQuorum / 100)){
             banishmentVote.active = false;
@@ -694,7 +691,7 @@ contract  Guild is ReentrancyGuard {
     function getVoteInfo(uint8 what)
         external
         returns(uint48, uint48, uint48,
-                uint48, bool, address, address,
+                uint88, bool, address, address,
                 uint256)
     {
         Vote storage vote;
@@ -710,7 +707,10 @@ contract  Guild is ReentrancyGuard {
         else {
             revert("wrong option");
         }
-        return (vote.aye, vote.nay, vote.count, vote.startTimestamp,
+        uint48 aye = vote.aye;
+        uint48 nay = vote.nay;
+        uint48 count = aye + nay;
+        return (aye, nay, count, vote.startTimestamp,
                 vote.active, vote.sponsor, vote.targetAddress, vote.id);
     }
 

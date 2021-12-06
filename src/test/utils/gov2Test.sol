@@ -117,7 +117,7 @@ contract Commoner is DSTestPlus{
     }
     function getVoteInfoGuildMaster(uint guild) public
         returns(uint48, uint48, uint48,
-                uint48, bool, address, address,
+                uint88, bool, address, address,
                 uint256)
     {
        return Guild(guilds[guild]).getVoteInfo(1);
