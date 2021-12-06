@@ -32,9 +32,9 @@ contract GuildCommonersTest is Gov2Test {
         hevm.warp(block.timestamp + 30 days);
         Guild.GuildMember memory ag = agnello.joinGuild(2);
         address[] memory chain = ag.chainOfResponsibility;
-        uint8 absence = ag.absenceCounter;
-        uint48 lastClaim = ag.lastClaimTimestamp;
-        uint48 join = ag.joinEpoch;
+        uint32 absence = ag.absenceCounter;
+        uint96 lastClaim = ag.lastClaimTimestamp;
+        uint96 join = ag.joinEpoch;
         uint48 index = ag.addressListIndex;
         assertEq(0, absence);
         assertEq(0, lastClaim);
@@ -60,7 +60,7 @@ contract GuildMembersTest is Gov2Test {
             facelessMen[i] = new Commoner();
             facelessMen[i].init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
             facelessAddresses[i] = address(facelessMen[i]);
-            for(uint j=0;j<guilds.length;j++){
+            for(uint48 j=0;j<guilds.length;j++){
                 facelessMen[i].setGuild(guilds[j], j);
             }
             mockDucat.mint(address(facelessMen[i]), ducats);
@@ -94,7 +94,7 @@ contract GuildMembersTest is Gov2Test {
             }
         }
         (uint48 aye, uint48 nay,
-         uint48 count, uint48 startTimestamp,
+         uint48 count, uint88 startTimestamp,
          bool active, address sponsor,
          address targetAddress, uint256 id ) = facelessMen[0].getVoteInfoGuildMaster(3);
         // default quorum for new guild master is 75% of guild members.
