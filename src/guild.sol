@@ -31,7 +31,7 @@ contract  Guild is ReentrancyGuard {
     struct GuildMember{
         address[] chainOfResponsibility;
         uint32 absenceCounter;
-        uint32  addressListIndex;
+        uint32 addressListIndex;
         uint96 lastClaimTimestamp;
         uint96 joinEpoch;
     }
@@ -169,7 +169,7 @@ contract  Guild is ReentrancyGuard {
         require(foundingMembers.length <= newMaxGuildMembers, "guild::constructor::max_founding_members_exceeded");
         guildBook = GuildBook(guildName, newGravitasThreshold, timeOutPeriod, newMaxGuildMembers, newVotingPeriod);
         for(uint256 i=0;i<foundingMembers.length;i++) {
-            GuildMember memory guildMember = GuildMember(new address[](0), 0, 0, uint48(block.timestamp), uint8(i));
+            GuildMember memory guildMember = GuildMember(new address[](0), 0, uint32(i), 0, uint96(block.timestamp));
             address member = foundingMembers[i];
             addressToGuildMember[member] = guildMember;
             addressList.push(member);
@@ -206,7 +206,7 @@ contract  Guild is ReentrancyGuard {
                     "Guild::joinGuild::user_has_not_done_apprentiship");
             require(addressList.length + 1 <= guildBook.maxGuildMembers, "Guild::joinGuild::max_guild_members_reached");
             addressList.push(msg.sender);
-            addressToGuildMember[msg.sender].joinEpoch = uint48(block.timestamp);
+            addressToGuildMember[msg.sender].joinEpoch = uint96(block.timestamp);
             addressToGuildMember[msg.sender].addressListIndex = uint32(addressList.length) - 1;
             return addressToGuildMember[msg.sender];
         }
@@ -654,7 +654,7 @@ contract  Guild is ReentrancyGuard {
         else {
             multiplier = 1;
         }
-        uint256 reward =  (uint48(block.timestamp) - guildMember.joinEpoch ** 2 ) * weightedReward  * multiplier;
+        uint256 reward =  (uint96(block.timestamp) - guildMember.joinEpoch ** 2 ) * weightedReward  * multiplier;
         return reward;
     }
 
