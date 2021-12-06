@@ -621,7 +621,7 @@ contract MerchantRepublic {
     //  guild member has a different gravitas for every guild.
     // Instead of the user having to issue silver in a seperate action,
     // we issue the silver during the first "spend".
-    function sendSilver(address receiver, uint256 silverAmount, uint256 guildId)
+    function sendSilver(address receiver, uint256 silverAmount, uint48 guildId)
         public
         returns(uint256)
     {

@@ -9,23 +9,25 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract GuildCouncil is ReentrancyGuard{
 
-    event GuildEstablished(uint256 guildId, address guildAddress);
-    event GuildDecision(uint256 indexed guildId, uint48 indexed proposalId, bool guildAgreement);
-    event BudgetIssued(uint256 indexed guildId, uint256 budget);
-    event SilverSent(uint256 indexed guildId, address indexed recipientCommoner,
+    event GuildEstablished(uint48 guildId, address guildAddress);
+    event GuildDecision(uint48 indexed guildId, uint48 indexed proposalId, bool guildAgreement);
+    event BudgetIssued(uint48 indexed guildId, uint256 budget);
+    event SilverSent(uint48 indexed guildId, address indexed recipientCommoner,
                      address indexed senderCommoner, uint256 silverAmmount);
 
-    mapping(uint256 => uint256) activeGuildVotes;
+    mapping(uint256 => uint48) activeGuildVotes;
 
-    uint256 activeGuildVotesCounter;
+    uint48 activeGuildVotesCounter;
 
     bool guildsAgreeToProposal;
 
-    address[] guilds;
+    mapping(uint48 => address) guilds;
+
+    uint48 private guildCounter;
+
+    uint48 private removedGuildCounter;
 
     mapping(address => uint8) securityCouncil;
-
-    uint256 private guildCounter;
 
     uint8 constant minimumInitialGuildMembers = 3;
 
@@ -48,7 +50,6 @@ contract GuildCouncil is ReentrancyGuard{
 
     constructor(address merchantRepublicAddress, address constitutionAddress, address tokensAddress)
     {
-        guildCounter = 0;
         securityCouncil[merchantRepublicAddress] = 2;
         securityCouncil[constitutionAddress] = 3;
         merchantRepublic = MerchantRepublicI(merchantRepublicAddress);
@@ -67,7 +68,7 @@ contract GuildCouncil is ReentrancyGuard{
         returns(uint256 id)
     {
         require( guildAddress != address(0), "guildCouncil::establishGuild::wrong_address");
-        guilds.push(guildAddress);
+        guilds[guildCounter] = guildAddress;
         securityCouncil[guildAddress] = 1;
         emit GuildEstablished(guildCounter, guildAddress);
         guildCounter++;
@@ -80,7 +81,7 @@ contract GuildCouncil is ReentrancyGuard{
         public
         onlyGuild
     {
-        uint256 guildId = activeGuildVotes[proposalId];
+        uint48 guildId = activeGuildVotes[proposalId];
         require(msg.sender == guilds[guildId],
                 "guildCouncil::guildVerdict::incorrect_active_guild_vote");
         emit GuildDecision(guildId,  proposalId, guildAgreement);
@@ -108,14 +109,14 @@ contract GuildCouncil is ReentrancyGuard{
     // If guildMembersCount = 0, then skip
     // guildAddress = guilds[guildId]
     // activeGuildVotes[proposalid] = guildAddress
-    function _callGuildsToVote(uint256[] calldata guildsId, uint48 proposalId)
+    function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId)
        external
        onlyGuild
        onlyMerchantRepublic
        returns(bool)
     {
         bool success = false;
-        for(uint256 i=0;i < guildsId.length; i++){
+        for(uint48 i; i< guildsId.length; i++){
             IGuild guild = IGuild(guilds[guildsId[i]]);
             if (guild.inquireAddressList().length != 0) {
                 activeGuildVotes[proposalId] = guildsId[i];
@@ -138,7 +139,7 @@ contract GuildCouncil is ReentrancyGuard{
         nonReentrant
     {
         uint256 guildRewards;
-        for(uint i=0; i<guilds.length; i++){
+        for(uint48 i; i<guildCounter; i++){
             address guildAddress = guilds[i];
             IGuild guild = IGuild(guildAddress);
             guildRewards =  guild.claimChainRewards(msg.sender);
@@ -151,10 +152,14 @@ contract GuildCouncil is ReentrancyGuard{
         view
         returns(address[] memory)
     {
-        return guilds;
+        address[] memory localGuilds = new address[](guildCounter);
+        for (uint48 i;i<guildCounter;i++){
+            localGuilds[uint256(i)]=guilds[i];
+        }
+        return localGuilds;
     }
 
-    function guildInformation(uint256 guildId)
+    function guildInformation(uint48 guildId)
         external
         returns(IGuild.GuildBook memory)
     {
@@ -173,7 +178,7 @@ contract GuildCouncil is ReentrancyGuard{
    // perhaps this functionality should be pushed inside the guild and
    // guild council functions only as a proxy
    // between the merchant republic and guild
-    function sendSilver(address sender, address receiver, uint256 guildId, uint256 silverAmount)
+    function sendSilver(address sender, address receiver, uint48 guildId, uint256 silverAmount)
         external
         onlyMerchantRepublic
         returns(uint256)
@@ -187,7 +192,7 @@ contract GuildCouncil is ReentrancyGuard{
 
     // budget for every guidl is proposed as a protocol proposal, voted upon and then
     // this function is called by the governance smart contract to issue the budget
-    function issueBudget(address budgetSender, uint256 guildId, uint256 budgetAmount)
+    function issueBudget(address budgetSender, uint48 guildId, uint256 budgetAmount)
         external
         onlyConstitution
         onlyMerchantRepublic

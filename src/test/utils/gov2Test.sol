@@ -54,7 +54,7 @@ contract Commoner is DSTestPlus{
         md = MockERC20(_md);
     }
 
-    function setGuild(address _g, uint256 guildId)
+    function setGuild(address _g, uint48 guildId)
         public
     {
         // emit log_address(address(this));
@@ -63,7 +63,7 @@ contract Commoner is DSTestPlus{
        //  emit log_address(address(guilds[guildId]));
     }
 
-    function sendSilver(address rec, uint256 amount, uint256 guildId)
+    function sendSilver(address rec, uint256 amount, uint48 guildId)
         public
         returns(uint256)
     {
@@ -84,7 +84,7 @@ contract Commoner is DSTestPlus{
         return mr.silverBalance();
     }
 
-    function getGravitas(uint256 guildId)
+    function getGravitas(uint48 guildId)
         public
         returns(uint256)
     {
@@ -99,23 +99,23 @@ contract Commoner is DSTestPlus{
         mr._initiate(address(0));
     }
 
-    function startApprentiship(uint guild) public {
+    function startApprentiship(uint48 guild) public {
         Guild(guilds[guild]).startApprentiship();
     }
-    function joinGuild(uint guild) public returns (Guild.GuildMember memory){
+    function joinGuild(uint48 guild) public returns (Guild.GuildMember memory){
         return Guild(guilds[guild]).joinGuild();
     }
-    function isGuildMember(uint guild) public returns(bool) {
+    function isGuildMember(uint48 guild) public returns(bool) {
         return Guild(guilds[guild]).isGuildMember(address(this));
     }
 
-    function castVoteForGuildMaster(uint8 support, address gm, uint guild) public returns(bool){
+    function castVoteForGuildMaster(uint8 support, address gm, uint48 guild) public returns(bool){
         return Guild(guilds[guild]).castVoteForGuildMaster(support, gm);
     }
-    function startGuildmasterVote(address gm, uint guild) public {
+    function startGuildmasterVote(address gm, uint48 guild) public {
         Guild(guilds[guild]).startGuildmasterVote(gm);
     }
-    function getVoteInfoGuildMaster(uint guild) public
+    function getVoteInfoGuildMaster(uint48 guild) public
         returns(uint48, uint48, uint48,
                 uint88, bool, address, address,
                 uint256)
@@ -123,7 +123,7 @@ contract Commoner is DSTestPlus{
        return Guild(guilds[guild]).getVoteInfo(1);
     }
 
-    function guildMasterAcceptanceCeremony(uint guild) public
+    function guildMasterAcceptanceCeremony(uint48 guild) public
         returns(bool)
     {
         return Guild(guilds[guild]).guildMasterAcceptanceCeremony();
@@ -218,7 +218,7 @@ contract Gov2Test is DSTestPlus {
 
         guilds = guildCouncil.availableGuilds();
         // register the guilds to the commoners
-        for (uint i=0;i<guilds.length;i++){
+        for (uint48 i=0;i<guilds.length;i++){
            ursus.setGuild(guilds[i], i);
            john.setGuild(guilds[i], i);
            pipin.setGuild(guilds[i], i);

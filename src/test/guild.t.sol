@@ -60,7 +60,7 @@ contract GuildMembersTest is Gov2Test {
             facelessMen[i] = new Commoner();
             facelessMen[i].init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
             facelessAddresses[i] = address(facelessMen[i]);
-            for(uint j=0;j<guilds.length;j++){
+            for(uint48 j=0;j<guilds.length;j++){
                 facelessMen[i].setGuild(guilds[j], j);
             }
             mockDucat.mint(address(facelessMen[i]), ducats);
