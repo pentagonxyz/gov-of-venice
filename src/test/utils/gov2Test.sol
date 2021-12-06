@@ -228,6 +228,11 @@ contract Gov2Test is DSTestPlus {
         assertEq(blacksmithsId, 1);
         assertEq(judgesId, 2);
 
+        assertTrue(ursus.isGuildMember(0));
+        assertTrue(agnello.isGuildMember(1));
+        assertTrue(ursus.isGuildMember(1));
+        assertTrue(john.isGuildMember(2));
+
         // mint $ducats
         ursusDucats = 10000;
         agnelloDucats = 20000;
