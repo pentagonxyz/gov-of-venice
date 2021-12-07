@@ -77,7 +77,7 @@ contract GuildCouncil is ReentrancyGuard{
 
     // check if msg.sender == activeGuildvotes[proposalid]
 
-    function _guildVerdict(uint48 proposalId, bool guildAgreement)
+    function _guildVerdict(bool guildAgreement, uint48 proposalId)
         public
         onlyGuild
     {
@@ -127,7 +127,7 @@ contract GuildCouncil is ReentrancyGuard{
             }
         }
         if (success == false){
-           _guildVerdict(proposalId, defaultGuildDecision);
+           _guildVerdict(defaultGuildDecision, proposalId);
         }
         return success;
     }

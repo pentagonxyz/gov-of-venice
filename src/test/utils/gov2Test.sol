@@ -14,7 +14,6 @@ contract MockConstitution is Constitution {
     GuildCouncil guildCouncil;
     MerchantRepublic merchantRepublicContract;
 
-
     function mockProposals(address gc, address mr) public {
         guildCouncil = GuildCouncil(gc);
         merchantRepublicContract = MerchantRepublic(mr);
@@ -34,6 +33,17 @@ contract MockConstitution is Constitution {
 
 }
 
+contract MockGuildCouncil is GuildCouncil, DSTestPlus{
+    Guild guild;
+
+    constructor(address mr, address ca, address ta) GuildCouncil(mr, ca, ta){}
+    function mockCallGuildProposal(address guildAddress, uint proposalId) public {
+        guild = Guild(guildAddress);
+        guild.guildVoteRequest(proposalId);
+    }
+}
+
+
 contract Commoner is DSTestPlus{
     Guild internal g;
     GuildCouncil internal gc;
@@ -43,7 +53,6 @@ contract Commoner is DSTestPlus{
 
     mapping(uint256 => Guild) guilds;
 
-    constructor(){}
 
     function init( address _gc, address _mr, address _con, address _md)
         public
@@ -116,6 +125,9 @@ contract Commoner is DSTestPlus{
     function castVoteForBanishment(uint8 support, address target, uint guild) public returns(bool){
         return Guild(guilds[guild]).castVoteForBanishment(support, target);
     }
+    function castVoteForProposal(uint8 support, uint proposalId, uint guild) public returns(bool){
+        return Guild(guilds[guild]).castVoteForProposal(proposalId, support);
+    }
     function startBanishmentVote(address target, uint guild) public {
         Guild(guilds[guild]).startBanishmentVote(target);
     }
@@ -131,6 +143,14 @@ contract Commoner is DSTestPlus{
     }
 
     function getVoteInfoBanishment(uint guild) public
+        returns(uint48, uint48, uint48,
+                uint48, bool, address, address,
+                uint256)
+    {
+       return Guild(guilds[guild]).getVoteInfo(2);
+    }
+
+    function getVoteInfoProposal(uint guild) public
         returns(uint48, uint48, uint48,
                 uint48, bool, address, address,
                 uint256)
@@ -154,7 +174,7 @@ contract Gov2Test is DSTestPlus {
     uint256 private checkpointGasLeft;
 
     Guild internal guild;
-    GuildCouncil internal guildCouncil;
+    MockGuildCouncil internal guildCouncil;
     MerchantRepublic internal merchantRepublic;
     MockConstitution internal constitution;
     MockERC20 internal mockDucat;
@@ -193,7 +213,7 @@ contract Gov2Test is DSTestPlus {
         // Create the gov modules
         merchantRepublic = new MerchantRepublic(address(ursus));
         constitution = new MockConstitution();
-        guildCouncil = new GuildCouncil(address(merchantRepublic), address(constitution), address(mockDucat));
+        guildCouncil = new MockGuildCouncil(address(merchantRepublic), address(constitution), address(mockDucat));
 
         ursus.init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
         agnello.init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
