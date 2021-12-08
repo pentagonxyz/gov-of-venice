@@ -203,6 +203,15 @@ contract Commoner is DSTestPlus{
         Guild(guilds[guild]).changeSlashForCashReward(par);
     }
 
+    function claimReward(uint guild) public {
+        Guild(guilds[guild]).claimReward();
+    }
+    function calculateMemberReward(uint guild) public returns(uint) {
+        return Guild(guilds[guild]).calculateMemberReward(address(this));
+    }
+    function calculateClaimedReward(uint guild) public returns(uint) {
+        return Guild(guilds[guild]).calculateClaimedReward(address(this));
+    }
 }
 
 contract Gov2Test is DSTestPlus {

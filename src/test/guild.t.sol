@@ -58,7 +58,17 @@ contract GuildCommonersTest is Gov2Test {
      assertTrue(john.isGuildMember(2));
      assertFalse(agnello.isGuildMember(2));
  }
+
+function testGuildMemberRewardClaim() public {
+    mockDucat.mint(address(constitution), 100000000);
+    constitution.sendBudgetToGuild(1000000, address(locksmiths));
+    hevm.warp(block.timestamp + 10 days);
+    ursus.claimReward(0);
+    assertEq(ursus.calculateMemberReward(0) + 10000, mockDucat.balanceOf(address(ursus)));
+    assertEq(ursus.calculateClaimedReward(0) + 10000, mockDucat.balanceOf(address(ursus)));
 }
+
+
 
 
 }
