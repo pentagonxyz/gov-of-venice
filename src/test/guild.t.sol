@@ -58,6 +58,7 @@ contract GuildCommonersTest is Gov2Test {
      assertTrue(john.isGuildMember(2));
      assertFalse(agnello.isGuildMember(2));
  }
+}
 
 
 }
@@ -282,8 +283,83 @@ contract GuildMembersTest is Gov2Test {
         }
     }
 
-    function testGuildParametersChange() public {
+    function testGuildMasterParametersChange() public {
         address gm = testGuidMasterVoteAyeSuccess();
+        Guild guild = facelessGuild;
+        Commoner com = Commoner(gm);
+        com.changeGravitasThreshold(3, 100);
+        com.changeMemberRewardPerEpoch(3, 100);
+        //If Guild Master pass parameter over 255(max uint8), it reverts
+        com.changeGuildMasterMultiplier(3, 100);
+        com.changeMaxGuildMembers(3, 100);
+        com.changeGuildMemberSlash(3, 100);
+        com.changeSlashForCashReward(3, 100);
+        assertEq(100, guild.gravitasThreshold());
+        assertEq(100, guild.memberRewardPerEpoch());
+        assertEq(100, guild.guildMasterRewardMultiplier());
+        assertEq(100, guild.guildMemberSlash());
+        assertEq(100, guild.slashForCashReward());
+    }
+
+    function testGuildMemberCannotChangeParameter() public {
+        initMembers();
+        Commoner member = facelessMen[4];
+        try member.changeGravitasThreshold(3, 100) {
+            fail();
+        }
+        catch Error(string memory error){
+            assertEq(error, "guild::onlyguildmaster::wrong_address");
+        }
+        try member.changeMemberRewardPerEpoch(3, 100) {
+            fail();
+        }
+        catch Error(string memory error){
+            assertEq(error, "guild::onlyguildmaster::wrong_address");
+        }
+        try member.changeGuildMasterMultiplier(3, 100) {
+            fail();
+        }
+        catch Error(string memory error){
+            assertEq(error, "guild::onlyguildmaster::wrong_address");
+        }
+        try member.changeMaxGuildMembers(3, 100) {
+            fail();
+        }
+        catch Error(string memory error){
+            assertEq(error, "guild::onlyguildmaster::wrong_address");
+        }
+        try member.changeGuildMemberSlash(3, 100) {
+            fail();
+        }
+        catch Error(string memory error){
+            assertEq(error, "guild::onlyguildmaster::wrong_address");
+        }
+        try member.changeSlashForCashReward(3, 100) {
+            fail();
+        }
+        catch Error(string memory error){
+            assertEq(error, "guild::onlyguildmaster::wrong_address");
+        }
+    }
+}
+
+
+contract GuildConstitution is Gov2Test {
+
+
+    function testGetBudget() public {
+        mockDucat.mint(address(constitution), 2000);
+        constitution.sendBudgetToGuild(1000, address(locksmiths));
+        assertEq(1000, locksmiths.getBudget());
+        assertEq(1000, mockDucat.balanceOf(address(constitution)));
+    }
+
+    function testWithdrawBudget() public {
+        mockDucat.mint(address(constitution), 2000);
+        constitution.sendBudgetToGuild(1000, address(locksmiths));
+        constitution.withdrawBudget(1000, address(locksmiths), address(constitution));
+        assertEq(locksmiths.getBudget(),0);
+        assertEq(mockDucat.balanceOf(address(constitution)), 2000);
     }
 
 }

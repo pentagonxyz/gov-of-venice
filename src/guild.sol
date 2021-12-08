@@ -147,9 +147,9 @@ contract  Guild is ReentrancyGuard {
 
     address constitution;
 
-    uint256 guildMemberReward;
+    uint256 public guildMemberReward;
 
-    uint256 slashForCashReward;
+    uint256 public slashForCashReward;
 
     mapping(address => address[]) sponsorsToMembers;
 
@@ -306,6 +306,10 @@ contract  Guild is ReentrancyGuard {
     }
 
 /// ____ Guild Master Functions _____
+// TODO: Add timeout queu so that the guild has time to react to
+// unilateral decisions that they don't support. If the guild kicks
+// the guildmaster from their posiiton (e.g elect new), the queue empties.
+
     function inviteGuildsToProposal(uint256[] calldata guildId, uint48 proposalId)
         external
         onlyGuildMaster
