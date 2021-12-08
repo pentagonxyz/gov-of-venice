@@ -34,6 +34,7 @@ contract  Guild is ReentrancyGuard {
         uint32 addressListIndex;
         uint96 lastClaimTimestamp;
         uint96 joinEpoch;
+        bool founding;
     }
 
 
@@ -169,7 +170,7 @@ contract  Guild is ReentrancyGuard {
         require(foundingMembers.length <= newMaxGuildMembers, "guild::constructor::max_founding_members_exceeded");
         guildBook = GuildBook(guildName, newGravitasThreshold, timeOutPeriod, newMaxGuildMembers, newVotingPeriod);
         for(uint256 i=0;i<foundingMembers.length;i++) {
-            GuildMember memory guildMember = GuildMember(new address[](0), 0, uint32(i), 0, uint96(block.timestamp));
+            GuildMember memory guildMember = GuildMember(new address[](0), 0, uint32(i), 0, uint96(block.timestamp), true);
             address member = foundingMembers[i];
             addressToGuildMember[member] = guildMember;
             addressList.push(member);
@@ -578,8 +579,15 @@ contract  Guild is ReentrancyGuard {
     {
         uint256 reward = calculateMemberReward(msg.sender);
         uint256 claimed = membersClaimedReward[msg.sender];
+        uint256 mul;
         membersClaimedReward[msg.sender] = reward + claimed;
-        tokens.transfer( msg.sender, (reward - claimed) * (1 - chainRewardMultiplier));
+        if(addressToGuildMember[msg.sender].founding){
+            mul=1-chainRewardMultiplier;
+        }
+        else{
+            mul=1;
+        }
+        tokens.transfer( msg.sender, (reward - claimed) * mul);
     }
 
     // This function is called by a commoner to calculate
