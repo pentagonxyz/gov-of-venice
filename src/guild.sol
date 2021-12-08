@@ -70,6 +70,8 @@ contract  Guild is ReentrancyGuard {
 
     uint48 constant silverToGravitasWeight = 10;
 
+    uint96 constant epoch = 3600; //day
+
     address public guildMasterAddress;
 
     mapping(address => GuildMember) public addressToGuildMember;
@@ -136,7 +138,7 @@ contract  Guild is ReentrancyGuard {
     uint8 public guildMasterRewardMultiplier =2;
 
     // -----------------------
-    uint48 public memberRewardPerEpoch;
+    uint48 public memberRewardPerEpoch = 10;
 
     /// percentage of the total reward to a guild member
     /// that should go to the chain of responsibility
@@ -569,9 +571,13 @@ contract  Guild is ReentrancyGuard {
 
 // ----------------- Rewards --------------------------
 
-    // check if user exists in array AddressToGuildMember
+    // 1)check if user exists in array AddressToGuildMember
     // chainRewardMultiplie = percentage of total reward that should
     // go to chainOfResponsibility (e.g 10%)
+    // 2) founding members get full reward, as they have no chain
+    // 3) this is to incentivize people to do the work to establish
+    // guilds (push it through governance, advocate, etc.). If they are removed from
+    // guild and then re-join, they are not treated as founding anymore.
     function claimReward()
         external
         nonReentrant
@@ -602,7 +608,6 @@ contract  Guild is ReentrancyGuard {
     //
     function claimChainReward(address rewardee)
         external
-        view
         returns(uint256 rewards)
     {
         // Get the guild members that were sponsored by "rewardee"
@@ -666,8 +671,16 @@ contract  Guild is ReentrancyGuard {
         else {
             multiplier = 1;
         }
-        uint256 reward =  (uint96(block.timestamp) - guildMember.joinEpoch ** 2 ) * weightedReward  * multiplier;
+        uint256 reward =  uint256((((uint96(block.timestamp) - guildMember.joinEpoch) /epoch )**2 )) * uint256(weightedReward)  * uint256(multiplier);
         return reward;
+    }
+
+    function calculateClaimedReward(address member)
+        external
+        view
+        returns(uint256)
+    {
+        return membersClaimedReward[member];
     }
 
     /// It is called if a member doesn't vote for X amount of times
