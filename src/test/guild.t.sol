@@ -116,7 +116,7 @@ contract GuildMembersTest is Gov2Test {
         }
     }
 
-    function testGuidMasterVoteAyeSuccess() public {
+    function testGuidMasterVoteAyeSuccess() public returns(address){
         initMembers();
         address gm = address(facelessMen[1]);
         facelessMen[0].startGuildmasterVote(gm,3);
@@ -140,6 +140,7 @@ contract GuildMembersTest is Gov2Test {
         assertEq(gm, targetAddress);
         assertTrue(facelessMen[1].guildMasterAcceptanceCeremony(3));
         assertEq(gm, facelessGuild.guildMasterAddress());
+        return gm;
     }
     function testGuildMasterVoteNaySuccess() public {
         initMembers();
@@ -154,7 +155,7 @@ contract GuildMembersTest is Gov2Test {
             }
         }
         (uint48 aye, uint48 nay,
-         uint48 count, uint48 startTimestamp,
+         uint48 count, uint88 startTimestamp,
          bool active, address sponsor,
          address targetAddress, uint256 id ) = facelessMen[0].getVoteInfoGuildMaster(3);
         // default quorum for new guild master is 75% of guild members.
@@ -224,7 +225,7 @@ contract GuildMembersTest is Gov2Test {
             }
         }
         (uint48 aye, uint48 nay,
-         uint48 count, uint48 startTimestamp,
+         uint48 count, uint88 startTimestamp,
          bool active, address sponsorAddress,
          address targetAddress, uint256 id ) = facelessMen[0].getVoteInfoBanishment(3);
         // default quorum for new guild master is 75% of guild members.
@@ -251,7 +252,7 @@ contract GuildMembersTest is Gov2Test {
             }
         }
         (uint48 aye, uint48 nay,
-         uint48 count, uint48 startTimestamp,
+         uint48 count, uint88 startTimestamp,
          bool active, address sponsorAddress,
          address targetAddress, uint256 id ) = facelessMen[0].getVoteInfoBanishment(3);
         // default quorum for new guild master is 75% of guild members.
@@ -267,7 +268,7 @@ contract GuildMembersTest is Gov2Test {
 
     function testProposalAyeVote() public {
         initMembers();
-        uint proposalId = 42;
+        uint48 proposalId = 42;
         guildCouncil.mockCallGuildProposal(address(facelessGuild), proposalId);
         uint start = block.timestamp;
         hevm.warp(block.timestamp + 5);
@@ -279,6 +280,10 @@ contract GuildMembersTest is Gov2Test {
                 assertEq(error, "guildCouncil::guildVerdict::incorrect_active_guild_vote");
             }
         }
+    }
+
+    function testGuildParametersChange() public {
+        address gm = testGuidMasterVoteAyeSuccess();
     }
 
 }

@@ -37,7 +37,7 @@ contract MockGuildCouncil is GuildCouncil, DSTestPlus{
     Guild guild;
 
     constructor(address mr, address ca, address ta) GuildCouncil(mr, ca, ta){}
-    function mockCallGuildProposal(address guildAddress, uint proposalId) public {
+    function mockCallGuildProposal(address guildAddress, uint48 proposalId) public {
         guild = Guild(guildAddress);
         guild.guildVoteRequest(proposalId);
     }
@@ -125,7 +125,7 @@ contract Commoner is DSTestPlus{
     function castVoteForBanishment(uint8 support, address target, uint guild) public returns(bool){
         return Guild(guilds[guild]).castVoteForBanishment(support, target);
     }
-    function castVoteForProposal(uint8 support, uint proposalId, uint guild) public returns(bool){
+    function castVoteForProposal(uint8 support, uint48 proposalId, uint guild) public returns(bool){
         return Guild(guilds[guild]).castVoteForProposal(proposalId, support);
     }
     function startBanishmentVote(address target, uint guild) public {
@@ -144,7 +144,7 @@ contract Commoner is DSTestPlus{
 
     function getVoteInfoBanishment(uint guild) public
         returns(uint48, uint48, uint48,
-                uint48, bool, address, address,
+                uint88, bool, address, address,
                 uint256)
     {
        return Guild(guilds[guild]).getVoteInfo(2);
@@ -152,7 +152,7 @@ contract Commoner is DSTestPlus{
 
     function getVoteInfoProposal(uint guild) public
         returns(uint48, uint48, uint48,
-                uint48, bool, address, address,
+                uint88, bool, address, address,
                 uint256)
     {
        return Guild(guilds[guild]).getVoteInfo(2);

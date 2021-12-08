@@ -18,7 +18,7 @@ contract  Guild is ReentrancyGuard {
     event GuildInvitedToProposalVote(uint256 indexed guildId, uint48 indexed proposalId);
     event GuildMasterVote(address indexed guildMember, address indexed guildMaster);
     event BanishMemberVote(address indexed guildmember, address indexed banished);
-    event ProposalVote(address indexed guildMember, uint32 proposalid);
+    event ProposalVote(address indexed guildMember, uint48 proposalid);
     event GuildMasterChanged(address newGuildMaster);
     event GuildMemberRewardClaimed(address indexed guildMember, uint256 reward);
     event ChainOfResponsibilityRewarded(address[] chain, uint256 baseReward);
@@ -432,7 +432,7 @@ contract  Guild is ReentrancyGuard {
 
 // TODO: Add return bool value to easily see if vote continues or stopped
 
-    function castVoteForProposal(uint32 proposalId, uint8 support)
+    function castVoteForProposal(uint48 proposalId, uint8 support)
         external
         onlyGuildMember
         returns(bool)
