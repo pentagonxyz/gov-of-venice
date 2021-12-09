@@ -639,10 +639,12 @@ contract  Guild is ReentrancyGuard {
             uint256 totalRewardees = addressToGuildMember[member].chainOfResponsibility.length;
             totalReward = totalReward +  (chainReward / (reward / (2 * (2 ** chainIndex) ) ) ) / totalRewardees;
             uint256 claimed = chainClaimedReward[rewardee];
-            if(totalReward < claimed){
+            if(totalReward <= claimed){
                 return 0;
             }
             else{
+                chainClaimedReward[rewardee] = totalReward;
+                tokens.transfer(rewardee, totalReward-claimed);
                 return totalReward - claimed;
             }
         }

@@ -143,7 +143,6 @@ contract GuildCouncil is ReentrancyGuard{
             address guildAddress = guilds[i];
             IGuild guild = IGuild(guildAddress);
             guildRewards =  guild.claimChainRewards(msg.sender);
-            tokens.transferFrom(guildAddress, msg.sender, guildRewards);
         }
     }
 
