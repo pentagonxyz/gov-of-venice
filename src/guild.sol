@@ -2,12 +2,19 @@
 pragma solidity ^0.8.9;
 
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "solmate/utils/ReentrancyGuard.sol";
+import "solmate/utils/FixedPointMathLib.sol";
+import "solmate/utils/SafeCastLib.sol";
 import "./IguildCouncil.sol";
 import "./Itokens.sol";
+
 // import {DSTestPlus} from "solmate/test/utils/DSTestPlus.sol";
 
 contract  Guild is ReentrancyGuard {
+
+    // ~~~~~~~~~~ Libraries ~~~~~~~~~~~~~~~~
+    using SafeCastLib for uint256;
+    using FixedPointMathLib for uint256;
 
     // ~~~~~~~~~~ EVENTS ~~~~~~~~~~~~~~~~~~~
 
@@ -30,10 +37,9 @@ contract  Guild is ReentrancyGuard {
 
     struct GuildMember{
         address[] chainOfResponsibility;
-        uint32 absenceCounter;
         uint32 addressListIndex;
+        uint96 joinTimestamp;
         uint96 lastClaimTimestamp;
-        uint96 joinEpoch;
         bool founding;
     }
 
@@ -65,12 +71,6 @@ contract  Guild is ReentrancyGuard {
     GuildBook guildBook;
 
     mapping(address => uint48) addressToGravitas;
-
-    uint48 constant senderGravitasWeight =  50;
-
-    uint48 constant silverToGravitasWeight = 10;
-
-    uint96 constant epoch = 3600; //day
 
     address public guildMasterAddress;
 
@@ -126,7 +126,12 @@ contract  Guild is ReentrancyGuard {
 
     // ----------- CONSTANTS ---------------
 
-    ///
+    uint256 constant senderGravitasWeight =  50;
+
+    uint256 constant silverToGravitasWeight = 10;
+
+    uint256 immutable BASE_UNIT= FixedPointMathLib.WAD;
+
     uint256 public constant proposalQuorum = 50;
 
     ///
@@ -136,6 +141,12 @@ contract  Guild is ReentrancyGuard {
     uint256 public constant banishmentQuorum = 74;
 
     uint8 public guildMasterRewardMultiplier =2;
+
+    uint256 public constant MEMBER_REWARD_PER_SECOND = 10;
+
+    uint256 public constant gravitasWeight=10;
+
+    uint8 public constant guildMemberRewardMultiplier = 1;
 
     // -----------------------
     uint48 public memberRewardPerEpoch = 10;
@@ -150,16 +161,13 @@ contract  Guild is ReentrancyGuard {
 
     address constitution;
 
-    uint256 public guildMemberReward;
-
-    uint256 public slashForCashReward;
+   uint256 public slashForCashReward;
 
     mapping(address => address[]) sponsorsToMembers;
 
     mapping(address => uint256) chainClaimedReward;
 
     mapping(address => uint256) membersClaimedReward;
-
 
 
 //---------- Constructor ----------------
@@ -171,8 +179,9 @@ contract  Guild is ReentrancyGuard {
         require(foundingMembers.length >= minimumFoundingMembers, "guild::constructor::minimum_founding_members");
         require(foundingMembers.length <= newMaxGuildMembers, "guild::constructor::max_founding_members_exceeded");
         guildBook = GuildBook(guildName, newGravitasThreshold, timeOutPeriod, newMaxGuildMembers, newVotingPeriod);
-        for(uint256 i=0;i<foundingMembers.length;i++) {
-            GuildMember memory guildMember = GuildMember(new address[](0), 0, uint32(i), 0, uint96(block.timestamp), true);
+        uint96 time = block.timestamp.safeCastTo96();
+        for(uint32 i;i<foundingMembers.length;i++) {
+            GuildMember memory guildMember = GuildMember(new address[](0), i, time ,time, true);
             address member = foundingMembers[i];
             addressToGuildMember[member] = guildMember;
             addressList.push(member);
@@ -205,13 +214,16 @@ contract  Guild is ReentrancyGuard {
             external
             returns(GuildMember memory)
         {
-            require(apprentishipStart[msg.sender] != 0 && apprentishipStart[msg.sender] + guildBook.timeOutPeriod< uint48(block.timestamp),
+            require(apprentishipStart[msg.sender] != 0 && apprentishipStart[msg.sender] + guildBook.timeOutPeriod < uint48(block.timestamp),
                     "Guild::joinGuild::user_has_not_done_apprentiship");
             require(addressList.length + 1 <= guildBook.maxGuildMembers, "Guild::joinGuild::max_guild_members_reached");
             addressList.push(msg.sender);
-            addressToGuildMember[msg.sender].joinEpoch = uint96(block.timestamp);
-            addressToGuildMember[msg.sender].addressListIndex = uint32(addressList.length) - 1;
-            return addressToGuildMember[msg.sender];
+            GuildMember storage member = addressToGuildMember[msg.sender];
+            member.joinTimestamp = block.timestamp.safeCastTo96();
+            member.lastClaimTimestamp = block.timestamp.safeCastTo96();
+            member.addressListIndex = addressList.length.safeCastTo32() - 1;
+            addressToGuildMember[msg.sender] = member;
+            return member;
         }
 
     function appendChainOfResponsibility(address guildMember, address commoner)
@@ -228,7 +240,7 @@ contract  Guild is ReentrancyGuard {
         view
         returns(bool)
     {
-        if (addressToGuildMember[commoner].joinEpoch == 0){
+        if (addressToGuildMember[commoner].joinTimestamp == 0){
             return false;
         }
         else {
@@ -295,7 +307,7 @@ contract  Guild is ReentrancyGuard {
         uint256 voteTime = proposalVote.startTimestamp;
         require(lastSlash < voteTime, "Guild::slashForInnactivity::members_already_slashed");
         uint256 length = addressList.length;
-        lastSlash = uint32(block.timestamp);
+        lastSlash = block.timestamp.safeCastTo32();
         uint256 counter=0;
         for(uint256 i=0;i<length;i++){
             address guildMember = addressList[i];
@@ -583,17 +595,17 @@ contract  Guild is ReentrancyGuard {
         nonReentrant
         onlyGuildMember
     {
+        GuildMember memory member = addressToGuildMember[msg.sender];
         uint256 reward = calculateMemberReward(msg.sender);
-        uint256 claimed = membersClaimedReward[msg.sender];
         uint256 mul;
-        membersClaimedReward[msg.sender] = reward + claimed;
+        member.lastClaimTimestamp = block.timestamp.safeCastTo96();
         if(addressToGuildMember[msg.sender].founding){
             mul=1-chainRewardMultiplier;
         }
         else{
             mul=1;
         }
-        tokens.transfer( msg.sender, (reward - claimed) * mul);
+        tokens.transfer( msg.sender, reward.fmul(mul, BASE_UNIT));
     }
 
     // This function is called by a commoner to calculate
@@ -605,7 +617,6 @@ contract  Guild is ReentrancyGuard {
     // the reward system is weighted towards the first sponsors of a member. People are incentivized to vote for new people.
     // c) The reward that particular guild member has accrued up to this point
     // d) Total number of sponsors for that particular member
-    //
     function claimChainReward(address rewardee)
         external
         returns(uint256 rewards)
@@ -649,39 +660,26 @@ contract  Guild is ReentrancyGuard {
         }
     }
 
-
-    /// Member Reward: R
-    /// Member Count: N
-    /// Guild Master Reward: 2R
-    /// Total Budger for period P: B
-    /// Total period: P
-    /// Period unit (e.g seconds): U
-    /// reward = (uint48(block.timestamp) - guildMember.joinEpoch)^2*reward_per_epoch*gravitas_multiplier
-
     function calculateMemberReward(address member)
         public
         view
         returns(uint256)
     {
-        uint8 multiplier;
-        uint48 weightedReward  = uint48(memberRewardPerEpoch / addressList.length);
+        uint8 guildMasterBonus;
         GuildMember memory guildMember = addressToGuildMember[member];
+        uint256 billableSeconds = block.timestamp - guildMember.lastClaimTimestamp;
+        uint256 timeReward = (billableSeconds.fmul(MEMBER_REWARD_PER_SECOND, BASE_UNIT)).fpow(2, BASE_UNIT);
+        uint256 gravitasReward = gravitasWeight.fmul(addressToGravitas[member], BASE_UNIT).fdiv(100, BASE_UNIT);
         if (member == guildMasterAddress){
-                multiplier = guildMasterRewardMultiplier;
+                guildMasterBonus = guildMasterRewardMultiplier;
         }
         else {
-            multiplier = 1;
+            guildMasterBonus =  guildMemberRewardMultiplier;
         }
-        uint256 reward =  uint256((((uint96(block.timestamp) - guildMember.joinEpoch) /epoch )**2 )) * uint256(weightedReward)  * uint256(multiplier);
+        uint256 reward = timeReward.fmul(gravitasReward, BASE_UNIT).fmul(guildMasterBonus, BASE_UNIT);
         return reward;
-    }
 
-    function calculateClaimedReward(address member)
-        external
-        view
-        returns(uint256)
-    {
-        return membersClaimedReward[member];
+
     }
 
     /// It is called if a member doesn't vote for X amount of times
@@ -798,7 +796,7 @@ contract  Guild is ReentrancyGuard {
     }
 
     modifier onlyGuildMember() {
-        require(addressToGuildMember[msg.sender].joinEpoch != 0, "Guild::onlyGuildMember::wrong_address");
+        require(addressToGuildMember[msg.sender].joinTimestamp != 0, "Guild::onlyGuildMember::wrong_address");
         _;
     }
 
