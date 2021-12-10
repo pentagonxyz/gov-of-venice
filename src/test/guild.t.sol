@@ -36,6 +36,7 @@ contract GuildCommonersTest is Gov2Test {
         }
  }
  function testJoinGuildYesApprentiship() public {
+        // john sends silver to agnello for guild 2 (
         uint256 remain2 = john.sendSilver(address(agnello), 3000, 2);
         assertEq(300 + 250 + 0, agnello.getGravitas(2));
         agnello.startApprentiship(2);
@@ -43,12 +44,10 @@ contract GuildCommonersTest is Gov2Test {
         hevm.warp(block.timestamp + 30 days);
         Guild.GuildMember memory ag = agnello.joinGuild(2);
         address[] memory chain = ag.chainOfResponsibility;
-        uint32 absence = ag.absenceCounter;
         uint96 lastClaim = ag.lastClaimTimestamp;
-        uint96 join = ag.joinEpoch;
+        uint96 join = ag.joinTimestamp;
         uint48 index = ag.addressListIndex;
-        assertEq(0, absence);
-        assertEq(0, lastClaim);
+        assertEq(lastClaim, block.timestamp);
         assertEq(join, block.timestamp);
         assertEq(index, 1);
         assertEq(chain[0], address(john));
@@ -65,11 +64,13 @@ function testGuildMemberRewardClaim() public {
     hevm.warp(block.timestamp + 10 days);
     ursus.claimReward(0);
     assertEq(ursus.calculateMemberReward(0) + 10000, mockDucat.balanceOf(address(ursus)));
-    assertEq(ursus.calculateClaimedReward(0) + 10000, mockDucat.balanceOf(address(ursus)));
 }
 
-
-
+function testGuildMemberRewardDoubleClaim() public {
+    testGuildMemberRewardClaim();
+    ursus.claimReward(0);
+    assertEq(ursus.calculateMemberReward(0) + 10000, mockDucat.balanceOf(address(ursus)));
+}
 
 }
 
