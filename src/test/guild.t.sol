@@ -4,10 +4,9 @@ pragma solidity ^0.8.9;
 import "./utils/gov2Test.sol";
 
 contract GuildCommonersTest is Gov2Test {
-
-//
-//
- function testGravitasCalculation() public {
+    //
+    //
+    function testGravitasCalculation() public {
         uint256 remain1 = agnello.sendSilver(address(john), 300, 2);
         uint256 remain2 = john.sendSilver(address(agnello), 500, 2);
         // new_gravitas = 10% of silver_sent + 50% of sender gravitas + prior gravitas
@@ -15,27 +14,27 @@ contract GuildCommonersTest is Gov2Test {
         // john has now 530 gravitas, as he got 30 from the silver
         // from agnello
         assertEq(50 + 265 + 0, agnello.getGravitas(2));
- }
+    }
 
- function testFailJoinGuildNoApprentiship() public {
+    function testFailJoinGuildNoApprentiship() public {
         uint256 remain2 = john.sendSilver(address(agnello), 3000, 2);
         assertEq(300 + 250 + 0, agnello.getGravitas(2));
         agnello.joinGuild(2);
- }
+    }
 
- function testJoinGuildNoTimeout() public {
+    function testJoinGuildNoTimeout() public {
         uint256 remain2 = john.sendSilver(address(agnello), 3000, 2);
         assertEq(300 + 250 + 0, agnello.getGravitas(2));
         agnello.startApprentiship(2);
         hevm.warp(block.timestamp + 20 days);
-        try agnello.joinGuild(2){
+        try agnello.joinGuild(2) {
             fail();
-        }
-        catch Error( string memory error){
+        } catch Error(string memory error) {
             assertEq(error, "Guild::joinGuild::user_has_not_done_apprentiship");
         }
- }
- function testJoinGuildYesApprentiship() public {
+    }
+
+    function testJoinGuildYesApprentiship() public {
         // john sends silver to agnello for guild 2 (
         uint256 remain2 = john.sendSilver(address(agnello), 3000, 2);
         assertEq(300 + 250 + 0, agnello.getGravitas(2));
@@ -49,27 +48,32 @@ contract GuildCommonersTest is Gov2Test {
         assertEq(lastClaim, block.timestamp);
         assertEq(join, block.timestamp);
         assertEq(index, 1);
- }
+    }
 
- function testIsGuildMember() public {
-     assertTrue(john.isGuildMember(2));
-     assertFalse(agnello.isGuildMember(2));
- }
+    function testIsGuildMember() public {
+        assertTrue(john.isGuildMember(2));
+        assertFalse(agnello.isGuildMember(2));
+    }
 
-function testGuildMemberRewardClaim() public {
-    mockDucat.mint(address(constitution), 100000000);
-    constitution.sendBudgetToGuild(1000000, address(locksmiths));
-    hevm.warp(block.timestamp + 10 days);
-    ursus.claimReward(0);
-    assertEq(ursus.calculateMemberReward(0) + 10000, mockDucat.balanceOf(address(ursus)));
-}
+    function testGuildMemberRewardClaim() public {
+        mockDucat.mint(address(constitution), 100000000);
+        constitution.sendBudgetToGuild(1000000, address(locksmiths));
+        hevm.warp(block.timestamp + 10 days);
+        ursus.claimReward(0);
+        assertEq(
+            ursus.calculateMemberReward(0) + 10000,
+            mockDucat.balanceOf(address(ursus))
+        );
+    }
 
-function testGuildMemberRewardDoubleClaim() public {
-    testGuildMemberRewardClaim();
-    ursus.claimReward(0);
-    assertEq(ursus.calculateMemberReward(0) + 10000, mockDucat.balanceOf(address(ursus)));
-}
-
+    function testGuildMemberRewardDoubleClaim() public {
+        testGuildMemberRewardClaim();
+        ursus.claimReward(0);
+        assertEq(
+            ursus.calculateMemberReward(0) + 10000,
+            mockDucat.balanceOf(address(ursus))
+        );
+    }
 }
 
 contract GuildMembersTest is Gov2Test {
@@ -78,25 +82,37 @@ contract GuildMembersTest is Gov2Test {
     uint32 facelessMaxGuildMembers = 20;
     uint32 facelessVotingPeriod = 14 days;
 
-    function initMembers() public{
+    function initMembers() public {
         facelessMen = new Commoner[](20);
         address[] memory facelessAddresses = new address[](20);
-        uint ducats = 10000;
-        for(uint i=0;i<facelessMen.length;i++){
+        uint256 ducats = 10000;
+        for (uint256 i = 0; i < facelessMen.length; i++) {
             facelessMen[i] = new Commoner();
-            facelessMen[i].init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
+            facelessMen[i].init(
+                address(guildCouncil),
+                address(merchantRepublic),
+                address(constitution),
+                address(mockDucat)
+            );
             facelessAddresses[i] = address(facelessMen[i]);
-            for(uint48 j=0;j<guilds.length;j++){
+            for (uint48 j = 0; j < guilds.length; j++) {
                 facelessMen[i].setGuild(guilds[j], j);
             }
             mockDucat.mint(address(facelessMen[i]), ducats);
         }
-        facelessGuild = new Guild("faceless", facelessAddresses , facelessGravitasThreshold,
-        facelessTimeOutPeriod, facelessMaxGuildMembers, facelessVotingPeriod,
-        address(mockDucat), address(constitution));
+        facelessGuild = new Guild(
+            "faceless",
+            facelessAddresses,
+            facelessGravitasThreshold,
+            facelessTimeOutPeriod,
+            facelessMaxGuildMembers,
+            facelessVotingPeriod,
+            address(mockDucat),
+            address(constitution)
+        );
         constitution.mockEstablishGuild(address(facelessGuild));
         guilds = guildCouncil.availableGuilds();
-        for(uint i=0;i<facelessMen.length;i++){
+        for (uint256 i = 0; i < facelessMen.length; i++) {
             facelessMen[i].setGuild(guilds[3], 3);
         }
     }
@@ -112,35 +128,40 @@ contract GuildMembersTest is Gov2Test {
 
     function testMaxGuildMembers() public {
         initMembers();
-        agnello.setGuild(guilds[3],3);
-        for(uint i=0;i<facelessMen.length;i++){
-           facelessMen[i].sendSilver(address(agnello), 1000, 3);
+        agnello.setGuild(guilds[3], 3);
+        for (uint256 i = 0; i < facelessMen.length; i++) {
+            facelessMen[i].sendSilver(address(agnello), 1000, 3);
         }
         agnello.startApprentiship(3);
         hevm.warp(block.timestamp + 30 days);
-        try agnello.joinGuild( 3) {
+        try agnello.joinGuild(3) {
             fail();
-        }
-        catch Error(string memory error) {
+        } catch Error(string memory error) {
             assertEq(error, "Guild::joinGuild::max_guild_members_reached");
         }
     }
 
-    function testGuidMasterVoteAyeSuccess() public returns(address){
+    function testGuidMasterVoteAyeSuccess() public returns (address) {
         initMembers();
         address gm = address(facelessMen[1]);
-        facelessMen[0].startGuildmasterVote(gm,3);
-        uint start = block.timestamp;
+        facelessMen[0].startGuildmasterVote(gm, 3);
+        uint256 start = block.timestamp;
         hevm.warp(block.timestamp + 1);
-        for(uint i=0;i<facelessMen.length;i++){
-            if(!facelessMen[i].castVoteForGuildMaster( 1, gm,3 )){
+        for (uint256 i = 0; i < facelessMen.length; i++) {
+            if (!facelessMen[i].castVoteForGuildMaster(1, gm, 3)) {
                 break;
             }
         }
-        (uint48 aye, uint48 nay,
-         uint48 count, uint88 startTimestamp,
-         bool active, address sponsor,
-         address targetAddress, uint256 id ) = facelessMen[0].getVoteInfoGuildMaster(3);
+        (
+            uint48 aye,
+            uint48 nay,
+            uint48 count,
+            uint88 startTimestamp,
+            bool active,
+            address sponsor,
+            address targetAddress,
+            uint256 id
+        ) = facelessMen[0].getVoteInfoGuildMaster(3);
         // default quorum for new guild master is 75% of guild members.
         assertEq(15, aye);
         assertEq(15, count);
@@ -152,22 +173,29 @@ contract GuildMembersTest is Gov2Test {
         assertEq(gm, facelessGuild.guildMasterAddress());
         return gm;
     }
+
     function testGuildMasterVoteNaySuccess() public {
         initMembers();
         address gm = address(facelessMen[1]);
-        facelessMen[0].startGuildmasterVote(gm,3);
-        uint start = block.timestamp;
+        facelessMen[0].startGuildmasterVote(gm, 3);
+        uint256 start = block.timestamp;
         hevm.warp(block.timestamp + 1);
-        uint originalGravitas = facelessMen[0].getGravitas(3);
-        for(uint i=0;i<facelessMen.length;i++){
-            if(!facelessMen[i].castVoteForGuildMaster( 0, gm,3 )){
+        uint256 originalGravitas = facelessMen[0].getGravitas(3);
+        for (uint256 i = 0; i < facelessMen.length; i++) {
+            if (!facelessMen[i].castVoteForGuildMaster(0, gm, 3)) {
                 break;
             }
         }
-        (uint48 aye, uint48 nay,
-         uint48 count, uint88 startTimestamp,
-         bool active, address sponsor,
-         address targetAddress, uint256 id ) = facelessMen[0].getVoteInfoGuildMaster(3);
+        (
+            uint48 aye,
+            uint48 nay,
+            uint48 count,
+            uint88 startTimestamp,
+            bool active,
+            address sponsor,
+            address targetAddress,
+            uint256 id
+        ) = facelessMen[0].getVoteInfoGuildMaster(3);
         // default quorum for new guild master is 75% of guild members.
         assertEq(15, nay);
         assertEq(15, count);
@@ -175,70 +203,86 @@ contract GuildMembersTest is Gov2Test {
         assertFalse(active);
         assertEq(address(facelessMen[0]), sponsor);
         assertEq(gm, targetAddress);
-        uint slashedGravitas = facelessMen[0].getGravitas(3);
-        assertEq(originalGravitas + facelessGuild.guildMemberSlash(), slashedGravitas);
+        uint256 slashedGravitas = facelessMen[0].getGravitas(3);
+        assertEq(
+            originalGravitas + facelessGuild.guildMemberSlash(),
+            slashedGravitas
+        );
     }
 
     function testGuildMasterOverVoteVotingPeriod() public {
         initMembers();
         address gm = address(facelessMen[1]);
-        facelessMen[0].startGuildmasterVote(gm,3);
-        uint start = block.timestamp;
+        facelessMen[0].startGuildmasterVote(gm, 3);
+        uint256 start = block.timestamp;
         hevm.warp(block.timestamp + 50 days);
-        try facelessMen[1].castVoteForGuildMaster( 0, gm,3 ) {
+        try facelessMen[1].castVoteForGuildMaster(0, gm, 3) {
             fail();
-        }
-        catch Error(string memory error){
-            assertEq(error, "Guild::castVoteForGuildMaster::_voting_period_ended");
+        } catch Error(string memory error) {
+            assertEq(
+                error,
+                "Guild::castVoteForGuildMaster::_voting_period_ended"
+            );
         }
     }
+
     function testGuildMasterVoteDoubleTime() public {
         initMembers();
         address gm = address(facelessMen[1]);
-        facelessMen[0].startGuildmasterVote(gm,3);
-        uint start = block.timestamp;
+        facelessMen[0].startGuildmasterVote(gm, 3);
+        uint256 start = block.timestamp;
         hevm.warp(block.timestamp + 1 days);
-        facelessMen[1].castVoteForGuildMaster( 0, gm,3 );
-        try  facelessMen[1].castVoteForGuildMaster( 0, gm,3 ) {
+        facelessMen[1].castVoteForGuildMaster(0, gm, 3);
+        try facelessMen[1].castVoteForGuildMaster(0, gm, 3) {
             fail();
-        }
-        catch Error(string memory error){
-            assertEq(error, "Guild::castVoteForGuildMaster::account_already_voted");
+        } catch Error(string memory error) {
+            assertEq(
+                error,
+                "Guild::castVoteForGuildMaster::account_already_voted"
+            );
         }
     }
-    ccccucgirbvblbuctknuntnluucnrdgnhdcvrdbcnu
 
     function testGuildMasterVoteWrongAddress() public {
         initMembers();
         address gm = address(facelessMen[1]);
-        facelessMen[0].startGuildmasterVote(gm,3);
-        uint start = block.timestamp;
+        facelessMen[0].startGuildmasterVote(gm, 3);
+        uint256 start = block.timestamp;
         hevm.warp(block.timestamp + 1 days);
-        try  facelessMen[1].castVoteForGuildMaster( 0, address(facelessMen[3]),3 ) {
+        try
+            facelessMen[1].castVoteForGuildMaster(0, address(facelessMen[3]), 3)
+        {
             fail();
-        }
-        catch Error(string memory error){
-            assertEq(error, "Guild::casteVoteForGuildMaster::wrong_voted_address");
+        } catch Error(string memory error) {
+            assertEq(
+                error,
+                "Guild::casteVoteForGuildMaster::wrong_voted_address"
+            );
         }
     }
-
 
     function testBanishmentAyeSuccess() public {
         initMembers();
         Commoner sponsor = facelessMen[0];
         Commoner target = facelessMen[19];
         sponsor.startBanishmentVote(address(target), 3);
-        uint start = block.timestamp;
+        uint256 start = block.timestamp;
         hevm.warp(block.timestamp + 1);
-        for(uint i=0;i<facelessMen.length;i++){
-            if(!facelessMen[i].castVoteForBanishment(1, address(target),3 )){
+        for (uint256 i = 0; i < facelessMen.length; i++) {
+            if (!facelessMen[i].castVoteForBanishment(1, address(target), 3)) {
                 break;
             }
         }
-        (uint48 aye, uint48 nay,
-         uint48 count, uint88 startTimestamp,
-         bool active, address sponsorAddress,
-         address targetAddress, uint256 id ) = facelessMen[0].getVoteInfoBanishment(3);
+        (
+            uint48 aye,
+            uint48 nay,
+            uint48 count,
+            uint88 startTimestamp,
+            bool active,
+            address sponsorAddress,
+            address targetAddress,
+            uint256 id
+        ) = facelessMen[0].getVoteInfoBanishment(3);
         // default quorum for new guild master is 75% of guild members.
         assertEq(15, aye);
         assertEq(15, count);
@@ -254,18 +298,24 @@ contract GuildMembersTest is Gov2Test {
         Commoner sponsor = facelessMen[0];
         Commoner target = facelessMen[19];
         sponsor.startBanishmentVote(address(target), 3);
-        uint start = block.timestamp;
+        uint256 start = block.timestamp;
         hevm.warp(block.timestamp + 1);
-        uint originalGravitas = sponsor.getGravitas(3);
-        for(uint i=0;i<facelessMen.length;i++){
-            if(!facelessMen[i].castVoteForBanishment(0, address(target),3 )){
+        uint256 originalGravitas = sponsor.getGravitas(3);
+        for (uint256 i = 0; i < facelessMen.length; i++) {
+            if (!facelessMen[i].castVoteForBanishment(0, address(target), 3)) {
                 break;
             }
         }
-        (uint48 aye, uint48 nay,
-         uint48 count, uint88 startTimestamp,
-         bool active, address sponsorAddress,
-         address targetAddress, uint256 id ) = facelessMen[0].getVoteInfoBanishment(3);
+        (
+            uint48 aye,
+            uint48 nay,
+            uint48 count,
+            uint88 startTimestamp,
+            bool active,
+            address sponsorAddress,
+            address targetAddress,
+            uint256 id
+        ) = facelessMen[0].getVoteInfoBanishment(3);
         // default quorum for new guild master is 75% of guild members.
         assertEq(15, nay);
         assertEq(15, count);
@@ -273,22 +323,27 @@ contract GuildMembersTest is Gov2Test {
         assertFalse(active);
         assertEq(sponsorAddress, address(sponsor));
         assertEq(targetAddress, address(target));
-        uint slashedGravitas = sponsor.getGravitas(3);
-        assertEq(originalGravitas + facelessGuild.guildMemberSlash(), slashedGravitas);
+        uint256 slashedGravitas = sponsor.getGravitas(3);
+        assertEq(
+            originalGravitas + facelessGuild.guildMemberSlash(),
+            slashedGravitas
+        );
     }
 
     function testProposalAyeVote() public {
         initMembers();
         uint48 proposalId = 42;
         guildCouncil.mockCallGuildProposal(address(facelessGuild), proposalId);
-        uint start = block.timestamp;
+        uint256 start = block.timestamp;
         hevm.warp(block.timestamp + 5);
-        for(uint i=0;i<facelessMen.length;i++){
-            try facelessMen[i].castVoteForProposal(1, proposalId, 3){
+        for (uint256 i = 0; i < facelessMen.length; i++) {
+            try facelessMen[i].castVoteForProposal(1, proposalId, 3) {
                 continue;
-            }
-            catch Error(string memory error){
-                assertEq(error, "guildCouncil::guildVerdict::incorrect_active_guild_vote");
+            } catch Error(string memory error) {
+                assertEq(
+                    error,
+                    "guildCouncil::guildVerdict::incorrect_active_guild_vote"
+                );
             }
         }
     }
@@ -316,47 +371,38 @@ contract GuildMembersTest is Gov2Test {
         Commoner member = facelessMen[4];
         try member.changeGravitasThreshold(3, 100) {
             fail();
-        }
-        catch Error(string memory error){
+        } catch Error(string memory error) {
             assertEq(error, "guild::onlyguildmaster::wrong_address");
         }
         try member.changeMemberRewardPerEpoch(3, 100) {
             fail();
-        }
-        catch Error(string memory error){
+        } catch Error(string memory error) {
             assertEq(error, "guild::onlyguildmaster::wrong_address");
         }
         try member.changeGuildMasterMultiplier(3, 100) {
             fail();
-        }
-        catch Error(string memory error){
+        } catch Error(string memory error) {
             assertEq(error, "guild::onlyguildmaster::wrong_address");
         }
         try member.changeMaxGuildMembers(3, 100) {
             fail();
-        }
-        catch Error(string memory error){
+        } catch Error(string memory error) {
             assertEq(error, "guild::onlyguildmaster::wrong_address");
         }
         try member.changeGuildMemberSlash(3, 100) {
             fail();
-        }
-        catch Error(string memory error){
+        } catch Error(string memory error) {
             assertEq(error, "guild::onlyguildmaster::wrong_address");
         }
         try member.changeSlashForCashReward(3, 100) {
             fail();
-        }
-        catch Error(string memory error){
+        } catch Error(string memory error) {
             assertEq(error, "guild::onlyguildmaster::wrong_address");
         }
     }
 }
 
-
 contract GuildConstitution is Gov2Test {
-
-
     function testGetBudget() public {
         mockDucat.mint(address(constitution), 2000);
         constitution.sendBudgetToGuild(1000, address(locksmiths));
@@ -367,10 +413,12 @@ contract GuildConstitution is Gov2Test {
     function testWithdrawBudget() public {
         mockDucat.mint(address(constitution), 2000);
         constitution.sendBudgetToGuild(1000, address(locksmiths));
-        constitution.withdrawBudget(1000, address(locksmiths), address(constitution));
-        assertEq(locksmiths.getBudget(),0);
+        constitution.withdrawBudget(
+            1000,
+            address(locksmiths),
+            address(constitution)
+        );
+        assertEq(locksmiths.getBudget(), 0);
         assertEq(mockDucat.balanceOf(address(constitution)), 2000);
     }
-
 }
-
