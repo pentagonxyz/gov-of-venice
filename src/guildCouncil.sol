@@ -134,17 +134,6 @@ contract GuildCouncil is ReentrancyGuard{
     // naively, go over all the guilds and see how many rewards the
     // user has accumulated from being part of a chainOfResponsibility
     // for some guild member in every guild
-    function chainOfResponsibilityClaim()
-        external
-        nonReentrant
-    {
-        uint256 guildRewards;
-        for(uint48 i; i<guildCounter; i++){
-            address guildAddress = guilds[i];
-            IGuild guild = IGuild(guildAddress);
-            guildRewards =  guild.claimChainRewards(msg.sender);
-        }
-    }
 
     function availableGuilds()
         external
