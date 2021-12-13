@@ -18,6 +18,7 @@ contract  Guild is ReentrancyGuard {
 
     // ~~~~~~~~~~ EVENTS ~~~~~~~~~~~~~~~~~~~
 
+
     event GuildMemberJoined(address commoner);
     event GuildMemberBanished(address guildMember);
     event VotingPeriodChanged(uint256 votingPeriod);
@@ -28,7 +29,6 @@ contract  Guild is ReentrancyGuard {
     event ProposalVote(address indexed guildMember, uint48 proposalid);
     event GuildMasterChanged(address newGuildMaster);
     event GuildMemberRewardClaimed(address indexed guildMember, uint256 reward);
-    event ChainOfResponsibilityRewarded(address[] chain, uint256 baseReward);
     event GravitasChanged(address commoner, uint256 oldGravitas, uint256 newGravitas);
     event GuildMasterVoteResult(address guildMasterElect, bool result);
     event GuildReceivedFunds(uint256 funds, address sender);
@@ -36,7 +36,6 @@ contract  Guild is ReentrancyGuard {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     struct GuildMember{
-        address[] chainOfResponsibility;
         uint32 addressListIndex;
         uint96 joinTimestamp;
         uint96 lastClaimTimestamp;
@@ -151,10 +150,6 @@ contract  Guild is ReentrancyGuard {
     // -----------------------
     uint48 public memberRewardPerEpoch = 10;
 
-    /// percentage of the total reward to a guild member
-    /// that should go to the chain of responsibility
-    uint48 public chainRewardMultiplier;
-
     uint48 constant minimumFoundingMembers = 1;
 
     uint96 lastSlash;
@@ -164,11 +159,6 @@ contract  Guild is ReentrancyGuard {
    uint256 public slashForCashReward;
 
     mapping(address => address[]) sponsorsToMembers;
-
-    mapping(address => uint256) chainClaimedReward;
-
-    mapping(address => uint256) membersClaimedReward;
-
 
 //---------- Constructor ----------------
 
@@ -181,7 +171,7 @@ contract  Guild is ReentrancyGuard {
         guildBook = GuildBook(guildName, newGravitasThreshold, timeOutPeriod, newMaxGuildMembers, newVotingPeriod);
         uint96 time = block.timestamp.safeCastTo96();
         for(uint32 i;i<foundingMembers.length;i++) {
-            GuildMember memory guildMember = GuildMember(new address[](0), i, time ,time, true);
+            GuildMember memory guildMember = GuildMember(i, time ,time, true);
             address member = foundingMembers[i];
             addressToGuildMember[member] = guildMember;
             addressList.push(member);
@@ -226,15 +216,6 @@ contract  Guild is ReentrancyGuard {
             return member;
         }
 
-    function appendChainOfResponsibility(address guildMember, address commoner)
-        public
-        onlyGuildCouncil
-    {
-        addressToGuildMember[guildMember].chainOfResponsibility.push(commoner);
-        sponsorsToMembers[commoner].push(guildMember);
-    }
-
-
     function isGuildMember(address commoner)
         external
         view
@@ -262,25 +243,6 @@ contract  Guild is ReentrancyGuard {
         private
     {
         uint32 index = addressToGuildMember[guildMemberAddress].addressListIndex;
-        // Get the chainOfResponsibility from the GuildMember struct for the guild member
-        // that is banished from the guild
-        address[] memory chain = addressToGuildMember[guildMemberAddress].chainOfResponsibility;
-        uint length = chain.length;
-        // for every sponsor (address) in the chain:
-        for(uint i=0;i<length;i++){
-            // get the list of guild members that are sponsored from that sponsor
-            address[] memory sponsored = sponsorsToMembers[chain[i]];
-            uint256 length2 = sponsored.length;
-            // for every address in that list, if it  matches with the guild member
-            // to be banished, then remove it from the list. To remove it, take the last
-            // element, put it in the place of the address to be removed and remove
-            // the last element.
-            for(uint j=0;j<length2;j++)
-                if(sponsored[j] == guildMemberAddress){
-                    sponsorsToMembers[chain[i]][j] = sponsored[length - 1];
-                    delete sponsorsToMembers[chain[i]][length2 - 1];
-                }
-        }
         // delete the GuildMember Struct for the banished guild member
         delete addressToGuildMember[guildMemberAddress];
         // Remove the banished guild member from the list of the guild members.
@@ -583,13 +545,6 @@ contract  Guild is ReentrancyGuard {
 
 // ----------------- Rewards --------------------------
 
-    // 1)check if user exists in array AddressToGuildMember
-    // chainRewardMultiplie = percentage of total reward that should
-    // go to chainOfResponsibility (e.g 10%)
-    // 2) founding members get full reward, as they have no chain
-    // 3) this is to incentivize people to do the work to establish
-    // guilds (push it through governance, advocate, etc.). If they are removed from
-    // guild and then re-join, they are not treated as founding anymore.
     function claimReward()
         external
         nonReentrant
@@ -599,66 +554,9 @@ contract  Guild is ReentrancyGuard {
         uint256 reward = calculateMemberReward(msg.sender);
         uint256 mul;
         member.lastClaimTimestamp = block.timestamp.safeCastTo96();
-        if(addressToGuildMember[msg.sender].founding){
-            mul=1-chainRewardMultiplier;
-        }
-        else{
-            mul=1;
-        }
         tokens.transfer( msg.sender, reward.fmul(mul, BASE_UNIT));
     }
 
-    // This function is called by a commoner to calculate
-    // the total accrued rewards for sending Silver (sponsoring)
-    // to a member and helping it out to join the guild.
-    // To do that, we need:
-    // a) A list of all the memmbers that the commoners has sponsored (sponsoredMembers)
-    // b) The place at which every member was sponsored (chainIndex). This is because
-    // the reward system is weighted towards the first sponsors of a member. People are incentivized to vote for new people.
-    // c) The reward that particular guild member has accrued up to this point
-    // d) Total number of sponsors for that particular member
-    function claimChainReward(address rewardee)
-        external
-        returns(uint256 rewards)
-    {
-        // Get the guild members that were sponsored by "rewardee"
-        address[] memory sponsoredMembers = sponsorsToMembers[rewardee];
-        uint256 length = sponsoredMembers.length;
-        if (length == 0){
-            return 0;
-        }
-        uint256 totalReward = 0;
-        for(uint256 i=0;i<length;i++){
-            // for every member, get the place of the rewardee
-            // in the guild member's (sponsored) chainOfResponsibility.
-            // Early backers receiver higher rewards
-            address member = sponsoredMembers[i];
-            GuildMember memory guildMember = addressToGuildMember[member];
-            uint256 chainIndex;
-            uint l = guildMember.chainOfResponsibility.length;
-            // To find the index, we loop through the chain list
-            // and find the address that equals to rewardee
-            for(uint j=0;j<l;j++){
-                address sponsor = guildMember.chainOfResponsibility[j];
-                if(sponsor == rewardee){
-                    chainIndex = j;
-                    break;
-                }
-            }
-            uint256 reward = calculateMemberReward(member);
-            uint256 chainReward = reward*chainRewardMultiplier;
-            uint256 totalRewardees = addressToGuildMember[member].chainOfResponsibility.length;
-            totalReward = totalReward +  (chainReward / (reward / (2 * (2 ** chainIndex) ) ) ) / totalRewardees;
-        }
-        uint256 claimed = chainClaimedReward[rewardee];
-        if(totalReward <= claimed){
-            return 0;
-        }
-        else{
-            tokens.transfer(rewardee, totalReward-claimed);
-            return totalReward - claimed;
-        }
-    }
 
     function calculateMemberReward(address member)
         public
@@ -754,7 +652,6 @@ contract  Guild is ReentrancyGuard {
     {
         uint256 gravitas = calculateGravitas(sender, silverAmount) + addressToGravitas[receiver];
         uint256 memberGravitas = _modifyGravitas(receiver, gravitas);
-        appendChainOfResponsibility(receiver, sender);
         return memberGravitas;
     }
 

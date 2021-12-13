@@ -43,14 +43,12 @@ contract GuildCommonersTest is Gov2Test {
         //threshold = 1;
         hevm.warp(block.timestamp + 30 days);
         Guild.GuildMember memory ag = agnello.joinGuild(2);
-        address[] memory chain = ag.chainOfResponsibility;
         uint96 lastClaim = ag.lastClaimTimestamp;
         uint96 join = ag.joinTimestamp;
         uint48 index = ag.addressListIndex;
         assertEq(lastClaim, block.timestamp);
         assertEq(join, block.timestamp);
         assertEq(index, 1);
-        assertEq(chain[0], address(john));
  }
 
  function testIsGuildMember() public {
@@ -208,6 +206,7 @@ contract GuildMembersTest is Gov2Test {
             assertEq(error, "Guild::castVoteForGuildMaster::account_already_voted");
         }
     }
+    ccccucgirbvblbuctknuntnluucnrdgnhdcvrdbcnu
 
     function testGuildMasterVoteWrongAddress() public {
         initMembers();
