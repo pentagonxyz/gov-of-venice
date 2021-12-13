@@ -13,26 +13,52 @@ contract MockConstitution is Constitution {
 
     GuildCouncil guildCouncil;
     MerchantRepublic merchantRepublicContract;
+    Guild guild;
+    MockERC20 mockDucat;
 
+    constructor(address md){
+        mockDucat = MockERC20(md);
+    }
 
     function mockProposals(address gc, address mr) public {
         guildCouncil = GuildCouncil(gc);
         merchantRepublicContract = MerchantRepublic(mr);
     }
 
-    function mockEstablishGuild(address guild) public returns(uint256){
-        setGuildCouncil(guild, address(guildCouncil));
-        return guildCouncil.establishGuild(guild);
+    function mockEstablishGuild(address addr) public returns(uint256){
+        setGuildCouncil(addr, address(guildCouncil));
+        return guildCouncil.establishGuild(addr);
     }
 
     function setGuildCouncil(address guildAddress, address guildCouncilAddress)
         public
     {
-        Guild guild = Guild(guildAddress);
+        guild = Guild(guildAddress);
         guild.setGuildCouncil(guildCouncilAddress);
     }
 
+    function sendBudgetToGuild(uint coins, address addr) public {
+        mockDucat.transfer(addr, coins);
+    }
+
+    function withdrawBudget(uint coins, address guildAddr , address rec) public {
+        guild = Guild(guildAddr);
+        guild.withdraw(rec, coins);
+    }
+
 }
+
+contract MockGuildCouncil is GuildCouncil, DSTestPlus{
+    Guild guild;
+    MockERC20 mockDucat;
+    constructor(address mr, address ca, address ta) GuildCouncil(mr, ca, ta){}
+    function mockCallGuildProposal(address guildAddress, uint48 proposalId) public {
+        guild = Guild(guildAddress);
+        guild.guildVoteRequest(proposalId);
+    }
+
+}
+
 
 contract Commoner is DSTestPlus{
     Guild internal g;
@@ -43,7 +69,6 @@ contract Commoner is DSTestPlus{
 
     mapping(uint256 => Guild) guilds;
 
-    constructor(){}
 
     function init( address _gc, address _mr, address _con, address _md)
         public
@@ -112,7 +137,17 @@ contract Commoner is DSTestPlus{
     function castVoteForGuildMaster(uint8 support, address gm, uint48 guild) public returns(bool){
         return Guild(guilds[guild]).castVoteForGuildMaster(support, gm);
     }
-    function startGuildmasterVote(address gm, uint48 guild) public {
+
+    function castVoteForBanishment(uint8 support, address target, uint guild) public returns(bool){
+        return Guild(guilds[guild]).castVoteForBanishment(support, target);
+    }
+    function castVoteForProposal(uint8 support, uint48 proposalId, uint guild) public returns(bool){
+        return Guild(guilds[guild]).castVoteForProposal(proposalId, support);
+    }
+    function startBanishmentVote(address target, uint guild) public {
+        Guild(guilds[guild]).startBanishmentVote(target);
+    }
+    function startGuildmasterVote(address gm, uint guild) public {
         Guild(guilds[guild]).startGuildmasterVote(gm);
     }
     function getVoteInfoGuildMaster(uint48 guild) public
@@ -123,12 +158,57 @@ contract Commoner is DSTestPlus{
        return Guild(guilds[guild]).getVoteInfo(1);
     }
 
-    function guildMasterAcceptanceCeremony(uint48 guild) public
+    function getVoteInfoBanishment(uint guild) public
+        returns(uint48, uint48, uint48,
+                uint88, bool, address, address,
+                uint256)
+    {
+       return Guild(guilds[guild]).getVoteInfo(2);
+    }
+
+    function getVoteInfoProposal(uint guild) public
+        returns(uint48, uint48, uint48,
+                uint88, bool, address, address,
+                uint256)
+    {
+       return Guild(guilds[guild]).getVoteInfo(2);
+    }
+
+    function guildMasterAcceptanceCeremony(uint guild) public
         returns(bool)
     {
         return Guild(guilds[guild]).guildMasterAcceptanceCeremony();
     }
 
+    function changeGravitasThreshold(uint guild, uint256 par) public  {
+        Guild(guilds[guild]).changeGravitasThreshold(par);
+    }
+
+    function changeMemberRewardPerEpoch(uint guild, uint48 par) public  {
+        Guild(guilds[guild]).changeMemberRewardPerEpoch(par);
+    }
+
+    function changeGuildMasterMultiplier(uint guild, uint8 par) public  {
+        Guild(guilds[guild]).changeGuildMasterMultiplier(par);
+    }
+
+    function changeMaxGuildMembers(uint guild, uint256 par) public  {
+        Guild(guilds[guild]).changeMaxGuildMembers(par);
+    }
+
+    function changeGuildMemberSlash(uint guild, uint256 par) public  {
+        Guild(guilds[guild]).changeGuildMemberSlash(par);
+    }
+    function changeSlashForCashReward(uint guild, uint256 par) public {
+        Guild(guilds[guild]).changeSlashForCashReward(par);
+    }
+
+    function claimReward(uint guild) public {
+        Guild(guilds[guild]).claimReward();
+    }
+    function calculateMemberReward(uint guild) public returns(uint) {
+        return Guild(guilds[guild]).calculateMemberReward(address(this));
+    }
 }
 
 contract Gov2Test is DSTestPlus {
@@ -139,7 +219,7 @@ contract Gov2Test is DSTestPlus {
     uint256 private checkpointGasLeft;
 
     Guild internal guild;
-    GuildCouncil internal guildCouncil;
+    MockGuildCouncil internal guildCouncil;
     MerchantRepublic internal merchantRepublic;
     MockConstitution internal constitution;
     MockERC20 internal mockDucat;
@@ -163,6 +243,10 @@ contract Gov2Test is DSTestPlus {
     uint32 blacksmithsGT;
     uint32 judgesGT;
 
+    uint256 locksmithsId;
+    uint256 blacksmithsId;
+    uint256 judgesId;
+
     Commoner[] internal facelessMen;
 
     address[] internal guilds;
@@ -177,8 +261,8 @@ contract Gov2Test is DSTestPlus {
         mockDucat= new MockERC20("Ducat Token", "DK", 18);
         // Create the gov modules
         merchantRepublic = new MerchantRepublic(address(ursus));
-        constitution = new MockConstitution();
-        guildCouncil = new GuildCouncil(address(merchantRepublic), address(constitution), address(mockDucat));
+        constitution = new MockConstitution(address(mockDucat));
+        guildCouncil = new MockGuildCouncil(address(merchantRepublic), address(constitution), address(mockDucat));
 
         ursus.init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
         agnello.init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
@@ -212,9 +296,9 @@ contract Gov2Test is DSTestPlus {
         judges = new Guild("judges", founding3, judgesGT, 25 days, 5, 14 days, address(mockDucat), address(constitution));
 
         // Register the guilds with the GuildCouncil
-        uint256 locksmithsId = constitution.mockEstablishGuild(address(locksmiths));
-        uint256 blacksmithsId= constitution.mockEstablishGuild(address(blacksmiths));
-        uint256 judgesId = constitution.mockEstablishGuild(address(judges));
+        locksmithsId = constitution.mockEstablishGuild(address(locksmiths));
+        blacksmithsId= constitution.mockEstablishGuild(address(blacksmiths));
+        judgesId = constitution.mockEstablishGuild(address(judges));
 
         guilds = guildCouncil.availableGuilds();
         // register the guilds to the commoners

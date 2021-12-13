@@ -77,7 +77,7 @@ contract GuildCouncil is ReentrancyGuard{
 
     // check if msg.sender == activeGuildvotes[proposalid]
 
-    function _guildVerdict(uint48 proposalId, bool guildAgreement)
+    function _guildVerdict(bool guildAgreement, uint48 proposalId)
         public
         onlyGuild
     {
@@ -127,7 +127,7 @@ contract GuildCouncil is ReentrancyGuard{
             }
         }
         if (success == false){
-           _guildVerdict(proposalId, defaultGuildDecision);
+           _guildVerdict(defaultGuildDecision, proposalId);
         }
         return success;
     }
@@ -143,7 +143,6 @@ contract GuildCouncil is ReentrancyGuard{
             address guildAddress = guilds[i];
             IGuild guild = IGuild(guildAddress);
             guildRewards =  guild.claimChainRewards(msg.sender);
-            tokens.transferFrom(guildAddress, msg.sender, guildRewards);
         }
     }
 
@@ -184,10 +183,7 @@ contract GuildCouncil is ReentrancyGuard{
         returns(uint256)
     {
         IGuild guild = IGuild(guilds[guildId]);
-        uint256 gravitas = guild.calculateGravitas(sender, silverAmount) + guild.getGravitas(receiver);
-        uint256 memberGravitas = guild.modifyGravitas(receiver, gravitas);
-        guild.appendChainOfResponsibility(receiver, sender);
-        emit SilverSent(guildId, receiver, sender, silverAmount);
+        return guild.informGuildOnSilverPayment(sender, receiver, silverAmount);
     }
 
     // budget for every guidl is proposed as a protocol proposal, voted upon and then
