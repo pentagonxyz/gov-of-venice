@@ -11,11 +11,12 @@ contract GuildCouncil is ReentrancyGuard{
 
     event GuildEstablished(uint48 guildId, address guildAddress);
     event GuildDecision(uint48 indexed guildId, uint48 indexed proposalId, bool guildAgreement);
-    event BudgetIssued(uint48 indexed guildId, uint256 budget);
     event SilverSent(uint48 indexed guildId, address indexed recipientCommoner,
                      address indexed senderCommoner, uint256 silverAmmount);
 
     mapping(uint256 => uint48) activeGuildVotes;
+
+    mapping(address => uint8) securityCouncil;
 
     uint48 activeGuildVotesCounter;
 
@@ -26,8 +27,6 @@ contract GuildCouncil is ReentrancyGuard{
     uint48 private guildCounter;
 
     uint48 private removedGuildCounter;
-
-    mapping(address => uint8) securityCouncil;
 
     uint8 constant minimumInitialGuildMembers = 3;
 
@@ -40,18 +39,22 @@ contract GuildCouncil is ReentrancyGuard{
 
     MerchantRepublicI merchantRepublic;
 
+    address public merchantRepublicAddress;
+
+    address public constitutionAddress;
+
     ConstitutionI constitution;
 
-    address highGuildMaster;
+    address public highGuildMaster;
 
     mapping(uint256 => uint48) proposalTimestamp;
 
     TokensI tokens;
 
-    constructor(address merchantRepublicAddress, address constitutionAddress, address tokensAddress)
+    constructor(address merchantRepublicAddr, address constitutionAddr, address tokensAddress)
     {
-        securityCouncil[merchantRepublicAddress] = 2;
-        securityCouncil[constitutionAddress] = 3;
+        merchantRepublicAddress = merchantRepublicAddr;
+        constitutionAddress = constitutionAddr;
         merchantRepublic = MerchantRepublicI(merchantRepublicAddress);
         constitution = ConstitutionI(constitutionAddress);
         highGuildMaster = msg.sender;
@@ -134,17 +137,6 @@ contract GuildCouncil is ReentrancyGuard{
     // naively, go over all the guilds and see how many rewards the
     // user has accumulated from being part of a chainOfResponsibility
     // for some guild member in every guild
-    function chainOfResponsibilityClaim()
-        external
-        nonReentrant
-    {
-        uint256 guildRewards;
-        for(uint48 i; i<guildCounter; i++){
-            address guildAddress = guilds[i];
-            IGuild guild = IGuild(guildAddress);
-            guildRewards =  guild.claimChainRewards(msg.sender);
-        }
-    }
 
     function availableGuilds()
         external
@@ -186,26 +178,13 @@ contract GuildCouncil is ReentrancyGuard{
         return guild.informGuildOnSilverPayment(sender, receiver, silverAmount);
     }
 
-    // budget for every guidl is proposed as a protocol proposal, voted upon and then
-    // this function is called by the governance smart contract to issue the budget
-    function issueBudget(address budgetSender, uint48 guildId, uint256 budgetAmount)
-        external
-        onlyConstitution
-        onlyMerchantRepublic
-        returns (bool)
-    {
-        emit BudgetIssued(guildId, budgetAmount);
-        return tokens.transferFrom(budgetSender, guilds[guildId], budgetAmount);
-    }
-
     function setMerchantRepublic(address oldMerchantRepublic, address newMerchantRepublic)
         external
         onlyConstitution
     {
-        require(securityCouncil[oldMerchantRepublic] == 2,
+        require(oldMerchantRepublic == merchantRepublicAddress,
                 "GuildCouncil::SetMerchantRepublic::wrong_old_address");
-        securityCouncil[newMerchantRepublic] = 2;
-        delete securityCouncil[oldMerchantRepublic];
+        merchantRepublicAddress = newMerchantRepublic;
     }
 
     modifier onlyGuild() {
@@ -214,12 +193,12 @@ contract GuildCouncil is ReentrancyGuard{
     }
 
     modifier onlyMerchantRepublic(){
-        require(securityCouncil[msg.sender] == 2, "GuildCouncil::SecurityCouncil::only_merchantRepublic");
+        require(msg.sender == merchantRepublicAddress, "GuildCouncil::SecurityCouncil::only_merchantRepublic");
         _;
     }
 
     modifier onlyConstitution(){
-        require(securityCouncil[msg.sender] == 3, "GuildCouncil::SecurityCouncil::only_constitution");
+        require(msg.sender == constitutionAddress, "GuildCouncil::SecurityCouncil::only_constitution");
         _;
     }
 
