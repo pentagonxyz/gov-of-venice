@@ -337,7 +337,7 @@ contract GuildMembersTest is Gov2Test {
         uint256 start = block.timestamp;
         hevm.warp(block.timestamp + 5);
         for (uint256 i = 0; i < facelessMen.length; i++) {
-            try facelessMen[i].castVoteForProposal(1, proposalId, 3) {
+            try facelessMen[i].guildCastVoteForProposal(1, proposalId, 3) {
                 continue;
             } catch Error(string memory error) {
                 assertEq(
@@ -402,23 +402,3 @@ contract GuildMembersTest is Gov2Test {
     }
 }
 
-contract GuildConstitution is Gov2Test {
-    function testGetBudget() public {
-        mockDucat.mint(address(constitution), 2000);
-        constitution.sendBudgetToGuild(1000, address(locksmiths));
-        assertEq(1000, locksmiths.getBudget());
-        assertEq(1000, mockDucat.balanceOf(address(constitution)));
-    }
-
-    function testWithdrawBudget() public {
-        mockDucat.mint(address(constitution), 2000);
-        constitution.sendBudgetToGuild(1000, address(locksmiths));
-        constitution.withdrawBudget(
-            1000,
-            address(locksmiths),
-            address(constitution)
-        );
-        assertEq(locksmiths.getBudget(), 0);
-        assertEq(mockDucat.balanceOf(address(constitution)), 2000);
-    }
-}
