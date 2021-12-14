@@ -46,6 +46,10 @@ contract MockConstitution is Constitution {
         guild.withdraw(rec, coins);
     }
 
+    function guildCouncilSetMerchantRepublic(address old, address newAddr) public {
+        guildCouncil.setMerchantRepublic(old, newAddr);
+    }
+
 }
 
 contract MockGuildCouncil is GuildCouncil, DSTestPlus{
