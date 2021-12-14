@@ -299,14 +299,14 @@ contract MerchantRepublic {
     function propose(address[] calldata targets, uint[] calldata values, string[] calldata signatures, bytes[] calldata calldatas,
                      string calldata description, uint256[] calldata guildsId)
             external
-            returns (uint)
+            returns (uint48)
     {
         {
         require(initialProposalId != 0, "MerchantRepublic::propose: The MerchantRepublic is has not convened yet");
         require(tokens.getPastVotes(msg.sender, block.number -1) > proposalThreshold,
                 "MerchantRepublic::propose: proposer votes below proposal threshold");
         require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length,
-                "MerchantRepublic::propose: proposal function information arity mismatch");
+                "MerchantRepublic::propose: proposal function information parity mismatch");
         require(targets.length != 0, "MerchantRepublic::propose: must provide ctions");
         require(targets.length <= proposalMaxOperations(), "MerchantRepublic::propose: too many actions");
         require(guildsId.length !=0, "MerchantRepublic::propose::no_guilds_defined");
