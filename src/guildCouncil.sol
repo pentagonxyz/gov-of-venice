@@ -78,6 +78,7 @@ contract GuildCouncil is ReentrancyGuard{
         return guildCounter-1;
     }
 
+
     // check if msg.sender == activeGuildvotes[proposalid]
 
     function _guildVerdict(bool guildAgreement, uint48 proposalId)
@@ -120,7 +121,13 @@ contract GuildCouncil is ReentrancyGuard{
     {
         bool success = false;
         for(uint48 i; i< guildsId.length; i++){
-            IGuild guild = IGuild(guilds[guildsId[i]]);
+            address guildAddress = guilds[guildsId[i]];
+            if (guildAddress == address(0)){
+                _guildVerdict(defaultGuildDecision, proposalId);
+            }
+            IGuild guild = IGuild(guildAddress);
+            // if proposalid calls to non-existent guild, then
+            // default verdict
             if (guild.inquireAddressList().length != 0) {
                 activeGuildVotes[proposalId] = guildsId[i];
                 activeGuildVotesCounter++;
