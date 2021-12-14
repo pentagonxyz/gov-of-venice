@@ -5,8 +5,7 @@ import "./utils/gov2Test.sol";
 import "../Iguild.sol";
 
 contract GCTest is Gov2Test {
-
-    function testGuildInformation() public{
+    function testGuildInformation() public {
         IGuild.GuildBook memory gb = guildCouncil.guildInformation(0);
         assertEq(locksmithsGT, gb.gravitasThreshold);
         assertEq(14 days, gb.timeOutPeriod);
@@ -22,8 +21,10 @@ contract GCTest is Gov2Test {
     }
 
     function testSetMerchantRepublic() public {
-        constitution.guildCouncilSetMerchantRepublic(address(merchantRepublic), address(this));
+        constitution.guildCouncilSetMerchantRepublic(
+            address(merchantRepublic),
+            address(this)
+        );
         assertEq(address(this), guildCouncil.merchantRepublicAddress());
     }
-
 }
