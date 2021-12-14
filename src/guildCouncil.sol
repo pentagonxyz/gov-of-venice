@@ -11,7 +11,6 @@ contract GuildCouncil is ReentrancyGuard{
 
     event GuildEstablished(uint48 guildId, address guildAddress);
     event GuildDecision(uint48 indexed guildId, uint48 indexed proposalId, bool guildAgreement);
-    event BudgetIssued(uint48 indexed guildId, uint256 budget);
     event SilverSent(uint48 indexed guildId, address indexed recipientCommoner,
                      address indexed senderCommoner, uint256 silverAmmount);
 
@@ -177,16 +176,6 @@ contract GuildCouncil is ReentrancyGuard{
     {
         IGuild guild = IGuild(guilds[guildId]);
         return guild.informGuildOnSilverPayment(sender, receiver, silverAmount);
-    }
-
-    function issueBudget(address budgetSender, uint48 guildId, uint256 budgetAmount)
-        external
-        onlyConstitution
-        onlyMerchantRepublic
-        returns (bool)
-    {
-        emit BudgetIssued(guildId, budgetAmount);
-        return tokens.transferFrom(budgetSender, guilds[guildId], budgetAmount);
     }
 
     function setMerchantRepublic(address oldMerchantRepublic, address newMerchantRepublic)

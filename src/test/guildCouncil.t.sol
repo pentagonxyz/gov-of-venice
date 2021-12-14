@@ -26,10 +26,4 @@ contract GCTest is Gov2Test {
         assertEq(address(this), guildCouncil.merchantRepublicAddress());
     }
 
-    function testIssueBudget() public {}
-
-
-    function testRecallBudget() public {}
-
-
 }
