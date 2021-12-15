@@ -8,3 +8,6 @@
 [submodule "lib/solmate"]
 	path = lib/solmate
 	url = https://github.com/Rari-Capital/solmate
+[submodule "lib/Kali"]
+	path = lib/Kali
+	url = https://github.com/lexDAO/Kali
