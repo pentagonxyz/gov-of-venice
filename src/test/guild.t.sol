@@ -57,6 +57,7 @@ contract GuildCommonersTest is Gov2Test {
 
     function testGuildMemberRewardClaim() public {
         mockDucat.mint(address(constitution), 100000000);
+        emit log_bytes(abi.encodePacked(mockDucat.paused()));
         constitution.sendBudgetToGuild(1000000, address(locksmiths));
         hevm.warp(block.timestamp + 10 days);
         ursus.claimReward(0);
@@ -401,4 +402,3 @@ contract GuildMembersTest is Gov2Test {
         }
     }
 }
-

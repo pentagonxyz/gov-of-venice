@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import {DSTestPlus} from "solmate/test/utils/DSTestPlus.sol";
-import {MockERC20} from "solmate/test/utils/mocks/MockERC20.sol";
+import {MockERC20} from "./MockERC20.sol";
 import "./Hevm.sol";
 import {Guild} from "../../guild.sol";
 import {GuildCouncil} from "../../guildCouncil.sol";
@@ -52,13 +52,18 @@ contract MockConstitution is Constitution {
 
 }
 
-contract MockGuildCouncil is GuildCouncil, DSTestPlus{
+contract MockGuildCouncil is GuildCouncil{
     Guild guild;
     MockERC20 mockDucat;
     constructor(address mr, address ca, address ta) GuildCouncil(mr, ca, ta){}
+
     function mockCallGuildProposal(address guildAddress, uint48 proposalId) public {
         guild = Guild(guildAddress);
         guild.guildVoteRequest(proposalId);
+    }
+
+    function mockGuildsVerdict(uint48 proposalId, bool verdict) public {
+        merchantRepublic.guildsVerdict(proposalId, verdict);
     }
 
 }
@@ -145,7 +150,7 @@ contract Commoner is DSTestPlus{
     function castVoteForBanishment(uint8 support, address target, uint guild) public returns(bool){
         return Guild(guilds[guild]).castVoteForBanishment(support, target);
     }
-    function castVoteForProposal(uint8 support, uint48 proposalId, uint guild) public returns(bool){
+    function guildCastVoteForProposal(uint8 support, uint48 proposalId, uint guild) public returns(bool){
         return Guild(guilds[guild]).castVoteForProposal(proposalId, support);
     }
     function startBanishmentVote(address target, uint guild) public {
@@ -213,6 +218,24 @@ contract Commoner is DSTestPlus{
     function calculateMemberReward(uint guild) public returns(uint) {
         return Guild(guilds[guild]).calculateMemberReward(address(this));
     }
+    function govCastVote(uint48 id, uint8 support) public {
+        mr.castVote(id, support);
+    }
+
+    function queueProposal(uint48 id) public {
+        mr.queue(id);
+    }
+
+    function executeProposal(uint48 id) public {
+        mr.execute(id);
+    }
+
+    function govPropose(address[] calldata targets, uint[] calldata values,
+                        string[] calldata signatures, bytes[] calldata calldatas,
+                     string calldata description, uint48[] calldata guildsId) public returns(uint48)
+    {
+        return mr.propose(targets, values, signatures, calldatas, description, guildsId);
+    }
 }
 
 contract Gov2Test is DSTestPlus {
@@ -272,10 +295,15 @@ contract Gov2Test is DSTestPlus {
         agnello.init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
         john.init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
         pipin.init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
-
+        //delay = 2 days
         constitution.signTheConstitution(address(merchantRepublic), 2 days);
         constitution.mockProposals(address(guildCouncil), address(merchantRepublic));
-        ursus.initializeMerchantRepublic(address(constitution), address(mockDucat), address(guildCouncil), 14 days, 2 days, 10);
+        //votingPeriod = 1000 blocks
+        //votingDelay = 450 blocks
+        //proposalThreshold = 10
+
+        ursus.initializeMerchantRepublic(address(constitution), address(mockDucat), address(guildCouncil),
+                                        1000, 450, 1000);
 
         // set founding members for every guild
         // 0: locksmiths: ursus
