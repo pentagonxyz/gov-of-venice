@@ -7,7 +7,7 @@ import "./Iconstitution.sol";
 import "./Itokens.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract GuildCouncil is ReentrancyGuard{
+contract GuildCouncil is ReentrancyGuard {
 
     event GuildEstablished(uint48 guildId, address guildAddress);
     event GuildDecision(uint48 indexed guildId, uint48 indexed proposalId, bool guildAgreement);
@@ -84,6 +84,7 @@ contract GuildCouncil is ReentrancyGuard{
     function _guildVerdict(bool guildAgreement, uint48 proposalId)
         public
         onlyGuild
+        returns(bool)
     {
         uint48 guildId = activeGuildVotes[proposalId];
         require(msg.sender == guilds[guildId],
@@ -91,15 +92,14 @@ contract GuildCouncil is ReentrancyGuard{
         emit GuildDecision(guildId,  proposalId, guildAgreement);
         if(guildAgreement == false){
             activeGuildVotesCounter = 0;
-            merchantRepublic.guildsVerdict(proposalId, false);
         }
         else if (activeGuildVotesCounter != 0) {
             activeGuildVotesCounter--;
         }
-        else {
-            activeGuildVotesCounter = 0;
-            merchantRepublic.guildsVerdict(proposalId, true);
+        if (activeGuildVotesCounter == 0 ){
+            merchantRepublic.guildsVerdict(proposalId, guildAgreement);
         }
+        return true;
     }
     // in case of a guild not returning a verdict, this is a safeguard to continue the process
     function forceDecision(uint48 proposalId)
@@ -115,10 +115,10 @@ contract GuildCouncil is ReentrancyGuard{
     // activeGuildVotes[proposalid] = guildAddress
     function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId)
        external
-       onlyGuild
-       onlyMerchantRepublic
        returns(bool)
     {
+        require(securityCouncil[msg.sender] == 1 || msg.sender == merchantRepublicAddress,
+                "GuildCouncil::_callGuildsToVote::only_guild_or_merhant_republic");
         bool success = false;
         for(uint48 i; i< guildsId.length; i++){
             address guildAddress = guilds[guildsId[i]];

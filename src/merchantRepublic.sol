@@ -23,7 +23,7 @@ contract MerchantRepublic {
     /// @notice An event emitted when a proposal has been canceled
     event ProposalCanceled(uint id);
 
-    event ProposalSubmittedToGuilds(uint48 proposalId, uint256[] guildsId);
+    event ProposalSubmittedToGuilds(uint48 proposalId, uint48[] guildsId);
 
     event ProposalSubmittedToCommoners(uint256 id);
 
@@ -55,7 +55,7 @@ contract MerchantRepublic {
 
     event newSilverSeason(uint256 silverSeason);
 
-    event CallGuildsToVote(uint256[] guilds, uint48 proposalId);
+    event CallGuildsToVote(uint48[] guilds, uint48 proposalId);
 
     event ConstitutionChanged(address constitution);
 
@@ -133,6 +133,8 @@ contract MerchantRepublic {
 
         /// @notice The state of the guild's response about the particular proposal
         GuildVerdict guildVerdict;
+
+        uint startTimestamp;
 
         /// @notice Receipts of ballots for the entire set of voters
     }
@@ -301,13 +303,13 @@ contract MerchantRepublic {
 
 
     function propose(address[] calldata targets, uint[] calldata values, string[] calldata signatures, bytes[] calldata calldatas,
-                     string calldata description, uint256[] calldata guildsId)
+                     string calldata description, uint48[] calldata guildsId)
             external
             returns (uint48)
     {
         {
         require(initialProposalId != 0, "MerchantRepublic::propose: The MerchantRepublic has not convened yet");
-        require(tokens.getPastVotes(msg.sender, block.number -1) > proposalThreshold,
+        require(tokens.getPastVotes(msg.sender, block.timestamp - 1) > proposalThreshold,
                 "MerchantRepublic::propose: proposer votes below proposal threshold");
         require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length,
                 "MerchantRepublic::propose: proposal function information parity mismatch");
@@ -339,7 +341,7 @@ contract MerchantRepublic {
 
     function createProposal(address[] calldata targets, uint[] calldata values,
                             string[] calldata signatures, bytes[] calldata calldatas,
-                            uint256[] calldata guildsId)
+                            uint48[] calldata guildsId)
                 private
     {
         proposalCount++;
@@ -358,7 +360,8 @@ contract MerchantRepublic {
             abstainVotes: 0,
             canceled: false,
             executed: false,
-            guildVerdict: GuildVerdict.Pending
+            guildVerdict: GuildVerdict.Pending,
+            startTimestamp: block.timestamp
         });
         proposals[proposalCount] = newProposal;
         latestProposalIds[msg.sender] = proposalCount;
@@ -370,7 +373,7 @@ contract MerchantRepublic {
         ProposalState proposalState = state(proposalId);
         require(proposalState!= ProposalState.Executed, "MerchantRepublic::cancel: cannot cancel executed proposal");
         Proposal storage proposal = proposals[proposalId];
-        require(msg.sender == proposal.proposer || tokens.getPastVotes(proposal.proposer, block.number - 1) < proposalThreshold, "GovernorBravo::cancel: proposer above threshold");
+        require(msg.sender == proposal.proposer || tokens.getPastVotes(proposal.proposer, block.timestamp- 1) < proposalThreshold, "GovernorBravo::cancel: proposer above threshold");
         proposal.canceled = true;
         for (uint i = 0; i < proposal.targets.length; i++) {
             constitution.cancelTransaction(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], proposal.eta);
@@ -384,7 +387,6 @@ contract MerchantRepublic {
     {
         require(state(proposalId) == ProposalState.PendingGuildsVote,
                 "merchantRepublic::guildsVerdict::not_pending_guilds_vote");
-
         if(verdict){
             proposals[proposalId].guildVerdict = GuildVerdict.Possitive;
         }
@@ -448,7 +450,7 @@ contract MerchantRepublic {
         Proposal storage proposal = proposals[proposalId];
         Receipt storage receipt = receipts[proposalId][voter];
         require(receipt.hasVoted == false, "MerchantRepublic::_castVote: voter already voted");
-        uint96 votes = tokens.getPastVotes(voter, proposal.startBlock);
+        uint96 votes = tokens.getPastVotes(voter, proposal.startTimestamp);
 
         if (support == 0) {
             proposal.againstVotes = proposal.againstVotes + votes;
@@ -503,8 +505,6 @@ contract MerchantRepublic {
 
         emit ProposalThresholdSet(oldProposalThreshold, proposalThreshold);
     }
-
-
 
 
     /**
@@ -565,7 +565,7 @@ contract MerchantRepublic {
 
 
     function state(uint48 proposalId) public view returns (ProposalState) {
-        require(proposalCount >= proposalId && proposalId > initialProposalId, "MerchantRepublic::state: invalid proposal id");
+        require(proposalCount >= proposalId && proposalId >= initialProposalId, "MerchantRepublic::state: invalid proposal id");
         Proposal storage proposal = proposals[proposalId];
         if (proposal.canceled) {
             return ProposalState.Canceled;
@@ -647,7 +647,7 @@ contract MerchantRepublic {
         return silver - silverAmount;
     }
 
-    function callGuildsToVote(uint256[] calldata guildsId, uint48 proposalId)
+    function callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId)
         internal
         returns(bool)
     {

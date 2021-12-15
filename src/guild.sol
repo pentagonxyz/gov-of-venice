@@ -8,8 +8,6 @@ import "solmate/utils/SafeCastLib.sol";
 import "./IguildCouncil.sol";
 import "./Itokens.sol";
 
-// import {DSTestPlus} from "solmate/test/utils/DSTestPlus.sol";
-
 contract  Guild is ReentrancyGuard {
 
     // ~~~~~~~~~~ Libraries ~~~~~~~~~~~~~~~~
@@ -287,7 +285,7 @@ contract  Guild is ReentrancyGuard {
 // unilateral decisions that they don't support. If the guild kicks
 // the guildmaster from their posiiton (e.g elect new), the queue empties.
 
-    function inviteGuildsToProposal(uint256[] calldata guildId, uint48 proposalId)
+    function inviteGuildsToProposal(uint48[] calldata guildId, uint48 proposalId)
         external
         onlyGuildMaster
         returns (bool)
