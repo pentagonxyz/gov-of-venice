@@ -235,8 +235,12 @@ contract MerchantRepublic {
         require(initialProposalId == 0, "MerchantRepublic::_initiate: can only initiate once");
 
         // Optional if merchantRepublic migrates, otherwise = 0;
-        initialProposalId = 0;
-        // initialProposalId = MerchantRepublicI(previousMerchantRepublic).getProposalCount();
+        if(previousMerchantRepublic == address(0)){
+            initialProposalId = 1;
+        }
+        else {
+            initialProposalId = MerchantRepublicI(previousMerchantRepublic).getProposalCount();
+        }
     }
 
     function getProposalCount()
@@ -302,7 +306,7 @@ contract MerchantRepublic {
             returns (uint48)
     {
         {
-        require(initialProposalId != 0, "MerchantRepublic::propose: The MerchantRepublic is has not convened yet");
+        require(initialProposalId != 0, "MerchantRepublic::propose: The MerchantRepublic has not convened yet");
         require(tokens.getPastVotes(msg.sender, block.number -1) > proposalThreshold,
                 "MerchantRepublic::propose: proposer votes below proposal threshold");
         require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length,
@@ -325,41 +329,41 @@ contract MerchantRepublic {
         return  proposalCount;
     }
 
-        function announceProposal(address[] calldata targets, uint[] calldata values,
-                                  string[] calldata signatures, bytes[] calldata calldatas,
-                                  string calldata description) private
-        {
-        emit ProposalCreated(proposalCount, msg.sender, targets, values, signatures,
-                             calldatas,  block.number + votingDelay, block.number + votingDelay + votingPeriod, description);
-        }
+    function announceProposal(address[] calldata targets, uint[] calldata values,
+                              string[] calldata signatures, bytes[] calldata calldatas,
+                              string calldata description) private
+    {
+    emit ProposalCreated(proposalCount, msg.sender, targets, values, signatures,
+                         calldatas,  block.number + votingDelay, block.number + votingDelay + votingPeriod, description);
+    }
 
-        function createProposal(address[] calldata targets, uint[] calldata values,
-                                string[] calldata signatures, bytes[] calldata calldatas,
-                                uint256[] calldata guildsId)
-                    private
-        {
-            proposalCount++;
-            Proposal memory newProposal = Proposal({
-                id: proposalCount,
-                proposer: msg.sender,
-                eta: 0,
-                targets: targets,
-                values: values,
-                signatures: signatures,
-                calldatas: calldatas,
-                startBlock: block.number + votingDelay,
-                endBlock: block.number + votingDelay + votingPeriod,
-                forVotes: 0,
-                againstVotes: 0,
-                abstainVotes: 0,
-                canceled: false,
-                executed: false,
-                guildVerdict: GuildVerdict.Pending
-            });
-            proposals[proposalCount] = newProposal;
-            latestProposalIds[msg.sender] = proposalCount;
-            callGuildsToVote(guildsId, proposalCount);
-        }
+    function createProposal(address[] calldata targets, uint[] calldata values,
+                            string[] calldata signatures, bytes[] calldata calldatas,
+                            uint256[] calldata guildsId)
+                private
+    {
+        proposalCount++;
+        Proposal memory newProposal = Proposal({
+            id: proposalCount,
+            proposer: msg.sender,
+            eta: 0,
+            targets: targets,
+            values: values,
+            signatures: signatures,
+            calldatas: calldatas,
+            startBlock: block.number + votingDelay,
+            endBlock: block.number + votingDelay + votingPeriod,
+            forVotes: 0,
+            againstVotes: 0,
+            abstainVotes: 0,
+            canceled: false,
+            executed: false,
+            guildVerdict: GuildVerdict.Pending
+        });
+        proposals[proposalCount] = newProposal;
+        latestProposalIds[msg.sender] = proposalCount;
+        callGuildsToVote(guildsId, proposalCount);
+    }
     function cancel(uint48 proposalId)
         external
     {
