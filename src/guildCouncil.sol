@@ -14,7 +14,7 @@ contract GuildCouncil is ReentrancyGuard{
     event SilverSent(uint48 indexed guildId, address indexed recipientCommoner,
                      address indexed senderCommoner, uint256 silverAmmount);
 
-    mapping(uint256 => uint48) activeGuildVotes;
+    mapping(uint256 => uint48) public activeGuildVotes;
 
     mapping(address => uint8) securityCouncil;
 
@@ -47,7 +47,7 @@ contract GuildCouncil is ReentrancyGuard{
 
     address public highGuildMaster;
 
-    mapping(uint256 => uint48) proposalTimestamp;
+    mapping(uint256 => uint48) public proposalTimestamp;
 
     TokensI tokens;
 
