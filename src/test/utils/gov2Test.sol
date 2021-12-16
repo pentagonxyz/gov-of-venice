@@ -127,10 +127,10 @@ contract Commoner is DSTestPlus{
     }
 
     function initializeMerchantRepublic(address conAddr, address tokAddr, address gcAddr,
-                                       uint votingPeriod, uint votingDelay, uint propThres)
+                                       uint48 guildvotemax, uint votingPeriod, uint votingDelay, uint propThres)
         public
     {
-        mr.initialize(conAddr, tokAddr, gcAddr, votingPeriod, votingDelay, propThres);
+        mr.initialize(conAddr, tokAddr, gcAddr, guildvotemax, votingPeriod, votingDelay, propThres);
         mr._initiate(address(0));
     }
 
@@ -311,7 +311,7 @@ contract Gov2Test is DSTestPlus {
 
 
         ursus.initializeMerchantRepublic(address(constitution), address(mockDucat), address(guildCouncil),
-                                        7 days, 2 days , 10);
+                                        3 days, 7 days, 2 days , 10);
 
         // set founding members for every guild
         // 0: locksmiths: ursus

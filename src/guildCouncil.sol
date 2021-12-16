@@ -30,8 +30,7 @@ contract GuildCouncil is ReentrancyGuard {
 
     uint8 constant minimumInitialGuildMembers = 3;
 
-    // Maximum time guilds have to decide about a prooposal is 28 days
-    uint48 constant guildDecisionTimeLimit=  7 days;
+    uint48 guildDecisionTimeLimit;
 
     bool constant defaultGuildDecision = true;
 
@@ -105,10 +104,6 @@ contract GuildCouncil is ReentrancyGuard {
         require(block.timestamp - proposalTimestamp[proposalId] > guildDecisionTimeLimit, "guildCouncil::forceDecision::decision_still_in_time_limit");
         merchantRepublic.guildsVerdict(proposalId, defaultGuildDecision);
     }
-
-    // If guildMembersCount = 0, then skip
-    // guildAddress = guilds[guildId]
-    // activeGuildVotes[proposalid] = guildAddress
     function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId)
        external
        returns(bool)
@@ -116,6 +111,39 @@ contract GuildCouncil is ReentrancyGuard {
         require(securityCouncil[msg.sender] == 1 || msg.sender == merchantRepublicAddress,
                 "GuildCouncil::_callGuildsToVote::only_guild_or_merhant_republic");
         bool success = false;
+        for(uint48 i; i< guildsId.length; i++){
+            address guildAddress = guilds[guildsId[i]];
+            if (guildAddress == address(0)){
+                _guildVerdict(defaultGuildDecision, proposalId);
+            }
+            IGuild guild = IGuild(guildAddress);
+            // if proposalid calls to non-existent guild, then
+            // default verdict
+            if (guild.inquireAddressList().length != 0) {
+                activeGuildVotes[proposalId] = guildsId[i];
+                activeGuildVotesCounter++;
+                proposalTimestamp[proposalId] = uint48(block.timestamp);
+                guild.guildVoteRequest(proposalId);
+                success = true;
+            }
+        }
+        if (success == false){
+           _guildVerdict(defaultGuildDecision, proposalId);
+        }
+        return success;
+    }
+
+    // If guildMembersCount = 0, then skip
+    // guildAddress = guilds[guildId]
+    // activeGuildVotes[proposalid] = guildAddress
+    function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId, uint48 maxDecisionTime)
+       external
+       returns(bool)
+    {
+        require(securityCouncil[msg.sender] == 1 || msg.sender == merchantRepublicAddress,
+                "GuildCouncil::_callGuildsToVote::only_guild_or_merhant_republic");
+        bool success = false;
+        guildDecisionTimeLimit = maxDecisionTime;
         for(uint48 i; i< guildsId.length; i++){
             address guildAddress = guilds[guildsId[i]];
             if (guildAddress == address(0)){

@@ -65,6 +65,7 @@ contract MerchantRepublic {
     /// @notice The duration of voting on a proposal, in blocks
     uint public votingPeriod;
 
+    uint48 public guildsMaxVotingPeriod;
     /// @notice The number of votes required in order for a voter to become a proposer
     uint public proposalThreshold;
 
@@ -210,7 +211,7 @@ contract MerchantRepublic {
     }
 
     function initialize(address constitutionAddress, address tokensAddress,
-                        address guildCouncilAddress, uint votingPeriod_,
+                        address guildCouncilAddress, uint48 guildsMaxVotingPeriod_, uint votingPeriod_,
                         uint votingDelay_, uint proposalThreshold_)
         public
     {
@@ -220,6 +221,7 @@ contract MerchantRepublic {
         votingPeriod = votingPeriod_;
         votingDelay = votingDelay_;
         proposalThreshold = proposalThreshold_;
+        guildsMaxVotingPeriod = guildsMaxVotingPeriod_;
         guildCouncil =  GuildCouncilI(guildCouncilAddress);
 
     }
@@ -653,7 +655,7 @@ contract MerchantRepublic {
         returns(bool)
     {
         emit CallGuildsToVote(guildsId, proposalId);
-        return guildCouncil._callGuildsToVote(guildsId, proposalId);
+        return guildCouncil._callGuildsToVote(guildsId, proposalId, guildsMaxVotingPeriod);
     }
 
     function getChainId()
