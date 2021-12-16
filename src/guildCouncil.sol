@@ -31,7 +31,7 @@ contract GuildCouncil is ReentrancyGuard {
     uint8 constant minimumInitialGuildMembers = 3;
 
     // Maximum time guilds have to decide about a prooposal is 28 days
-    uint48 constant guildDecisionTimeLimit=  2419200;
+    uint48 constant guildDecisionTimeLimit=  7 days;
 
     bool constant defaultGuildDecision = true;
 
@@ -45,8 +45,6 @@ contract GuildCouncil is ReentrancyGuard {
 
     ConstitutionI constitution;
 
-    address public highGuildMaster;
-
     mapping(uint256 => uint48) public proposalTimestamp;
 
     TokensI tokens;
@@ -57,7 +55,6 @@ contract GuildCouncil is ReentrancyGuard {
         constitutionAddress = constitutionAddr;
         merchantRepublic = MerchantRepublicI(merchantRepublicAddress);
         constitution = ConstitutionI(constitutionAddress);
-        highGuildMaster = msg.sender;
         tokens = TokensI(tokensAddress);
     }
 
@@ -100,11 +97,10 @@ contract GuildCouncil is ReentrancyGuard {
             merchantRepublic.guildsVerdict(proposalId, guildAgreement);
         }
         return true;
+
     }
-    // in case of a guild not returning a verdict, this is a safeguard to continue the process
     function forceDecision(uint48 proposalId)
         external
-        onlyHighGuildMaster
     {
         require(block.timestamp - proposalTimestamp[proposalId] > guildDecisionTimeLimit, "guildCouncil::forceDecision::decision_still_in_time_limit");
         merchantRepublic.guildsVerdict(proposalId, defaultGuildDecision);
@@ -209,8 +205,4 @@ contract GuildCouncil is ReentrancyGuard {
         _;
     }
 
-    modifier onlyHighGuildMaster(){
-        require(msg.sender == highGuildMaster);
-        _;
-    }
 }
