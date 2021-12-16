@@ -2,13 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "./utils/gov2Test.sol";
-import "./utils/proposalTarget.sol";
 
 contract MRTest is Gov2Test {
-    ProposalTarget proposalTarget;
-
-    Commoner[] commoners;
-
     function testSendSilver() public {
         // doge sets silvers season
         startMeasuringGas("sendSilver()");
@@ -23,30 +18,14 @@ contract MRTest is Gov2Test {
         assertEq(remain2, john.silverBalance());
     }
 
-    function createProposalTarget() public {
-        proposalTarget = new ProposalTarget();
-        assertTrue(proposalTarget.flag());
-    }
 
-    function initCommoners() public {
-        uint256 startingBalance = 100000e18;
-        commoners = new Commoner[](30);
-        for (uint256 i; i < 30; i++) {
-            commoners[i] = new Commoner();
-            commoners[i].init(
-                address(guildCouncil),
-                address(merchantRepublic),
-                address(constitution),
-                address(mockDucat)
-            );
-            mockDucat.mint(address(commoners[i]), startingBalance);
-        }
-    }
+
 
     function testGuildsBlockProposalVote() public {
         initCommoners();
         createProposalTarget();
-        hevm.warp(block.timestamp + 7 days);
+        uint voteStartDay = block.timestamp + 2.5 days;
+        hevm.warp(voteStartDay);
         uint48 guildId = 0;
         uint8 support = 0;
         address[] memory targets = new address[](1);
@@ -70,8 +49,8 @@ contract MRTest is Gov2Test {
         hevm.warp(block.timestamp + 1);
         assertEq(1, id);
         assertEq(
-            uint256(MerchantRepublic.ProposalState.PendingGuildsVote),
-            uint256(merchantRepublic.state(id))
+            uint256(merchantRepublic.state(id)),
+            uint256(MerchantRepublic.ProposalState.PendingGuildsVote)
         );
         assertEq(
             uint48(block.timestamp - 1),
@@ -88,7 +67,9 @@ contract MRTest is Gov2Test {
     function testPassProposalVote() public {
         initCommoners();
         createProposalTarget();
-        hevm.warp(block.timestamp + 7 days);
+        // we warp 10 days into the future as our commoners just got
+        // their tokens!
+        hevm.warp(block.timestamp + 10 days);
         uint48 guildId = 0;
         uint8 support = 1;
         address[] memory targets = new address[](1);
@@ -109,37 +90,58 @@ contract MRTest is Gov2Test {
             "set flag to false",
             guilds
         );
-        hevm.warp(block.timestamp + 1);
         assertEq(1, id);
         assertEq(
-            uint256(MerchantRepublic.ProposalState.PendingGuildsVote),
-            uint256(merchantRepublic.state(id))
+            uint256(merchantRepublic.state(id)),
+            uint256(MerchantRepublic.ProposalState.PendingGuildsVote)
         );
+
+        // Guild Vote
+        ursus.guildCastVoteForProposal(support, id, guildId);
+        (uint startTimestamp, uint endTimestamp) = merchantRepublic.getTimes(id);
+        emit log_named_uint("Guild Verdict returned: ", block.timestamp);
+        emit log_named_uint("Vote startTimestamp: ", startTimestamp);
+        emit log_named_uint("Vote endTimestamp: ", endTimestamp);
+        // Voting is passed and the guild informs the guild council
+        // which in turn returns the guilds verdict to the merchant republic
+        // as only a single guild is voting.
+        // Now the proposal is ready to be voted by the community. In 2 days,
+        // the voting will begin. (voting delay).
         assertEq(
-            uint48(block.timestamp - 1),
+            uint48(block.timestamp),
             guildCouncil.proposalTimestamp(id)
         );
-        ursus.guildCastVoteForProposal(support, id, guildId);
         assertEq(
-            uint256(MerchantRepublic.ProposalState.PendingCommonersVoteStart),
-            uint256(merchantRepublic.state(id))
+            uint256(merchantRepublic.state(id)),
+            uint256(MerchantRepublic.ProposalState.PendingCommonersVoteStart)
         );
-        hevm.roll(block.number + 500);
+        emit log_named_uint("Vote start: ", block.timestamp);
+        uint voteStartDay = block.timestamp + 2 days + 1;
+        hevm.warp(voteStartDay);
+        emit log_named_uint("Commoners vote: ", block.timestamp);
+        // The voting delay has passed and the proposal is ready to be
+        // voted upon.
         assertEq(
-            uint256(MerchantRepublic.ProposalState.PendingCommonersVote),
-            uint256(merchantRepublic.state(id))
+            uint256(merchantRepublic.state(id)),
+            uint256(MerchantRepublic.ProposalState.PendingCommonersVote)
         );
         for (uint256 i; i < 30; i++) {
             commoners[i].govCastVote(id, support);
         }
-        // votingPeriod = 1000 blocks;
-        hevm.roll(block.number + 1020);
+        // The voting ends 7 days after it started. Previously we moved ahead
+        // by 2.5 days, so we arrived at the middle of the first day of voting.
+        // Thus, we only need to warp 5.5 days into the future for the vote to end.
+        // We warp 6 days into the future for good measure
+        uint voteEndDay = block.timestamp + 7 days;
+        hevm.warp(voteEndDay);
+        emit log_named_uint("Proposal Queued: ", block.timestamp);
         assertEq(
             uint256(merchantRepublic.state(id)),
             uint256(MerchantRepublic.ProposalState.Succeeded)
         );
         commoners[1].queueProposal(id);
         hevm.warp(block.timestamp + constitution.delay() + 1);
+        emit log_named_uint("Proposal Executed: ", block.timestamp);
         commoners[20].executeProposal(id);
         assertFalse(proposalTarget.flag());
         assertEq(

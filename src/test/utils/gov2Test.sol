@@ -8,6 +8,7 @@ import {Guild} from "../../guild.sol";
 import {GuildCouncil} from "../../guildCouncil.sol";
 import {MerchantRepublic} from "../../merchantRepublic.sol";
 import {Constitution} from "../../constitution.sol";
+import {ProposalTarget} from "./proposalTarget.sol";
 
 contract MockConstitution is Constitution {
 
@@ -275,8 +276,12 @@ contract Gov2Test is DSTestPlus {
     uint256 judgesId;
 
     Commoner[] internal facelessMen;
+    Commoner[] internal commoners;
+
+    ProposalTarget proposalTarget;
 
     address[] internal guilds;
+
 
     function setUp() public virtual {
         ursus = new Commoner();
@@ -298,12 +303,15 @@ contract Gov2Test is DSTestPlus {
         //delay = 2 days
         constitution.signTheConstitution(address(merchantRepublic), 2 days);
         constitution.mockProposals(address(guildCouncil), address(merchantRepublic));
-        //votingPeriod = 1000 blocks
-        //votingDelay = 450 blocks
-        //proposalThreshold = 10
+
+        // Merchant Republic
+        // votingPeriod = 7 days
+        // votingDelay =  2 days
+        // proposalThreshold = 10
+
 
         ursus.initializeMerchantRepublic(address(constitution), address(mockDucat), address(guildCouncil),
-                                        1000, 450, 1000);
+                                        7 days, 2 days , 10);
 
         // set founding members for every guild
         // 0: locksmiths: ursus
@@ -362,4 +370,26 @@ contract Gov2Test is DSTestPlus {
         // Ursus is the Doge and sets the silver season
         ursus.setSilverSeason();
     }
+
+    function initCommoners() public {
+        uint256 startingBalance = 100000e18;
+        commoners = new Commoner[](30);
+        for (uint256 i; i < 30; i++) {
+            commoners[i] = new Commoner();
+            commoners[i].init(
+                address(guildCouncil),
+                address(merchantRepublic),
+                address(constitution),
+                address(mockDucat)
+            );
+            mockDucat.mint(address(commoners[i]), startingBalance);
+        }
+    }
+
+    function createProposalTarget() public {
+        proposalTarget = new ProposalTarget();
+        assertTrue(proposalTarget.flag());
+    }
+
+
 }
