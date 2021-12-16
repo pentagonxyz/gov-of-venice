@@ -59,7 +59,7 @@ contract Constitution {
 
     function queueTransaction(address target, uint value, string memory signature, bytes memory data, uint eta) public returns (bytes32) {
         require(msg.sender == merchantRepublic, "Constitution::queueTransaction: Call must come from the Merchant Republic.");
-        require(eta >= getBlockTimestamp() + delay, "Constitution::queueTransaction: Estimated execution block must satisfy delay.");
+        require(eta >= block.timestamp + delay, "Constitution::queueTransaction: Estimated execution block must satisfy delay.");
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
         queuedTransactions[txHash] = true;
         emit QueueTransaction(txHash, target, value, signature, data, eta);
@@ -77,8 +77,8 @@ contract Constitution {
         require(msg.sender == merchantRepublic, "Constitution::executeTransaction: Call must come from the Merchant Republic.");
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
         require(queuedTransactions[txHash], "Constitution::executeTransaction: Transaction hasn't been queued.");
-        require(getBlockTimestamp() >= eta, "Constitution::executeTransaction: Transaction hasn't surpassed time lock.");
-        require(getBlockTimestamp() <= eta + GRACE_PERIOD, "Constitution::executeTransaction: Transaction is stale.");
+        require(block.timestamp >= eta, "Constitution::executeTransaction: Transaction hasn't surpassed time lock.");
+        require(block.timestamp <= eta + GRACE_PERIOD, "Constitution::executeTransaction: Transaction is stale.");
         queuedTransactions[txHash] = false;
         bytes memory callData;
         if (bytes(signature).length == 0) {
@@ -93,10 +93,4 @@ contract Constitution {
 
         return returnData;
     }
-
-    function getBlockTimestamp() internal view returns (uint) {
-        // solium-disable-next-line security/no-block-members
-        return block.timestamp;
-    }
-
 }
