@@ -149,4 +149,57 @@ contract MRTest is Gov2Test {
             uint256(merchantRepublic.state(id))
         );
     }
+    function testGuildsVoteOnWrongProposal() public {
+        initCommoners();
+        hevm.warp(block.timestamp + 7 days);
+        uint48 guildId = 0;
+        uint8 support = 0;
+        address[] memory targets = new address[](1);
+        targets[0] = address(this);
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+        string[] memory signatures = new string[](1);
+        signatures[0] = "setFlag()";
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = bytes("");
+        uint48[] memory guilds = new uint48[](1);
+        guilds[0] = guildId;
+        uint48 id = commoners[0].govPropose(
+            targets,
+            values,
+            signatures,
+            calldatas,
+            "set flag to false",
+            guilds
+        );
+        hevm.warp(block.timestamp + 1);
+        assertEq(1, id);
+        assertEq(
+            uint256(MerchantRepublic.ProposalState.PendingGuildsVote),
+            uint256(merchantRepublic.state(id))
+        );
+        assertEq(
+            uint48(block.timestamp - 1),
+            guildCouncil.proposalTimestamp(id)
+        );
+        commoners[0].govCancel(id);
+    }
+
+    function testSetMerchantRepublicParameters() public {
+       // from the Gov2Test contract, during the setUp()
+       // function, ursus is the creator of the Merchant
+       // Republic smart contract, and thus the doge.
+       ursus.govSetVotingDelay(10 days);
+       ursus.govSetVotingPeriod(20 days);
+       ursus.govSetProposalThreshold(1009999e19);
+       ursus.govSetPendingDoge(address(agnello));
+       agnello.govAcceptDoge();
+       assertEq(10 days, merchantRepublic.votingDelay());
+       assertEq(20 days, merchantRepublic.votingPeriod());
+       assertEq(1009999e19, merchantRepublic.proposalThreshold());
+       assertEq(address(agnello), merchantRepublic.doge());
+    }
+
+
+
 }

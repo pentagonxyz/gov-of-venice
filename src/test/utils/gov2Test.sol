@@ -237,6 +237,26 @@ contract Commoner is DSTestPlus{
     {
         return mr.propose(targets, values, signatures, calldatas, description, guildsId);
     }
+    function govCancel(uint48 id) public {
+        mr.cancel(id);
+    }
+
+    function govSetVotingDelay(uint delay) public {
+        mr._setVotingDelay(delay);
+    }
+
+    function govSetProposalThreshold(uint th) public {
+        mr._setProposalThreshold(th);
+    }
+    function govSetVotingPeriod(uint period) public {
+        mr._setVotingPeriod(period);
+    }
+    function govSetPendingDoge(address doge) public {
+        mr._setPendingDoge(doge);
+    }
+    function govAcceptDoge() public {
+        mr._acceptDoge();
+    }
 }
 
 contract Gov2Test is DSTestPlus {
