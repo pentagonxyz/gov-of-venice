@@ -86,7 +86,7 @@ contract GuildMembersTest is Gov2Test {
     function initMembers() public {
         facelessMen = new Commoner[](20);
         address[] memory facelessAddresses = new address[](20);
-        uint256 ducats = 10000;
+        uint256 ducats = 10000000;
         for (uint256 i = 0; i < facelessMen.length; i++) {
             facelessMen[i] = new Commoner();
             facelessMen[i].init(
@@ -401,4 +401,45 @@ contract GuildMembersTest is Gov2Test {
             assertEq(error, "guild::onlyguildmaster::wrong_address");
         }
     }
+
+    function testGuildsVoteOnWrongProposal() public {
+        initMembers();
+        hevm.warp(block.timestamp + 7 days);
+        uint48 guildId = 0;
+        uint8 support = 0;
+        address[] memory targets = new address[](1);
+        targets[0] = address(this);
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+        string[] memory signatures = new string[](1);
+        signatures[0] = "setFlag()";
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = bytes("");
+        uint48[] memory guilds = new uint48[](1);
+        guilds[0] = guildId;
+        uint48 id = facelessMen[0].govPropose(
+            targets,
+            values,
+            signatures,
+            calldatas,
+            "set flag to false",
+            guilds
+        );
+        hevm.warp(block.timestamp + 1);
+        assertEq(1, id);
+        assertEq(
+            uint256(MerchantRepublic.ProposalState.PendingGuildsVote),
+            uint256(merchantRepublic.state(id))
+        );
+        assertEq(
+            uint48(block.timestamp - 1),
+            guildCouncil.proposalTimestamp(id)
+        );
+        try ursus.guildCastVoteForProposal(support, id + 1, guildId)
+        { fail();}
+        catch Error(string memory error){
+            assertEq("Guild::castVote::wrong_proposal_id", error);
+        }
+    }
+
 }
