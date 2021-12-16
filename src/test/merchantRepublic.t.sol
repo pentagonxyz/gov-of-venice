@@ -43,6 +43,48 @@ contract MRTest is Gov2Test {
         }
     }
 
+    function testGuildsBlockProposalVote() public {
+        initCommoners();
+        createProposalTarget();
+        hevm.warp(block.timestamp + 7 days);
+        uint48 guildId = 0;
+        uint8 support = 0;
+        address[] memory targets = new address[](1);
+        targets[0] = address(proposalTarget);
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+        string[] memory signatures = new string[](1);
+        signatures[0] = "setFlag()";
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = bytes("");
+        uint48[] memory guilds = new uint48[](1);
+        guilds[0] = guildId;
+        uint48 id = commoners[0].govPropose(
+            targets,
+            values,
+            signatures,
+            calldatas,
+            "set flag to false",
+            guilds
+        );
+        hevm.warp(block.timestamp + 1);
+        assertEq(1, id);
+        assertEq(
+            uint256(MerchantRepublic.ProposalState.PendingGuildsVote),
+            uint256(merchantRepublic.state(id))
+        );
+        assertEq(
+            uint48(block.timestamp - 1),
+            guildCouncil.proposalTimestamp(id)
+        );
+        ursus.guildCastVoteForProposal(support, id, guildId);
+        assertEq(
+            uint256(MerchantRepublic.ProposalState.Defeated),
+            uint256(merchantRepublic.state(id))
+        );
+    }
+
+
     function testPassProposalVote() public {
         initCommoners();
         createProposalTarget();
