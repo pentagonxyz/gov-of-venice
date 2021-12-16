@@ -198,9 +198,9 @@ contract MerchantRepublic {
 
     TokensI tokens;
 
-    address doge;
+    address public doge;
 
-    address pendingDoge;
+    address public pendingDoge;
 
     uint256 silverIssuanceSeason;
 
@@ -510,7 +510,7 @@ contract MerchantRepublic {
 
 
     /**
-      * @notice Begins transfer of doge rights. The newPendingDoge must call `_acceptAdmi` to finalize the transfer.
+      * @notice Begins transfer of doge rights. The newPendingDoge must call `_acceptDoge` to finalize the transfer.
       * @dev Doge function to begin change of doge. The newPendingDoge must call `_acceptDoge` to finalize the transfer.
       * @param newPendingDoge New pending doge.
       */
