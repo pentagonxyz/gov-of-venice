@@ -261,8 +261,6 @@ contract Commoner is DSTestPlus{
 
 contract Gov2Test is DSTestPlus {
 
-    // solmate overrides
-
     string private checkpointLabel;
     uint256 private checkpointGasLeft;
 
@@ -304,6 +302,8 @@ contract Gov2Test is DSTestPlus {
 
 
     function setUp() public virtual {
+
+
         ursus = new Commoner();
         agnello = new Commoner();
         john = new Commoner();
@@ -403,6 +403,45 @@ contract Gov2Test is DSTestPlus {
                 address(mockDucat)
             );
             mockDucat.mint(address(commoners[i]), startingBalance);
+        }
+    }
+
+    function initMembers() public {
+        uint32 facelessGravitasThreshold = 400;
+        uint32 facelessTimeOutPeriod = 25 days;
+        uint32 facelessMaxGuildMembers = 20;
+        uint32 facelessVotingPeriod = 14 days;
+        facelessMen = new Commoner[](20);
+        address[] memory facelessAddresses = new address[](20);
+        uint256 ducats = 10000000;
+        for (uint256 i = 0; i < facelessMen.length; i++) {
+            facelessMen[i] = new Commoner();
+            facelessMen[i].init(
+                address(guildCouncil),
+                address(merchantRepublic),
+                address(constitution),
+                address(mockDucat)
+            );
+            facelessAddresses[i] = address(facelessMen[i]);
+            for (uint48 j = 0; j < guilds.length; j++) {
+                facelessMen[i].setGuild(guilds[j], j);
+            }
+            mockDucat.mint(address(facelessMen[i]), ducats);
+        }
+        facelessGuild = new Guild(
+            "faceless",
+            facelessAddresses,
+            facelessGravitasThreshold,
+            facelessTimeOutPeriod,
+            facelessMaxGuildMembers,
+            facelessVotingPeriod,
+            address(mockDucat),
+            address(constitution)
+        );
+        constitution.mockEstablishGuild(address(facelessGuild));
+        guilds = guildCouncil.availableGuilds();
+        for (uint256 i = 0; i < facelessMen.length; i++) {
+            facelessMen[i].setGuild(guilds[3], 3);
         }
     }
 
