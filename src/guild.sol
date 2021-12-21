@@ -82,8 +82,6 @@ contract  Guild is ReentrancyGuard {
 
     mapping(uint48 => uint256) private silverToGravitasWeight;
 
-    bool private activeProposalVote;
-
     bool private activeGuildMasterVote;
 
     bool private activeBanishmentVote;
@@ -101,15 +99,13 @@ contract  Guild is ReentrancyGuard {
 
     Vote guildMasterVote;
 
-    Vote proposalVote;
-
     Vote banishmentVote;
 
     address public guildMaster;
 
     address public guildMasterElect;
 
-    mapping(address => Vote) latestVote;
+    mapping(address => mapping(uint48 => Vote)) guildCouncilAddressToProposalVotes;
 
     /// Rethink the variable type to smaller uints for efficient storoage packing
     /// Based on the use-case, uint256 sounds too big
@@ -265,10 +261,11 @@ contract  Guild is ReentrancyGuard {
     }
     // first come, first served naive solution. Could degenerate
     // into a gas battle in the MEV domain.
-    function slashForCash()
+    function slashForCash(address guildCouncil, uint48 proposalId)
         external
         returns(uint256 removedMembers)
     {
+        Vote storage proposalVote = guildCouncilAddressToProposalVotes[msg.sender][proposalId];
         uint256 voteTime = proposalVote.startTimestamp;
         require(lastSlash < voteTime, "Guild::slashForInnactivity::members_already_slashed");
         uint256 length = addressList.length;
@@ -412,12 +409,11 @@ contract  Guild is ReentrancyGuard {
         onlyGuildCouncil
         returns(bool)
     {
-        require(proposalVote.active == false, "Guild::guildVoteRequest::active_vote");
-        proposalVote.active= true;
-        proposalVote.aye = 0;
-        proposalVote.nay = 0;
-        proposalVote.id = proposalId;
-        proposalVote.startTimestamp = uint48(block.timestamp);
+        guildCouncilAddressToProposalVotes[msg.sender][proposalId].active= true;
+        guildCouncilAddressToProposalVotes[msg.sender][proposalId].aye = 0;
+        guildCouncilAddressToProposalVotes[msg.sender][proposalId].nay = 0;
+        guildCouncilAddressToProposalVotes[msg.sender][proposalId].id = proposalId;
+        guildCouncilAddressToProposalVotes[msg.sender][proposalId].startTimestamp = uint48(block.timestamp);
         return true;
     }
 // _______________________________________________________________
@@ -431,8 +427,8 @@ contract  Guild is ReentrancyGuard {
         onlyGuildMember
         returns(bool)
     {
-        require(proposalVote.active == true, "Guild::castVote::no_active_proposal_vote");
-        require(proposalVote.id == proposalId, "Guild::castVote::wrong_proposal_id");
+        Vote storage proposalVote = guildCouncilAddressToProposalVotes[guildCouncilAddress][proposalId];
+        require(proposalVote.active == true, "Guild::castVote::proposal_id_for_guild_council_not_active");
         require(support == 1 || support == 0, "Guild::castVote::wrong_support_value");
         require(proposalVote.lastTimestamp[msg.sender] < proposalVote.startTimestamp,
                 "Guild::castVoteForProposal::account_already_voted");
@@ -444,24 +440,21 @@ contract  Guild is ReentrancyGuard {
         else {
             proposalVote.nay += 1;
         }
-        bool cont;
+        bool voteEnd;
         IGuildCouncil guildCouncil = IGuildCouncil(guildCouncilAddress);
         proposalVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
         if(proposalVote.aye > (addressList.length * proposalQuorum / 100)){
             proposalVote.active = false;
             guildCouncil._guildVerdict(true, proposalId, guildCouncilAddressToGuildId[guildCouncilAddress]);
-            cont = false;
+            voteEnd = true;
         }
         else if (proposalVote.nay > (addressList.length * proposalQuorum / 100)) {
             proposalVote.active = false;
             guildCouncil._guildVerdict(false, proposalId, guildCouncilAddressToGuildId[guildCouncilAddress]);
-            cont = false;
-        }
-        else {
-            cont = true;
+            voteEnd = true;
         }
         emit ProposalVote(msg.sender, proposalId);
-        return cont;
+        return voteEnd;
     }
 
 
@@ -624,7 +617,7 @@ contract  Guild is ReentrancyGuard {
         return addressList;
     }
 
-    function getVoteInfo(uint8 what)
+    function getVoteInfo(uint8 what, address guildCouncil, uint48 id)
         external
         returns(uint48, uint48, uint48,
                 uint88, bool, address, address,
@@ -632,7 +625,7 @@ contract  Guild is ReentrancyGuard {
     {
         Vote storage vote;
         if (what == 0){
-            vote = proposalVote;
+            vote = guildCouncilAddressToProposalVotes[guildCouncil][id];
         }
         else if (what == 1) {
             vote = guildMasterVote;

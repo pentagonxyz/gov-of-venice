@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 contract ProposalTarget {
 
     bool public flag;
+    bool public anotherFlag;
 
     constructor(){
         flag = true;
@@ -11,6 +12,10 @@ contract ProposalTarget {
 
     function setFlag() public {
         flag = false;
+    }
+
+    function setAnotherFlag() public {
+        anotherFlag = true;
     }
 
 }

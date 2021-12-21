@@ -157,7 +157,7 @@ contract Commoner is DSTestPlus{
                 uint88, bool, address, address,
                 uint256)
     {
-       return Guild(guilds[guild]).getVoteInfo(1);
+       return Guild(guilds[guild]).getVoteInfo(1, address(0), 0);
     }
 
     function getVoteInfoBanishment(uint guild) public
@@ -165,15 +165,15 @@ contract Commoner is DSTestPlus{
                 uint88, bool, address, address,
                 uint256)
     {
-       return Guild(guilds[guild]).getVoteInfo(2);
+       return Guild(guilds[guild]).getVoteInfo(2, address(0), 0);
     }
 
-    function getVoteInfoProposal(uint guild) public
+    function getVoteInfoProposal(uint guild, uint48 id) public
         returns(uint48, uint48, uint48,
                 uint88, bool, address, address,
                 uint256)
     {
-       return Guild(guilds[guild]).getVoteInfo(2);
+       return Guild(guilds[guild]).getVoteInfo(2, address(gc), id);
     }
 
     function guildMasterAcceptanceCeremony(uint guild) public
@@ -395,7 +395,6 @@ contract Gov2Test is DSTestPlus {
         mockDucat.mint(address(agnello), agnelloDucats);
         mockDucat.mint(address(john), johnDucats);
         mockDucat.mint(address(pipin), pipinDucats);
-
         // Ursus is the Doge and sets the silver season
         ursus.setSilverSeason();
     }
