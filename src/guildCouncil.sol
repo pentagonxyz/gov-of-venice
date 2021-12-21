@@ -36,7 +36,7 @@ contract GuildCouncil is ReentrancyGuard {
 
     uint48 constant GUILD_COUNCIL_MAX_ALLOWED_DECISION_TIME = 30 days;
 
-    mapping(uint48 => uint48) guildToMinDecisionTime;
+    mapping(uint48 => uint48) guildToMinVotingPeriod;
 
     bool constant defaultGuildDecision = true;
 
@@ -73,7 +73,7 @@ contract GuildCouncil is ReentrancyGuard {
         require( guildAddress != address(0), "guildCouncil::establishGuild::wrong_address");
         require(minDecisionTime <= GUILD_COUNCIL_MAX_ALLOWED_DECISION_TIME, "guildCouncil::establishGuild::minDecisionTime_too_high");
         guildIdToAddress[guildCounter] = guildAddress;
-        guildToMinDecisionTime[guildCounter] = minDecisionTime;
+        guildToMinVotingPeriod[guildCounter] = minDecisionTime;
         securityCouncil[guildAddress] = guildCounter;
         emit GuildEstablished(guildCounter, guildAddress);
         guildCounter++;
@@ -127,7 +127,7 @@ contract GuildCouncil is ReentrancyGuard {
             if (guildAddress == address(0)){
                 revert("GuildCouncil::_callGuildsToVote::guild_address_is_zero");
             }
-            else if(maxDecisionTime <= guildToMinDecisionTime[guildsId[i]]){
+            else if(maxDecisionTime <= guildToMinVotingPeriod[guildsId[i]]){
                 revert("GuildCouncil::_callGuildsToVote::maxDecisionTime too low");
             }
             IGuild guild = IGuild(guildAddress);
@@ -156,7 +156,7 @@ contract GuildCouncil is ReentrancyGuard {
             if (guildAddress == address(0)){
                 revert("GuildCouncil::_callGuildsToVote::guild_address_is_zero");
             }
-            else if(proposalMaxDecisionWaitLimit[proposalId] < guildToMinDecisionTime[guildsId[i]]){
+            else if(proposalMaxDecisionWaitLimit[proposalId] < guildToMinVotingPeriod[guildsId[i]]){
                 revert("GuildCouncil::_callGuildsToVote::maxDecisionTime too low");
             }
             IGuild guild = IGuild(guildAddress);
@@ -214,13 +214,13 @@ contract GuildCouncil is ReentrancyGuard {
         return guild.informGuildOnSilverPayment(sender, receiver, silverAmount);
     }
 
-    function setMinDecisionTime(uint48 minDecisionTime, uint48 guildId)
+    function setMiminumGuildVotingPeriod(uint48 minDecisionTime, uint48 guildId)
         external
         onlyGuild
         returns(bool)
     {
         require(guildIdToAddress[guildId] == msg.sender, "GuildCouncil::setMinDecisionTime::wrong_address");
-        guildToMinDecisionTime[guildId];
+        guildToMinVotingPeriod[guildId];
         return true;
     }
 

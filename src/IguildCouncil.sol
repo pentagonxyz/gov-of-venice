@@ -14,7 +14,7 @@ interface IGuildCouncil{
     function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId, uint48 maxDecisionTime)
        external
        returns(bool);
-    function setMinDecisionTime(uint48 minDecisionTime, uint48 guildId) external returns(bool);
+    function setMiminumGuildVotingPeriod(uint48 minDecisionTime, uint48 guildId) external returns(bool);
 }
 
 

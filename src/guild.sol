@@ -355,7 +355,7 @@ contract  Guild is ReentrancyGuard {
     {
         emit GuildParameterChanged("votingPeriod", guildBook.votingPeriod, newVotingPeriod);
         guildBook.votingPeriod = newVotingPeriod;
-        return IGuildCouncil(guildCouncilAddress).setMinDecisionTime(newVotingPeriod, guildCouncilAddressToGuildId[guildCouncilAddress]);
+        return IGuildCouncil(guildCouncilAddress).setMiminumGuildVotingPeriod(newVotingPeriod, guildCouncilAddressToGuildId[guildCouncilAddress]);
     }
 // ----------------------------------------------------
 // --------------- Accounting -------------------------
