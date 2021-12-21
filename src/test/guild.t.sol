@@ -78,7 +78,6 @@ contract GuildCommonersTest is Gov2Test {
 }
 
 contract GuildMembersTest is Gov2Test {
-
     function testFacelessGuild() public {
         initMembers();
         Guild.GuildBook memory gb = facelessGuild.requestGuildBook();
@@ -396,12 +395,13 @@ contract GuildMembersTest is Gov2Test {
             uint48(block.timestamp - 1),
             guildCouncil.proposalIdToVoteCallTimestamp(id)
         );
-        try ursus.guildCastVoteForProposal(support, id + 1, guildId)
-        { fail();}
-        catch Error(string memory error){
+        try ursus.guildCastVoteForProposal(support, id + 1, guildId) {
+            fail();
+        } catch Error(string memory error) {
             assertEq("Guild::castVote::wrong_proposal_id", error);
         }
     }
+
     function testWrongGuildVoteOnProposal() public {
         initCommoners();
         createProposalTarget();
@@ -435,10 +435,9 @@ contract GuildMembersTest is Gov2Test {
         );
         try john.guildCastVoteForProposal(support, id, 2) {
             fail();
-        } catch Error(string memory error){
+        } catch Error(string memory error) {
             assertEq(error, "Guild::castVote::no_active_proposal_vote");
         }
     }
-        // Guild Vote
-
+    // Guild Vote
 }

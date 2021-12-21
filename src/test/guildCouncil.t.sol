@@ -31,7 +31,7 @@ contract GCTest is Gov2Test {
     function testForceDecision() public {
         initCommoners();
         createProposalTarget();
-        uint voteStartDay = block.timestamp + 2.5 days;
+        uint256 voteStartDay = block.timestamp + 2.5 days;
         hevm.warp(voteStartDay);
         uint48 guildId = 0;
         uint8 support = 0;
@@ -53,10 +53,6 @@ contract GCTest is Gov2Test {
             "set flag to false",
             guilds
         );
-        hevm.warp(block.timestamp +  4 days);
-
-
-
+        hevm.warp(block.timestamp + 4 days);
     }
-
 }
