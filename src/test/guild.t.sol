@@ -398,7 +398,10 @@ contract GuildMembersTest is Gov2Test {
         try ursus.guildCastVoteForProposal(support, id + 1, guildId) {
             fail();
         } catch Error(string memory error) {
-            assertEq("Guild::castVote::proposal_id_for_guild_council_not_active", error);
+            assertEq(
+                "Guild::castVote::proposal_id_for_guild_council_not_active",
+                error
+            );
         }
     }
 
@@ -436,7 +439,10 @@ contract GuildMembersTest is Gov2Test {
         try john.guildCastVoteForProposal(support, id, 2) {
             fail();
         } catch Error(string memory error) {
-            assertEq(error, "Guild::castVote::proposal_id_for_guild_council_not_active");
+            assertEq(
+                error,
+                "Guild::castVote::proposal_id_for_guild_council_not_active"
+            );
         }
     }
     // Guild Vote

@@ -73,8 +73,6 @@ contract  Guild is ReentrancyGuard {
 
     uint256 public budget;
 
-    mapping(address => bool) private voted;
-
     mapping(address => uint48) private apprentishipStart;
 
     mapping(address => uint48) private guildCouncilAddressToGuildId;
