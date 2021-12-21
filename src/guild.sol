@@ -29,6 +29,7 @@ contract  Guild is ReentrancyGuard {
     event GravitasChanged(address commoner, uint256 oldGravitas, uint256 newGravitas);
     event GuildMasterVoteResult(address guildMasterElect, bool result);
     event GuildReceivedFunds(uint256 funds, address sender);
+    event GuildCouncilSet(address guildCouncil, uint48 guildid);
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -76,11 +77,9 @@ contract  Guild is ReentrancyGuard {
 
     mapping(address => uint48) private apprentishipStart;
 
-    mapping(address => uint48) private guildCouncilAddressToGuildCouncilId;
-
     mapping(address => uint48) private guildCouncilAddressToGuildId;
 
-    mapping(uint48 => uint256) private silverToGravitasWeight;
+    mapping(address => uint256) private silverToGravitasWeight;
 
     bool private activeGuildMasterVote;
 
@@ -148,8 +147,6 @@ contract  Guild is ReentrancyGuard {
 
     uint48 public minDecisionTime;
 
-    uint48 private guildCouncilCounter = 1;
-
     uint96 lastSlash;
 
     address constitution;
@@ -182,11 +179,9 @@ contract  Guild is ReentrancyGuard {
         external
         onlyGuildMaster
     {
-        require(guildCouncilAddressToGuildCouncilId[guildCouncilAddress] == 0, "guild::setGuildCouncil::guild_council_already_set");
-        guildCouncilAddressToGuildCouncilId[guildCouncilAddress] = guildCouncilCounter;
-        silverToGravitasWeight[guildCouncilCounter] = silverGravitasWeight;
-        guildCouncilCounter++;
+        silverToGravitasWeight[guildCouncilAddress] = silverGravitasWeight;
         guildCouncilAddressToGuildId[guildCouncilAddress] = guildId;
+        emit GuildCouncilSet(guildCouncilAddress, guildId);
     }
 
  // ------------- Guild Member lifecycle -----------------------
@@ -657,18 +652,17 @@ contract  Guild is ReentrancyGuard {
         onlyGuildCouncil
         returns (uint256)
     {
-        uint48 guildCouncilId = guildCouncilAddressToGuildCouncilId[msg.sender];
-        uint256 gravitas = calculateGravitas(sender, silverAmount, guildCouncilId) + addressToGravitas[receiver];
+        uint256 gravitas = calculateGravitas(sender, silverAmount, msg.sender) + addressToGravitas[receiver];
         uint256 memberGravitas = _modifyGravitas(receiver, gravitas);
         return memberGravitas;
     }
 
-    function calculateGravitas(address commonerAddress, uint256 silverAmount, uint48 guildCouncilId)
+    function calculateGravitas(address commonerAddress, uint256 silverAmount, address guildCouncil)
         public
         returns (uint256 gravitas)
     {
         // gravitas = silver_sent + gravitas of the sender * weight
-        return  (silverAmount*silverToGravitasWeight[guildCouncilId] +
+        return  (silverAmount*silverToGravitasWeight[guildCouncil] +
                 addressToGravitas[commonerAddress]*senderGravitasWeight) / 100;
     }
 
@@ -692,7 +686,7 @@ contract  Guild is ReentrancyGuard {
 // ------------------------- Modifiers -------------------------
 
     modifier onlyGuildCouncil() {
-        require(guildCouncilAddressToGuildCouncilId[msg.sender] !=0 , "Guild::onlyGuildCouncil::wrong_address");
+        require(silverToGravitasWeight[msg.sender] !=0 , "Guild::onlyGuildCouncil::wrong_address");
         _;
     }
     modifier onlyGuildMaster() {
