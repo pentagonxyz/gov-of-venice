@@ -334,32 +334,32 @@ contract GuildMembersTest is Gov2Test {
         try member.changeGravitasThreshold(3, 100) {
             fail();
         } catch Error(string memory error) {
-            assertEq(error, "guild::onlyguildmaster::wrong_address");
+            assertEq(error, "guild::onlyGuildMaster::wrong_address");
         }
         try member.changeMemberRewardPerEpoch(3, 100) {
             fail();
         } catch Error(string memory error) {
-            assertEq(error, "guild::onlyguildmaster::wrong_address");
+            assertEq(error, "guild::onlyGuildMaster::wrong_address");
         }
         try member.changeGuildMasterMultiplier(3, 100) {
             fail();
         } catch Error(string memory error) {
-            assertEq(error, "guild::onlyguildmaster::wrong_address");
+            assertEq(error, "guild::onlyGuildMaster::wrong_address");
         }
         try member.changeMaxGuildMembers(3, 100) {
             fail();
         } catch Error(string memory error) {
-            assertEq(error, "guild::onlyguildmaster::wrong_address");
+            assertEq(error, "guild::onlyGuildMaster::wrong_address");
         }
         try member.changeGuildMemberSlash(3, 100) {
             fail();
         } catch Error(string memory error) {
-            assertEq(error, "guild::onlyguildmaster::wrong_address");
+            assertEq(error, "guild::onlyGuildMaster::wrong_address");
         }
         try member.changeSlashForCashReward(3, 100) {
             fail();
         } catch Error(string memory error) {
-            assertEq(error, "guild::onlyguildmaster::wrong_address");
+            assertEq(error, "guild::onlyGuildMaster::wrong_address");
         }
     }
 
@@ -394,7 +394,7 @@ contract GuildMembersTest is Gov2Test {
         );
         assertEq(
             uint48(block.timestamp - 1),
-            guildCouncil.proposalTimestamp(id)
+            guildCouncil.proposalIdToVoteCallTimestamp(id)
         );
         try ursus.guildCastVoteForProposal(support, id + 1, guildId)
         { fail();}

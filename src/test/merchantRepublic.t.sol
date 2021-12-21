@@ -54,7 +54,7 @@ contract MRTest is Gov2Test {
         );
         assertEq(
             uint48(block.timestamp - 1),
-            guildCouncil.proposalTimestamp(id)
+            guildCouncil.proposalIdToVoteCallTimestamp(id)
         );
         ursus.guildCastVoteForProposal(support, id, guildId);
         assertEq(
@@ -109,7 +109,7 @@ contract MRTest is Gov2Test {
         // the voting will begin. (voting delay).
         assertEq(
             uint48(block.timestamp),
-            guildCouncil.proposalTimestamp(id)
+            guildCouncil.proposalIdToVoteCallTimestamp(id)
         );
         assertEq(
             uint256(merchantRepublic.state(id)),
@@ -180,7 +180,7 @@ contract MRTest is Gov2Test {
         );
         assertEq(
             uint48(block.timestamp - 1),
-            guildCouncil.proposalTimestamp(id)
+            guildCouncil.proposalIdToVoteCallTimestamp(id)
         );
         commoners[0].govCancel(id);
     }

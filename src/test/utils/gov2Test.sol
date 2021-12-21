@@ -26,16 +26,8 @@ contract MockConstitution is Constitution {
         merchantRepublicContract = MerchantRepublic(mr);
     }
 
-    function mockEstablishGuild(address addr) public returns(uint256){
-        setGuildCouncil(addr, address(guildCouncil));
-        return guildCouncil.establishGuild(addr);
-    }
-
-    function setGuildCouncil(address guildAddress, address guildCouncilAddress)
-        public
-    {
-        guild = Guild(guildAddress);
-        guild.setGuildCouncil(guildCouncilAddress);
+    function mockEstablishGuild(address addr, uint48 minDecisionTime) public returns(uint48){
+        return guildCouncil.establishGuild(addr, minDecisionTime);
     }
 
     function sendBudgetToGuild(uint coins, address addr) public {
@@ -152,7 +144,7 @@ contract Commoner is DSTestPlus{
         return Guild(guilds[guild]).castVoteForBanishment(support, target);
     }
     function guildCastVoteForProposal(uint8 support, uint48 proposalId, uint guild) public returns(bool){
-        return Guild(guilds[guild]).castVoteForProposal(proposalId, support);
+        return Guild(guilds[guild]).castVoteForProposal(proposalId, support, address(gc));
     }
     function startBanishmentVote(address target, uint guild) public {
         Guild(guilds[guild]).startBanishmentVote(target);
@@ -257,6 +249,14 @@ contract Commoner is DSTestPlus{
     function govAcceptDoge() public {
         mr._acceptDoge();
     }
+
+    function setGuildCouncil(address guildAddress, address guildCouncilAddress,
+                             uint256 silverRatio, uint48 guildId)
+        public
+    {
+        Guild guild = Guild(guildAddress);
+        guild.setGuildCouncil(guildCouncilAddress, silverRatio,  guildId);
+    }
 }
 
 contract Gov2Test is DSTestPlus {
@@ -289,9 +289,9 @@ contract Gov2Test is DSTestPlus {
     uint32 blacksmithsGT;
     uint32 judgesGT;
 
-    uint256 locksmithsId;
-    uint256 blacksmithsId;
-    uint256 judgesId;
+    uint48 locksmithsId;
+    uint48 blacksmithsId;
+    uint48 judgesId;
 
     Commoner[] internal facelessMen;
     Commoner[] internal commoners;
@@ -329,7 +329,7 @@ contract Gov2Test is DSTestPlus {
         // votingDelay =  2 days
         // proposalThreshold = 10
 
-
+       //guildsMaxVotingPeriod, votingPeriod, votingDelay, proposalThreshold
         ursus.initializeMerchantRepublic(address(constitution), address(mockDucat), address(guildCouncil),
                                         3 days, 7 days, 2 days , 10);
 
@@ -356,9 +356,18 @@ contract Gov2Test is DSTestPlus {
         judges = new Guild("judges", founding3, judgesGT, 25 days, 5, 14 days, address(mockDucat), address(constitution));
 
         // Register the guilds with the GuildCouncil
-        locksmithsId = constitution.mockEstablishGuild(address(locksmiths));
-        blacksmithsId= constitution.mockEstablishGuild(address(blacksmiths));
-        judgesId = constitution.mockEstablishGuild(address(judges));
+
+        uint48 MINIMUM_DECISION_TIME = 2 days;
+
+        locksmithsId = constitution.mockEstablishGuild(address(locksmiths), MINIMUM_DECISION_TIME);
+        blacksmithsId= constitution.mockEstablishGuild(address(blacksmiths), MINIMUM_DECISION_TIME);
+        judgesId = constitution.mockEstablishGuild(address(judges), MINIMUM_DECISION_TIME);
+
+        // Register the guilld council with the Guilds
+
+        ursus.setGuildCouncil(address(locksmiths), address(guildCouncil), 10, locksmithsId);
+        agnello.setGuildCouncil(address(blacksmiths), address(guildCouncil), 10, blacksmithsId);
+        john.setGuildCouncil(address(judges), address(guildCouncil), 10, judgesId);
 
         guilds = guildCouncil.availableGuilds();
         // register the guilds to the commoners
@@ -438,7 +447,8 @@ contract Gov2Test is DSTestPlus {
             address(mockDucat),
             address(constitution)
         );
-        constitution.mockEstablishGuild(address(facelessGuild));
+        uint48 id = constitution.mockEstablishGuild(address(facelessGuild), 2 days);
+        facelessMen[0].setGuildCouncil(address(facelessGuild), address(guildCouncil), 10, id);
         guilds = guildCouncil.availableGuilds();
         for (uint256 i = 0; i < facelessMen.length; i++) {
             facelessMen[i].setGuild(guilds[3], 3);

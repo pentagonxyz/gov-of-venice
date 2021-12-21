@@ -10,19 +10,23 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 contract GuildCouncil is ReentrancyGuard {
 
     event GuildEstablished(uint48 guildId, address guildAddress);
-    event GuildDecision(uint48 indexed guildId, uint48 indexed proposalId, bool guildAgreement);
+    event GuildDecision(address indexed guildAddress, uint48 indexed proposalId, bool guildAgreement);
     event SilverSent(uint48 indexed guildId, address indexed recipientCommoner,
                      address indexed senderCommoner, uint256 silverAmmount);
 
-    mapping(uint256 => uint48) public activeGuildVotes;
+    mapping(uint48 => mapping(uint48 => bool)) public guildIdToActiveProposalId;
 
-    mapping(address => uint8) securityCouncil;
+    mapping(uint256 => uint256) public proposalMaxDecisionWaitLimit;
 
-    uint48 activeGuildVotesCounter;
+    mapping(uint256 => uint256) public proposalIdToVoteCallTimestamp;
+
+    mapping(address => uint48) securityCouncil;
+
+    mapping(uint48 => uint256) public activeGuildVotesCounter;
 
     bool guildsAgreeToProposal;
 
-    mapping(uint48 => address) guilds;
+    mapping(uint48 => address) guildIdToAddress;
 
     uint48 private guildCounter;
 
@@ -30,13 +34,13 @@ contract GuildCouncil is ReentrancyGuard {
 
     uint8 constant minimumInitialGuildMembers = 3;
 
-    uint48 guildDecisionTimeLimit;
+    uint48 constant GUILD_COUNCIL_MAX_ALLOWED_DECISION_TIME = 30 days;
+
+    mapping(uint48 => uint48) guildToMinDecisionTime;
 
     bool constant defaultGuildDecision = true;
 
     uint48 constant minimumFoundingMembers = 3;
-
-    MerchantRepublicI merchantRepublic;
 
     address public merchantRepublicAddress;
 
@@ -44,7 +48,7 @@ contract GuildCouncil is ReentrancyGuard {
 
     ConstitutionI constitution;
 
-    mapping(uint256 => uint48) public proposalTimestamp;
+    MerchantRepublicI merchantRepublic;
 
     TokensI tokens;
 
@@ -61,38 +65,45 @@ contract GuildCouncil is ReentrancyGuard {
     // smart contracta.
     // The alternative is to deplo the Guild and simply invoke this function to register its' address
 
-    function establishGuild(address guildAddress)
-        public
+    function establishGuild(address guildAddress, uint48 minDecisionTime)
+        external
         onlyConstitution
-        returns(uint256 id)
+        returns(uint48 id)
     {
         require( guildAddress != address(0), "guildCouncil::establishGuild::wrong_address");
-        guilds[guildCounter] = guildAddress;
-        securityCouncil[guildAddress] = 1;
+        require(minDecisionTime <= GUILD_COUNCIL_MAX_ALLOWED_DECISION_TIME, "guildCouncil::establishGuild::minDecisionTime_too_high");
+        guildIdToAddress[guildCounter] = guildAddress;
+        guildToMinDecisionTime[guildCounter] = minDecisionTime;
+        securityCouncil[guildAddress] = guildCounter;
         emit GuildEstablished(guildCounter, guildAddress);
         guildCounter++;
         return guildCounter-1;
     }
 
-
-    // check if msg.sender == activeGuildvotes[proposalid]
-
-    function _guildVerdict(bool guildAgreement, uint48 proposalId)
-        public
+    function requestGuildId()
+        external
         onlyGuild
+        returns(uint48)
+    {
+        return securityCouncil[msg.sender];
+    }
+
+
+    function _guildVerdict(bool guildAgreement, uint48 proposalId, uint48 guildId)
+        public
         returns(bool)
     {
-        uint48 guildId = activeGuildVotes[proposalId];
-        require(msg.sender == guilds[guildId],
+        require(msg.sender == guildIdToAddress[guildId], "guildCouncil::guildVerdict::incorrect_address");
+        require(guildIdToActiveProposalId[guildId][proposalId],
                 "guildCouncil::guildVerdict::incorrect_active_guild_vote");
-        emit GuildDecision(guildId,  proposalId, guildAgreement);
+        emit GuildDecision(msg.sender,  proposalId, guildAgreement);
         if(guildAgreement == false){
-            activeGuildVotesCounter = 0;
+            activeGuildVotesCounter[proposalId] = 0;
         }
-        else if (activeGuildVotesCounter != 0) {
-            activeGuildVotesCounter--;
+        else if (activeGuildVotesCounter[proposalId] != 0) {
+            activeGuildVotesCounter[proposalId]--;
         }
-        if (activeGuildVotesCounter == 0 ){
+        if (activeGuildVotesCounter[proposalId] == 0 ){
             merchantRepublic.guildsVerdict(proposalId, guildAgreement);
         }
         return true;
@@ -101,73 +112,67 @@ contract GuildCouncil is ReentrancyGuard {
     function forceDecision(uint48 proposalId)
         external
     {
-        require(block.timestamp - proposalTimestamp[proposalId] > guildDecisionTimeLimit, "guildCouncil::forceDecision::decision_still_in_time_limit");
+        require(block.timestamp - proposalIdToVoteCallTimestamp[proposalId] > proposalMaxDecisionWaitLimit[proposalId],  "guildCouncil::forceDecision::decision_still_in_time_limit");
         merchantRepublic.guildsVerdict(proposalId, defaultGuildDecision);
     }
-    function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId)
+    function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId, uint48 maxDecisionTime)
        external
+       onlyMerchantRepublic
        returns(bool)
     {
-        require(securityCouncil[msg.sender] == 1 || msg.sender == merchantRepublicAddress,
-                "GuildCouncil::_callGuildsToVote::only_guild_or_merhant_republic");
         bool success = false;
+        proposalIdToVoteCallTimestamp[proposalId] = block.timestamp;
         for(uint48 i; i< guildsId.length; i++){
-            address guildAddress = guilds[guildsId[i]];
+            address guildAddress = guildIdToAddress[guildsId[i]];
             if (guildAddress == address(0)){
-                _guildVerdict(defaultGuildDecision, proposalId);
+                revert("GuildCouncil::_callGuildsToVote::guild_address_is_zero");
+            }
+            else if(maxDecisionTime <= guildToMinDecisionTime[guildsId[i]]){
+                revert("GuildCouncil::_callGuildsToVote::maxDecisionTime too low");
             }
             IGuild guild = IGuild(guildAddress);
-            // if proposalid calls to non-existent guild, then
-            // default verdict
             if (guild.inquireAddressList().length != 0) {
-                activeGuildVotes[proposalId] = guildsId[i];
-                activeGuildVotesCounter++;
-                proposalTimestamp[proposalId] = uint48(block.timestamp);
+                guildIdToActiveProposalId[guildsId[i]][proposalId] = true;
+                proposalIdToVoteCallTimestamp[proposalId] = block.timestamp;
+                activeGuildVotesCounter[proposalId]++;
                 guild.guildVoteRequest(proposalId);
                 success = true;
             }
         }
         if (success == false){
-           _guildVerdict(defaultGuildDecision, proposalId);
+            revert();
         }
         return success;
     }
 
-    // If guildMembersCount = 0, then skip
-    // guildAddress = guilds[guildId]
-    // activeGuildVotes[proposalid] = guildAddress
-    function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId, uint48 maxDecisionTime)
+    function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId)
        external
+       onlyGuild
        returns(bool)
     {
-        require(securityCouncil[msg.sender] == 1 || msg.sender == merchantRepublicAddress,
-                "GuildCouncil::_callGuildsToVote::only_guild_or_merhant_republic");
         bool success = false;
-        guildDecisionTimeLimit = maxDecisionTime;
         for(uint48 i; i< guildsId.length; i++){
-            address guildAddress = guilds[guildsId[i]];
+            address guildAddress = guildIdToAddress[guildsId[i]];
             if (guildAddress == address(0)){
-                _guildVerdict(defaultGuildDecision, proposalId);
+                revert("GuildCouncil::_callGuildsToVote::guild_address_is_zero");
+            }
+            else if(proposalMaxDecisionWaitLimit[proposalId] < guildToMinDecisionTime[guildsId[i]]){
+                revert("GuildCouncil::_callGuildsToVote::maxDecisionTime too low");
             }
             IGuild guild = IGuild(guildAddress);
-            // if proposalid calls to non-existent guild, then
-            // default verdict
             if (guild.inquireAddressList().length != 0) {
-                activeGuildVotes[proposalId] = guildsId[i];
-                activeGuildVotesCounter++;
-                proposalTimestamp[proposalId] = uint48(block.timestamp);
+                guildIdToActiveProposalId[guildsId[i]][proposalId] = true;
+                proposalIdToVoteCallTimestamp[proposalId] = block.timestamp;
+                activeGuildVotesCounter[proposalId]++;
                 guild.guildVoteRequest(proposalId);
                 success = true;
             }
         }
         if (success == false){
-           _guildVerdict(defaultGuildDecision, proposalId);
+            revert();
         }
         return success;
     }
-    // naively, go over all the guilds and see how many rewards the
-    // user has accumulated from being part of a chainOfResponsibility
-    // for some guild member in every guild
 
     function availableGuilds()
         external
@@ -175,8 +180,8 @@ contract GuildCouncil is ReentrancyGuard {
         returns(address[] memory)
     {
         address[] memory localGuilds = new address[](guildCounter);
-        for (uint48 i;i<guildCounter;i++){
-            localGuilds[uint256(i)]=guilds[i];
+        for (uint256 i;i<guildCounter;i++){
+            localGuilds[i]=guildIdToAddress[uint48(i)];
         }
         return localGuilds;
     }
@@ -185,7 +190,7 @@ contract GuildCouncil is ReentrancyGuard {
         external
         returns(IGuild.GuildBook memory)
     {
-        return guildInformation(guilds[guildId]);
+        return guildInformation(guildIdToAddress[guildId]);
     }
 
     function guildInformation(address guildAddress)
@@ -205,8 +210,18 @@ contract GuildCouncil is ReentrancyGuard {
         onlyMerchantRepublic
         returns(uint256)
     {
-        IGuild guild = IGuild(guilds[guildId]);
+        IGuild guild = IGuild(guildIdToAddress[guildId]);
         return guild.informGuildOnSilverPayment(sender, receiver, silverAmount);
+    }
+
+    function setMinDecisionTime(uint48 minDecisionTime, uint48 guildId)
+        external
+        onlyGuild
+        returns(bool)
+    {
+        require(guildIdToAddress[guildId] == msg.sender, "GuildCouncil::setMinDecisionTime::wrong_address");
+        guildToMinDecisionTime[guildId];
+        return true;
     }
 
     function setMerchantRepublic(address oldMerchantRepublic, address newMerchantRepublic)
@@ -219,7 +234,7 @@ contract GuildCouncil is ReentrancyGuard {
     }
 
     modifier onlyGuild() {
-        require(securityCouncil[msg.sender] == 1, "GuildCouncil::SecurityCouncil::only_guild");
+        require(securityCouncil[msg.sender] !=0, "GuildCouncil::SecurityCouncil::only_guild");
         _;
     }
 

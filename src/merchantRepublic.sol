@@ -172,7 +172,7 @@ contract MerchantRepublic {
     ///
     uint32 tokensToSilverRatio;
 
-    GuildCouncilI guildCouncil;
+    IGuildCouncil guildCouncil;
 
 // https://medium.com/@novablitz/storing-structs-is-costing-you-gas-774da988895e`
 
@@ -222,7 +222,7 @@ contract MerchantRepublic {
         votingDelay = votingDelay_;
         proposalThreshold = proposalThreshold_;
         guildsMaxVotingPeriod = guildsMaxVotingPeriod_;
-        guildCouncil =  GuildCouncilI(guildCouncilAddress);
+        guildCouncil =  IGuildCouncil(guildCouncilAddress);
 
     }
 
