@@ -57,6 +57,7 @@ contract GuildCommonersTest is Gov2Test {
 
     function testGuildMemberRewardClaim() public {
         mockDucat.mint(address(constitution), 100000000);
+        emit log_bytes(abi.encodePacked(mockDucat.paused()));
         constitution.sendBudgetToGuild(1000000, address(locksmiths));
         hevm.warp(block.timestamp + 10 days);
         ursus.claimReward(0);
@@ -77,46 +78,6 @@ contract GuildCommonersTest is Gov2Test {
 }
 
 contract GuildMembersTest is Gov2Test {
-    uint32 facelessGravitasThreshold = 400;
-    uint32 facelessTimeOutPeriod = 25 days;
-    uint32 facelessMaxGuildMembers = 20;
-    uint32 facelessVotingPeriod = 14 days;
-
-    function initMembers() public {
-        facelessMen = new Commoner[](20);
-        address[] memory facelessAddresses = new address[](20);
-        uint256 ducats = 10000;
-        for (uint256 i = 0; i < facelessMen.length; i++) {
-            facelessMen[i] = new Commoner();
-            facelessMen[i].init(
-                address(guildCouncil),
-                address(merchantRepublic),
-                address(constitution),
-                address(mockDucat)
-            );
-            facelessAddresses[i] = address(facelessMen[i]);
-            for (uint48 j = 0; j < guilds.length; j++) {
-                facelessMen[i].setGuild(guilds[j], j);
-            }
-            mockDucat.mint(address(facelessMen[i]), ducats);
-        }
-        facelessGuild = new Guild(
-            "faceless",
-            facelessAddresses,
-            facelessGravitasThreshold,
-            facelessTimeOutPeriod,
-            facelessMaxGuildMembers,
-            facelessVotingPeriod,
-            address(mockDucat),
-            address(constitution)
-        );
-        constitution.mockEstablishGuild(address(facelessGuild));
-        guilds = guildCouncil.availableGuilds();
-        for (uint256 i = 0; i < facelessMen.length; i++) {
-            facelessMen[i].setGuild(guilds[3], 3);
-        }
-    }
-
     function testFacelessGuild() public {
         initMembers();
         Guild.GuildBook memory gb = facelessGuild.requestGuildBook();
@@ -337,7 +298,7 @@ contract GuildMembersTest is Gov2Test {
         uint256 start = block.timestamp;
         hevm.warp(block.timestamp + 5);
         for (uint256 i = 0; i < facelessMen.length; i++) {
-            try facelessMen[i].castVoteForProposal(1, proposalId, 3) {
+            try facelessMen[i].guildCastVoteForProposal(1, proposalId, 3) {
                 continue;
             } catch Error(string memory error) {
                 assertEq(
@@ -372,53 +333,221 @@ contract GuildMembersTest is Gov2Test {
         try member.changeGravitasThreshold(3, 100) {
             fail();
         } catch Error(string memory error) {
-            assertEq(error, "guild::onlyguildmaster::wrong_address");
+            assertEq(error, "guild::onlyGuildMaster::wrong_address");
         }
         try member.changeMemberRewardPerEpoch(3, 100) {
             fail();
         } catch Error(string memory error) {
-            assertEq(error, "guild::onlyguildmaster::wrong_address");
+            assertEq(error, "guild::onlyGuildMaster::wrong_address");
         }
         try member.changeGuildMasterMultiplier(3, 100) {
             fail();
         } catch Error(string memory error) {
-            assertEq(error, "guild::onlyguildmaster::wrong_address");
+            assertEq(error, "guild::onlyGuildMaster::wrong_address");
         }
         try member.changeMaxGuildMembers(3, 100) {
             fail();
         } catch Error(string memory error) {
-            assertEq(error, "guild::onlyguildmaster::wrong_address");
+            assertEq(error, "guild::onlyGuildMaster::wrong_address");
         }
         try member.changeGuildMemberSlash(3, 100) {
             fail();
         } catch Error(string memory error) {
-            assertEq(error, "guild::onlyguildmaster::wrong_address");
+            assertEq(error, "guild::onlyGuildMaster::wrong_address");
         }
         try member.changeSlashForCashReward(3, 100) {
             fail();
         } catch Error(string memory error) {
-            assertEq(error, "guild::onlyguildmaster::wrong_address");
+            assertEq(error, "guild::onlyGuildMaster::wrong_address");
         }
     }
-}
 
-contract GuildConstitution is Gov2Test {
-    function testGetBudget() public {
-        mockDucat.mint(address(constitution), 2000);
-        constitution.sendBudgetToGuild(1000, address(locksmiths));
-        assertEq(1000, locksmiths.getBudget());
-        assertEq(1000, mockDucat.balanceOf(address(constitution)));
+    function testGuildsVoteOnWrongProposal() public {
+        initMembers();
+        hevm.warp(block.timestamp + 7 days);
+        uint48 guildId = 0;
+        uint8 support = 0;
+        address[] memory targets = new address[](1);
+        targets[0] = address(this);
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+        string[] memory signatures = new string[](1);
+        signatures[0] = "setFlag()";
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = bytes("");
+        uint48[] memory guilds = new uint48[](1);
+        guilds[0] = guildId;
+        uint48 id = facelessMen[0].govPropose(
+            targets,
+            values,
+            signatures,
+            calldatas,
+            "set flag to false",
+            guilds
+        );
+        hevm.warp(block.timestamp + 1);
+        assertEq(1, id);
+        assertEq(
+            uint256(MerchantRepublic.ProposalState.PendingGuildsVote),
+            uint256(merchantRepublic.state(id))
+        );
+        assertEq(
+            uint48(block.timestamp - 1),
+            guildCouncil.proposalIdToVoteCallTimestamp(id)
+        );
+        try ursus.guildCastVoteForProposal(support, id + 1, guildId) {
+            fail();
+        } catch Error(string memory error) {
+            assertEq(
+                "Guild::castVote::proposal_id_for_guild_council_not_active",
+                error
+            );
+        }
     }
 
-    function testWithdrawBudget() public {
-        mockDucat.mint(address(constitution), 2000);
-        constitution.sendBudgetToGuild(1000, address(locksmiths));
-        constitution.withdrawBudget(
-            1000,
-            address(locksmiths),
-            address(constitution)
+    function testWrongGuildVoteOnProposal() public {
+        initCommoners();
+        createProposalTarget();
+        // we warp 10 days into the future as our commoners just got
+        // their tokens!
+        hevm.warp(block.timestamp + 10 days);
+        uint48 guildId = 0;
+        uint8 support = 1;
+        address[] memory targets = new address[](1);
+        targets[0] = address(proposalTarget);
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+        string[] memory signatures = new string[](1);
+        signatures[0] = "setFlag()";
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = bytes("");
+        uint48[] memory guilds = new uint48[](1);
+        guilds[0] = guildId;
+        uint48 id = commoners[0].govPropose(
+            targets,
+            values,
+            signatures,
+            calldatas,
+            "set flag to false",
+            guilds
         );
-        assertEq(locksmiths.getBudget(), 0);
-        assertEq(mockDucat.balanceOf(address(constitution)), 2000);
+        assertEq(1, id);
+        assertEq(
+            uint256(merchantRepublic.state(id)),
+            uint256(MerchantRepublic.ProposalState.PendingGuildsVote)
+        );
+        try john.guildCastVoteForProposal(support, id, 2) {
+            fail();
+        } catch Error(string memory error) {
+            assertEq(
+                error,
+                "Guild::castVote::proposal_id_for_guild_council_not_active"
+            );
+        }
+    }
+
+    function testGuildVotesInTwoMerchantRepublicsSimult() public {
+        initCommoners();
+        initPopuli();
+        createProposalTarget();
+        // we warp 10 days into the future as our commoners just got
+        // their tokens!
+        hevm.warp(block.timestamp + 10 days);
+        //locksmiths
+        uint48 guildId = 0;
+        uint8 support = 1;
+        address[] memory targets = new address[](1);
+        targets[0] = address(proposalTarget);
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+        string[] memory signatures = new string[](1);
+        signatures[0] = "setFlag()";
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = bytes("");
+        uint48[] memory guilds = new uint48[](1);
+        guilds[0] = guildId;
+        uint48 id = commoners[0].govPropose(
+            targets,
+            values,
+            signatures,
+            calldatas,
+            "set flag to false",
+            guilds
+        );
+        uint48 id2 = populi[0].govPropose(
+            targets,
+            values,
+            signatures,
+            calldatas,
+            "set flag to false",
+            guilds
+        );
+        assertEq(1, id);
+        assertEq(1, id2);
+        assertEq(
+            uint256(merchantRepublic.state(id)),
+            uint256(MerchantRepublic.ProposalState.PendingGuildsVote)
+        );
+        assertEq(
+            uint256(merchantRepublicPopuli.state(id2)),
+            uint256(MerchantRepublic.ProposalState.PendingGuildsVote)
+        );
+        // For simplicity, we know that the guildId is the same
+        // for both merchant republics. This is not always the case though.
+        ursus.guildCastVoteForProposal(support, id, guildId);
+        machiavelli.guildCastVoteForProposal(support, id2, guildId);
+        assertEq(
+            uint256(merchantRepublic.state(id)),
+            uint256(MerchantRepublic.ProposalState.PendingCommonersVoteStart)
+        );
+        assertEq(
+            uint256(merchantRepublicPopuli.state(id2)),
+            uint256(MerchantRepublic.ProposalState.PendingCommonersVoteStart)
+        );
+        uint256 voteStartDay = block.timestamp + 2 days + 1;
+        hevm.warp(voteStartDay);
+        assertEq(
+            uint256(merchantRepublic.state(id)),
+            uint256(MerchantRepublic.ProposalState.PendingCommonersVote)
+        );
+        assertEq(
+            uint256(merchantRepublicPopuli.state(id2)),
+            uint256(MerchantRepublic.ProposalState.PendingCommonersVote)
+        );
+        for (uint256 i; i < 30; i++) {
+            commoners[i].govCastVote(id, support);
+            populi[i].govCastVote(id, support);
+        }
+        // The voting ends 7 days after it started. Previously we moved ahead
+        // by 2.5 days, so we arrived at the middle of the first day of voting.
+        // Thus, we only need to warp 5.5 days into the future for the vote to end.
+        // We warp 6 days into the future for good measure
+        uint256 voteEndDay = block.timestamp + 7 days;
+        hevm.warp(voteEndDay);
+        emit log_named_uint("Proposal Queued: ", block.timestamp);
+        assertEq(
+            uint256(merchantRepublic.state(id)),
+            uint256(MerchantRepublic.ProposalState.Succeeded)
+        );
+        assertEq(
+            uint256(merchantRepublic.state(id2)),
+            uint256(MerchantRepublic.ProposalState.Succeeded)
+        );
+        commoners[1].queueProposal(id);
+        populi[1].queueProposal(id2);
+        hevm.warp(block.timestamp + constitution.delay() + 1);
+        emit log_named_uint("Proposal Executed: ", block.timestamp);
+        commoners[20].executeProposal(id);
+        assertFalse(proposalTarget.flag());
+        populi[20].executeProposal(id2);
+        assert(proposalTarget.flag());
+        assertEq(
+            uint256(MerchantRepublic.ProposalState.Executed),
+            uint256(merchantRepublic.state(id))
+        );
+        assertEq(
+            uint256(MerchantRepublic.ProposalState.Executed),
+            uint256(merchantRepublicPopuli.state(id2))
+        );
     }
 }
