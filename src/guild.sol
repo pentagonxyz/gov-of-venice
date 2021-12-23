@@ -2,53 +2,97 @@
 pragma solidity ^0.8.9;
 
 
-import "solmate/utils/ReentrancyGuard.sol";
-import "solmate/utils/FixedPointMathLib.sol";
-import "solmate/utils/SafeCastLib.sol";
-import "./IguildCouncil.sol";
-import "./Itokens.sol";
+import {ReentrancyGuard} from "solmate/utils/ReentrancyGuard.sol";
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
+import {_guildVerdict, _callGuildsToVote, setMinimumGuildVotingPeriod} from "./IguildCouncil.sol";
+import {transfer, balanceOf} from "./Itokens.sol";
 
+/// @title Merchant Republic Guild
+/// @author Odysseas Lamtzidis (odyslam.eth)
+/// @notice A mini-DAO that is function-specific and has veto power in the governance proposals
+/// of Compound-Bravo based Merchant Republic governance modules. A Guild can belong to many Merchant
+/// Republics and a Merchant Republic can have several Guilds working for it.
 contract  Guild is ReentrancyGuard {
 
-    // ~~~~~~~~~~ Libraries ~~~~~~~~~~~~~~~~
+    /*///////////////////////////////////////////////////////////////
+                            LIBRARIES
+    //////////////////////////////////////////////////////////////*/
     using SafeCastLib for uint256;
     using FixedPointMathLib for uint256;
 
-    // ~~~~~~~~~~ EVENTS ~~~~~~~~~~~~~~~~~~~
 
+     /*///////////////////////////////////////////////////////////////
+                            EVENTS
+    //////////////////////////////////////////////////////////////*/
 
+    /// @notice Emitted when a commoner joins the Guild
+    /// @param commoner The commoners who joined the Guild.
     event GuildMemberJoined(address commoner);
+    /// @notice Emitted when a Guild Member is removed(banished) from the Guild.
+    /// @param guildMember The Guild Member who got removed(banished) from the guild.
     event GuildMemberBanished(address guildMember);
-    event GuildParameterChanged(bytes32 what, uint256 oldParameter, uint256 newParameter);
-    event GuildInvitedToProposalVote(uint256 indexed guildId, uint48 indexed proposalId);
-    event GuildMasterVote(address indexed guildMember, address indexed guildMaster);
-    event BanishMemberVote(address indexed guildmember, address indexed banished);
-    event ProposalVote(address indexed guildMember, uint48 proposalid);
-    event GuildMasterChanged(address newGuildMaster);
+    /// @notice Emitted when a Guild Member claim their rewards.
+    /// @param guildMember The Guild Member who claimed their reward.
+    /// @param reward The amount the Guild Member claimed.
     event GuildMemberRewardClaimed(address indexed guildMember, uint256 reward);
+    /// @notice Emitted when the gravitas of a commoner for this particular Guild changes.
+    /// @param commoner The commoner for which the gravitas changed.
+    /// @param oldGravitas The previous gravitas value of the commoner.
+    /// @param newGravitas The new gravitas value of the commoner.
     event GravitasChanged(address commoner, uint256 oldGravitas, uint256 newGravitas);
+
+    /// @notice Emitted when the Guild is invited to vote on a proposal by a Merchant Republic.
+    /// @param guildId The id of the guild for that particular merchant Republic.
+    /// @param proposalId The id of the proposal.
+    event GuildInvitedToProposalVote(uint256 indexed guildId, uint48 indexed proposalId);
+    /// @notice Emitted when a new vote is started to elect a Guild Master.
+    /// @param guildMember The member who started the vote.
+    /// @param guildMaster The member who is being put to vote in order to become the new
+    /// Guild Master.
+    event GuildMasterVote(address indexed guildMember, address indexed guildMaster);
+    /// @notice Emitted when a new vote is started to remove(banish) a Guild Member from the Guild.
+    /// @param guildMember The member who started the vote.
+    /// @param banished The member who is being put to vote in order to be removed from the Guild.
+    event BanishMemberVote(address indexed guildmember, address indexed banished);
+    /// @notice Emitted when a Guid Master vote is concluded.
+    /// @param guildMasterElect The Guild Member who was put to vote.
+    /// @param result The result of the vote. True for success, False for failure.
     event GuildMasterVoteResult(address guildMasterElect, bool result);
-    event GuildReceivedFunds(uint256 funds, address sender);
+
+    /// @notice Emitted when a parameter of the Guild changes.
+    /// @param what The Guild parameter that was changed.
+    /// @param oldParameter The old value of the parameter.
+    /// @param newParameter The new value of the parameter.
+    event GuildParameterChanged(bytes32 what, uint256 oldParameter, uint256 newParameter);
+    /// @notice Emitted when the Guild Master changes.
+    /// @param newGuildMaster The new Guild Master.
+    event GuildMasterChanged(address newGuildMaster);
+    /// @notice Emitted when a new Guild Council (and thus a new Merchant Republic) is added
+    /// to the Guild.
+    /// @param guildCouncil The Guild Council that was added.
+    /// @param guildId The Guild ID of the Guild that was given by that specific Guild Council.
     event GuildCouncilSet(address guildCouncil, uint48 guildid);
 
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    /*///////////////////////////////////////////////////////////////
+                           STRUCTS
+    //////////////////////////////////////////////////////////////*/
 
+    /// @notice Packed struct of a Guild member. Doesn't include the address as
+    /// it's the key of a mappping that points to the structs.
+    /// @param guildMemberAddressListIndex The index of the Guild Member in the Guild Member Array.
+    /// @param joinTimestamp The block.timestamp when the Guild Member joined the Guild.
+    /// @param lastClaimTimestamp The block.timestamp of the last time the Guild Member claimed Rewards.
+    /// @param founding Whether the Guild Member is a founding member or not.
     struct GuildMember{
-        uint32 addressListIndex;
+        uint32 guildMembersAddressListIndex;
         uint96 joinTimestamp;
         uint96 lastClaimTimestamp;
         bool founding;
     }
 
 
-    struct GuildBook{
-        bytes32 name;
-        uint64 gravitasThreshold;
-        uint64 timeOutPeriod;
-        uint64 maxGuildMembers;
-        uint64 votingPeriod;
-    }
-
+    /// @notice Struct of a vote
     struct Vote {
         uint48 aye;
         uint48 nay;
@@ -59,67 +103,38 @@ contract  Guild is ReentrancyGuard {
         mapping (address => uint48) lastTimestamp;
         uint256 id;
     }
+
     TokensI tokens;
 
     GuildBook guildBook;
 
-    mapping(address => uint48) addressToGravitas;
-
-    address public guildMasterAddress;
-
-    mapping(address => GuildMember) public addressToGuildMember;
-
-    address[] private addressList;
-
-    uint256 public budget;
-
-    mapping(address => uint48) private apprentishipStart;
-
-    mapping(address => uint48) private guildCouncilAddressToGuildId;
-
-    mapping(address => uint256) private silverToGravitasWeight;
-
-    bool private activeGuildMasterVote;
-
-    bool private activeBanishmentVote;
-
-    /// The amount of gravitas that the guild member will lose
-    uint256 public guildMemberSlash;
-
-   // To keep costs down, we only keep a single vote receipt from the latest vote for each guild member.
-    // if lastVoteTimestamp + votinPeriod >= uint48(block.timestamp), that means that the member voted in the current vote
-    // Else, disregard the rest of the receipt, let the member vote and populate receipt with up to date information
-    // A vote in a guild can be one of:
-    // 1) Vote on proposalId after the request of the DAO
-    // 2) Vote on removal(banishment) of a guild member
-    // 3) Vote on elevating a member to guild master
-
-    Vote guildMasterVote;
-
-    Vote banishmentVote;
-
-    address public guildMaster;
-
-    address public guildMasterElect;
-
-    mapping(address => mapping(uint48 => Vote)) guildCouncilAddressToProposalVotes;
-
-    /// Rethink the variable type to smaller uints for efficient storoage packing
-    /// Based on the use-case, uint256 sounds too big
-
-    uint256 public guildMembersCount;
-
     ///
     uint256 public gravitasThreshold;
 
-    ///
-    uint256 public maxGuildMembers;
-
-    // ----------- CONSTANTS ---------------
+    mapping(address => uint48) addressToGravitas;
 
     uint256 constant senderGravitasWeight =  50;
 
-    uint256 immutable BASE_UNIT= FixedPointMathLib.WAD;
+    uint256 public constant gravitasWeight=10;
+
+    uint256 public constant MEMBER_REWARD_PER_SECOND = 10;
+
+    mapping(address => GuildMember) public addressToGuildMember;
+
+    mapping(address => uint256) private guildCouncilToSilverGravitasRatio;
+
+    mapping(address => uint48) private guildCouncilAddressToGuildId;
+
+    address public guildMasterAddress;
+
+    address public guildMasterElect;
+
+    uint8 public guildMasterRewardMultiplier =2;
+
+    address[] private guildMembersAddressList;
+
+    mapping(address => uint48) private apprentishipStart;
+
 
     uint256 public constant proposalQuorum = 25;
 
@@ -129,30 +144,65 @@ contract  Guild is ReentrancyGuard {
     ///
     uint256 public constant banishmentQuorum = 74;
 
-    uint8 public guildMasterRewardMultiplier =2;
+    bool private activeBanishmentVote;
 
-    uint256 public constant MEMBER_REWARD_PER_SECOND = 10;
+    bool private activeGuildMasterVote;
 
-    uint256 public constant gravitasWeight=10;
+    mapping(address => mapping(uint48 => Vote)) guildCouncilAddressToProposalVotes;
+
+    Vote guildMasterVote;
+
+    Vote banishmentVote;
+
+
+    /*///////////////////////////////////////////////////////////////
+                          CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+
+    uint256 immutable BASE_UNIT= FixedPointMathLib.WAD;
 
     uint8 public constant guildMemberRewardMultiplier = 1;
 
     uint48 constant minimumFoundingMembers = 1;
 
-    // -----------------------
+    /*//////////////////////////////////////////////////////////////*/
 
     uint48 public memberRewardPerEpoch = 10;
 
     uint48 public minDecisionTime;
 
+    uint256 public slashForCashReward;
+
     uint96 lastSlash;
 
     address constitution;
 
-   uint256 public slashForCashReward;
+    uint256 public guildMemberSlash;
 
-//---------- Constructor ----------------
+    uint256 public guildMembersCount;
 
+    /*///////////////////////////////////////////////////////////////
+                        CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The max number of members. This is required because guild members are automatically added
+    /// based on gravitas in a trustless manner. In other guild designs, it could be moot.
+    uint256 public maxGuildMembers;
+
+    /// @notice The GuildBook is the ID card of the guild.
+    /// @dev We didn't use SSTORE2 because the struct variables can change.
+    /// Some variables that concern the Guild constract were left out of the struct
+    /// because they are accessed multiple times in various code paths, so loading the
+    /// struct contents would be suboptimal versus storing the particular data in a single
+    /// variable. We use the Guildbook for data that is accessed less often.
+    struct GuildBook{
+        bytes32 name;
+        uint64 gravitasThreshold;
+        uint64 timeOutPeriod;
+        uint64 maxGuildMembers;
+        uint64 votingPeriod;
+    }
     constructor(bytes32 guildName, address[] memory foundingMembers, uint32 newGravitasThreshold, uint32 timeOutPeriod,
                 uint32 newMaxGuildMembers, uint32 newVotingPeriod, address tokensAddress, address constitutionAddress)
     {
@@ -165,7 +215,7 @@ contract  Guild is ReentrancyGuard {
             GuildMember memory guildMember = GuildMember(i, time ,time, true);
             address member = foundingMembers[i];
             addressToGuildMember[member] = guildMember;
-            addressList.push(member);
+            guildMembersAddressList.push(member);
             addressToGravitas[member] = newGravitasThreshold;
         }
         tokens = TokensI(tokensAddress);
@@ -177,15 +227,17 @@ contract  Guild is ReentrancyGuard {
         external
         onlyGuildMaster
     {
-        silverToGravitasWeight[guildCouncilAddress] = silverGravitasWeight;
+        guildCouncilToSilverGravitasRatio[guildCouncilAddress] = silverGravitasWeight;
         guildCouncilAddressToGuildId[guildCouncilAddress] = guildId;
         emit GuildCouncilSet(guildCouncilAddress, guildId);
     }
 
- // ------------- Guild Member lifecycle -----------------------
 
-    // cooloff period before getting voted to a guild and actually joining it. This is added
-    // so that it's harder to game the system
+    /*///////////////////////////////////////////////////////////////
+                          CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+
     function  startApprentiship()
         external
     {
@@ -198,12 +250,12 @@ contract  Guild is ReentrancyGuard {
         {
             require(apprentishipStart[msg.sender] != 0 && apprentishipStart[msg.sender] + guildBook.timeOutPeriod < uint48(block.timestamp),
                     "Guild::joinGuild::user_has_not_done_apprentiship");
-            require(addressList.length + 1 <= guildBook.maxGuildMembers, "Guild::joinGuild::max_guild_members_reached");
-            addressList.push(msg.sender);
+            require(guildMembersAddressList.length + 1 <= guildBook.maxGuildMembers, "Guild::joinGuild::max_guild_members_reached");
+            guildMembersAddressList.push(msg.sender);
             GuildMember storage member = addressToGuildMember[msg.sender];
             member.joinTimestamp = block.timestamp.safeCastTo96();
             member.lastClaimTimestamp = block.timestamp.safeCastTo96();
-            member.addressListIndex = addressList.length.safeCastTo32() - 1;
+            member.guildMembersAddressListIndex = guildMembersAddressList.length.safeCastTo32() - 1;
             addressToGuildMember[msg.sender] = member;
             return member;
         }
@@ -234,16 +286,16 @@ contract  Guild is ReentrancyGuard {
     function _banishGuildMember(address guildMemberAddress)
         private
     {
-        uint32 index = addressToGuildMember[guildMemberAddress].addressListIndex;
+        uint32 index = addressToGuildMember[guildMemberAddress].guildMembersAddressListIndex;
         // delete the GuildMember Struct for the banished guild member
         delete addressToGuildMember[guildMemberAddress];
         // Remove the banished guild member from the list of the guild members.
         // Take the last element of the list, put it in place of the removed and remove
         // the last element of the list.
-        address movedAddress = addressList[addressList.length - 1];
-        addressList[index] =  movedAddress;
-        delete addressList[addressList.length - 1];
-        addressToGuildMember[movedAddress].addressListIndex = index;
+        address movedAddress = guildMembersAddressList[guildMembersAddressList.length - 1];
+        guildMembersAddressList[index] =  movedAddress;
+        delete guildMembersAddressList[guildMembersAddressList.length - 1];
+        addressToGuildMember[movedAddress].guildMembersAddressListIndex = index;
         // If the guild member is GuildMaster, then the guild is headless.
         // In order to function properly, the guild members must initiate a vote to
         // appoint a new guild master.
@@ -261,11 +313,11 @@ contract  Guild is ReentrancyGuard {
         Vote storage proposalVote = guildCouncilAddressToProposalVotes[msg.sender][proposalId];
         uint256 voteTime = proposalVote.startTimestamp;
         require(lastSlash < voteTime, "Guild::slashForInnactivity::members_already_slashed");
-        uint256 length = addressList.length;
+        uint256 length = guildMembersAddressList.length;
         lastSlash = block.timestamp.safeCastTo32();
         uint256 counter=0;
         for(uint256 i=0;i<length;i++){
-            address guildMember = addressList[i];
+            address guildMember = guildMembersAddressList[i];
             if( proposalVote.lastTimestamp[guildMember] < voteTime){
                 counter++;
                 _slashGuildMember(guildMember);
@@ -274,7 +326,9 @@ contract  Guild is ReentrancyGuard {
         tokens.transfer(msg.sender, slashForCashReward);
         return counter;
     }
-
+    /*///////////////////////////////////////////////////////////////
+                         Guild Master guild management functions
+    //////////////////////////////////////////////////////////////*/
 /// ____ Guild Master Functions _____
 // TODO: Add timeout queu so that the guild has time to react to
 // unilateral decisions that they don't support. If the guild kicks
@@ -347,8 +401,11 @@ contract  Guild is ReentrancyGuard {
         guildBook.votingPeriod = newVotingPeriod;
         return IGuildCouncil(guildCouncilAddress).setMiminumGuildVotingPeriod(newVotingPeriod, guildCouncilAddressToGuildId[guildCouncilAddress]);
     }
-// ----------------------------------------------------
-// --------------- Accounting -------------------------
+
+    /*///////////////////////////////////////////////////////////////
+                       GUILD ACCOUNTING
+    //////////////////////////////////////////////////////////////*/
+
     function getBudget()
         view
         public
@@ -365,7 +422,9 @@ contract  Guild is ReentrancyGuard {
     }
 
 
-/// ---------------- Start Voting ---------------------
+    /*///////////////////////////////////////////////////////////////
+                      START VOTING FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     function startGuildmasterVote(address member)
         external
@@ -409,10 +468,10 @@ contract  Guild is ReentrancyGuard {
         guildCouncilAddressToProposalVotes[msg.sender][proposalId].startTimestamp = uint48(block.timestamp);
         return true;
     }
-// _______________________________________________________________
 
-// ---------- Cast Votes ---------------
-
+    /*///////////////////////////////////////////////////////////////
+                        CAST VOTES
+    //////////////////////////////////////////////////////////////*/
 
     function castVoteForProposal(uint48 proposalId, uint8 support, address guildCouncilAddress)
         external
@@ -435,12 +494,12 @@ contract  Guild is ReentrancyGuard {
         bool voteEnd;
         IGuildCouncil guildCouncil = IGuildCouncil(guildCouncilAddress);
         proposalVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
-        if(proposalVote.aye > (addressList.length * proposalQuorum / 100)){
+        if(proposalVote.aye > (guildMembersAddressList.length * proposalQuorum / 100)){
             proposalVote.active = false;
             guildCouncil._guildVerdict(true, proposalId, guildCouncilAddressToGuildId[guildCouncilAddress]);
             voteEnd = true;
         }
-        else if (proposalVote.nay > (addressList.length * proposalQuorum / 100)) {
+        else if (proposalVote.nay > (guildMembersAddressList.length * proposalQuorum / 100)) {
             proposalVote.active = false;
             guildCouncil._guildVerdict(false, proposalId, guildCouncilAddressToGuildId[guildCouncilAddress]);
             voteEnd = true;
@@ -470,12 +529,12 @@ contract  Guild is ReentrancyGuard {
         }
         bool cont;
         guildMasterVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
-        if(guildMasterVote.aye > (addressList.length * guildMasterQuorum / 100)){
+        if(guildMasterVote.aye > (guildMembersAddressList.length * guildMasterQuorum / 100)){
             guildMasterVote.active = false;
             guildMasterVoteResult(votedAddress, true);
             cont = false;
         }
-        else if (guildMasterVote.nay > (addressList.length * guildMasterQuorum / 100)) {
+        else if (guildMasterVote.nay > (guildMembersAddressList.length * guildMasterQuorum / 100)) {
             guildMasterVote.active = false;
             guildMasterVoteResult(votedAddress, false);
             address sponsor = guildMasterVote.sponsor;
@@ -510,13 +569,13 @@ contract  Guild is ReentrancyGuard {
         }
         bool cont;
         banishmentVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
-        if(banishmentVote.aye > (addressList.length * banishmentQuorum / 100)){
+        if(banishmentVote.aye > (guildMembersAddressList.length * banishmentQuorum / 100)){
             banishmentVote.active = false;
             _banishGuildMember(memberToBanish);
             cont = false;
 
         }
-        else if (banishmentVote.nay > (addressList.length * banishmentQuorum / 100)) {
+        else if (banishmentVote.nay > (guildMembersAddressList.length * banishmentQuorum / 100)) {
             banishmentVote.active = false;
             address sponsor = banishmentVote.sponsor;
             _modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
@@ -539,10 +598,10 @@ contract  Guild is ReentrancyGuard {
     }
 
 
-//---------------------------------------------------------
+    /*///////////////////////////////////////////////////////////////
+                        CAST VOTES
+    //////////////////////////////////////////////////////////////*/
 
-
-// ----------------- Rewards --------------------------
 
     function claimReward()
         external
@@ -590,8 +649,10 @@ contract  Guild is ReentrancyGuard {
             _banishGuildMember(guildMemberAddress);
         }
     }
-// ------------ GETTER FUNCTIONS ----------------------------------
 
+    /*///////////////////////////////////////////////////////////////
+                       GETTER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     function requestGuildBook()
         external
@@ -606,7 +667,7 @@ contract  Guild is ReentrancyGuard {
         view
         returns(address[] memory)
     {
-        return addressList;
+        return guildMembersAddressList;
     }
 
     function getVoteInfo(uint8 what, address guildCouncil, uint48 id)
@@ -637,12 +698,11 @@ contract  Guild is ReentrancyGuard {
 
 
 
-//---------------------------------------------------------
+    /*///////////////////////////////////////////////////////////////
+                        MEMBER GRAVITAS ACCOUNTING
+    //////////////////////////////////////////////////////////////*/
 
 
-// -------------------- calculate and modify Gravitas ------
-
-//TODO: rename functions to CRUD-like (get, post, put)
 
     function informGuildOnSilverPayment(address sender, address receiver, uint256 silverAmount)
         external
@@ -659,7 +719,7 @@ contract  Guild is ReentrancyGuard {
         returns (uint256 gravitas)
     {
         // gravitas = silver_sent + gravitas of the sender * weight
-        return  (silverAmount*silverToGravitasWeight[guildCouncil] +
+        return  (silverAmount*guildCouncilToSilverGravitasRatio[guildCouncil] +
                 addressToGravitas[commonerAddress]*senderGravitasWeight) / 100;
     }
 
@@ -680,10 +740,16 @@ contract  Guild is ReentrancyGuard {
         return addressToGravitas[member];
     }
 
-// ------------------------- Modifiers -------------------------
+
+
+    /*///////////////////////////////////////////////////////////////
+                        MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+
 
     modifier onlyGuildCouncil() {
-        require(silverToGravitasWeight[msg.sender] !=0 , "Guild::onlyGuildCouncil::wrong_address");
+        require(guildCouncilToSilverGravitasRatio[msg.sender] !=0 , "Guild::onlyGuildCouncil::wrong_address");
         _;
     }
     modifier onlyGuildMaster() {
