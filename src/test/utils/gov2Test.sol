@@ -84,10 +84,7 @@ contract Commoner is DSTestPlus{
     function setGuild(address _g, uint48 guildId)
         public
     {
-        // emit log_address(address(this));
-       //  emit log_named_uint("Guild set with id: ", guildId);
         guilds[guildId] = Guild(_g);
-       //  emit log_address(address(guilds[guildId]));
     }
 
     function sendSilver(address rec, uint256 amount, uint48 guildId)
@@ -269,11 +266,17 @@ contract Gov2Test is DSTestPlus {
     MerchantRepublic internal merchantRepublic;
     MockConstitution internal constitution;
     MockERC20 internal mockDucat;
+    MockGuildCouncil internal guildCouncilPopuli;
+    MerchantRepublic internal merchantRepublicPopuli;
+    MockConstitution internal constitutionPopuli;
+    MockERC20 internal mockDucatPopuli;
 
     Commoner internal ursus;
     Commoner internal agnello;
     Commoner internal john;
     Commoner internal pipin;
+    Commoner internal ezio;
+    Commoner internal machiavelli;
 
     Guild internal locksmiths;
     Guild internal blacksmiths;
@@ -286,43 +289,60 @@ contract Gov2Test is DSTestPlus {
     uint256 pipinDucats;
 
     uint32 locksmithsGT;
+    uint32 locksmithsPopuliGT;
     uint32 blacksmithsGT;
     uint32 judgesGT;
 
     uint48 locksmithsId;
+    uint48 locksmithsPopuliId;
     uint48 blacksmithsId;
     uint48 judgesId;
 
     Commoner[] internal facelessMen;
     Commoner[] internal commoners;
+    Commoner[] internal facelessWomen;
+    Commoner[] internal populi;
 
     ProposalTarget proposalTarget;
 
     address[] internal guilds;
+    address[] internal guildsPopuli;
 
 
     function setUp() public virtual {
-
 
         ursus = new Commoner();
         agnello = new Commoner();
         john = new Commoner();
         pipin = new Commoner();
+        ezio = new Commoner();
+        machiavelli = new Commoner();
 
         // Create the ERC20 gov token
-        mockDucat= new MockERC20("Ducat Token", "DK", 18);
+        mockDucat = new MockERC20("Ducat Token", "DK", 18);
+        mockDucatPopuli = new MockERC20("Populi Ducat Token", "PDK", 18);
+
         // Create the gov modules
         merchantRepublic = new MerchantRepublic(address(ursus));
         constitution = new MockConstitution(address(mockDucat));
         guildCouncil = new MockGuildCouncil(address(merchantRepublic), address(constitution), address(mockDucat));
 
+        merchantRepublicPopuli = new MerchantRepublic(address(machiavelli));
+        constitutionPopuli = new MockConstitution(address(mockDucatPopuli));
+        guildCouncilPopuli = new MockGuildCouncil(address(merchantRepublicPopuli), address(constitutionPopuli), address(mockDucatPopuli));
+
         ursus.init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
+        ezio.init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
         agnello.init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
         john.init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
         pipin.init(address(guildCouncil), address(merchantRepublic), address(constitution), address(mockDucat));
-        //delay = 2 days
+        machiavelli.init(address(guildCouncilPopuli), address(merchantRepublicPopuli), address(constitutionPopuli), address(mockDucatPopuli));
+
         constitution.signTheConstitution(address(merchantRepublic), 2 days);
         constitution.mockProposals(address(guildCouncil), address(merchantRepublic));
+
+        constitutionPopuli.signTheConstitution(address(merchantRepublicPopuli), 2 days);
+        constitutionPopuli.mockProposals(address(guildCouncilPopuli), address(merchantRepublicPopuli));
 
         // Merchant Republic
         // votingPeriod = 7 days
@@ -332,14 +352,21 @@ contract Gov2Test is DSTestPlus {
        //guildsMaxVotingPeriod, votingPeriod, votingDelay, proposalThreshold
         ursus.initializeMerchantRepublic(address(constitution), address(mockDucat), address(guildCouncil),
                                         3 days, 7 days, 2 days , 10);
+        machiavelli.initializeMerchantRepublic(address(constitutionPopuli), address(mockDucatPopuli), address(guildCouncilPopuli),
+                                        3 days, 7 days, 2 days , 10);
 
-        // set founding members for every guild
-        // 0: locksmiths: ursus
+        // set founding members for every guild for Merchant Republic
+        // 0: locksmiths: ursus, ezio
         // 1: blacksmiths: agnello, ursus
         // 2: judges: john
 
-        address[] memory founding1 = new address[](1);
+        // set founding members for every guild for Populi Merchant Republic (another instance)
+        // 0: locksmiths: ursus, ezio
+
+        address[] memory founding1 = new address[](3);
         founding1[0] = address(ursus);
+        founding1[1] = address(ezio);
+        founding1[2] = address(machiavelli);
         address[] memory founding2 =  new address[](2);
         founding2[0] = address(agnello);
         founding2[1] = address(ursus);
@@ -355,29 +382,38 @@ contract Gov2Test is DSTestPlus {
         blacksmiths = new Guild("blacksmiths", founding2, blacksmithsGT, 7 days, 50, 4 days, address(mockDucat), address(constitution));
         judges = new Guild("judges", founding3, judgesGT, 25 days, 5, 14 days, address(mockDucat), address(constitution));
 
-        // Register the guilds with the GuildCouncil
+        // Register the guilds with the GuildCouncil  of every merchant republic
+        // The guild might have differrent guildId in different Guild Councils
 
         uint48 MINIMUM_DECISION_TIME = 2 days;
 
         locksmithsId = constitution.mockEstablishGuild(address(locksmiths), MINIMUM_DECISION_TIME);
         blacksmithsId= constitution.mockEstablishGuild(address(blacksmiths), MINIMUM_DECISION_TIME);
         judgesId = constitution.mockEstablishGuild(address(judges), MINIMUM_DECISION_TIME);
+        locksmithsPopuliId = constitutionPopuli.mockEstablishGuild(address(locksmiths), MINIMUM_DECISION_TIME);
 
         // Register the guilld council with the Guilds
-
+        // Only the Guild master can perform this. The first member of the founding member
+        // array becomes the first guild master of the guild.
         ursus.setGuildCouncil(address(locksmiths), address(guildCouncil), 10, locksmithsId);
+        ursus.setGuildCouncil(address(locksmiths), address(guildCouncilPopuli), 10, locksmithsId);
         agnello.setGuildCouncil(address(blacksmiths), address(guildCouncil), 10, blacksmithsId);
         john.setGuildCouncil(address(judges), address(guildCouncil), 10, judgesId);
 
         guilds = guildCouncil.availableGuilds();
-        // register the guilds to the commoners
+        guildsPopuli = guildCouncilPopuli.availableGuilds();
+
+        // register the guilds to the commoners contract for testing
         for (uint48 i=0;i<guilds.length;i++){
            ursus.setGuild(guilds[i], i);
            john.setGuild(guilds[i], i);
            pipin.setGuild(guilds[i], i);
            agnello.setGuild(guilds[i], i);
+           ezio.setGuild(guilds[i], i);
+           machiavelli.setGuild(guilds[i], i);
         }
         assertEq(locksmithsId, 0);
+        assertEq(locksmithsPopuliId, 0);
         assertEq(blacksmithsId, 1);
         assertEq(judgesId, 2);
 
@@ -392,11 +428,16 @@ contract Gov2Test is DSTestPlus {
         johnDucats = 10000;
         pipinDucats = 500;
         mockDucat.mint(address(ursus), ursusDucats);
+        mockDucat.mint(address(ezio), ursusDucats);
+        mockDucatPopuli.mint(address(machiavelli), ursusDucats);
         mockDucat.mint(address(agnello), agnelloDucats);
         mockDucat.mint(address(john), johnDucats);
         mockDucat.mint(address(pipin), pipinDucats);
         // Ursus is the Doge and sets the silver season
         ursus.setSilverSeason();
+        // Ezio is the Doge for the Populi Merchant Republic and sets
+        // the silver season
+        machiavelli.setSilverSeason();
     }
 
     function initCommoners() public {
@@ -411,6 +452,21 @@ contract Gov2Test is DSTestPlus {
                 address(mockDucat)
             );
             mockDucat.mint(address(commoners[i]), startingBalance);
+        }
+    }
+
+    function initPopuli() public {
+        uint256 startingBalance = 100000e18;
+        populi = new Commoner[](30);
+        for (uint256 i; i < 30; i++) {
+            populi[i] = new Commoner();
+            populi[i].init(
+                address(guildCouncilPopuli),
+                address(merchantRepublicPopuli),
+                address(constitutionPopuli),
+                address(mockDucatPopuli)
+            );
+            mockDucatPopuli.mint(address(populi[i]), startingBalance);
         }
     }
 

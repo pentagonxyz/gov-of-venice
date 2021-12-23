@@ -279,8 +279,6 @@ contract MerchantRepublic {
                                    uint eta)
         internal
     {
-        require(!constitution.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))),
-                "MerchantRepublic::queueOrRevertInternal: identical proposal action already queued at eta");
         constitution.queueTransaction(target, value, signature, data, eta);
     }
 

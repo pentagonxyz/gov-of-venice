@@ -55,8 +55,8 @@ contract MRTest is Gov2Test {
         );
         ursus.guildCastVoteForProposal(support, id, guildId);
         assertEq(
-            uint256(MerchantRepublic.ProposalState.Defeated),
-            uint256(merchantRepublic.state(id))
+            uint256(merchantRepublic.state(id)),
+            uint256(MerchantRepublic.ProposalState.Defeated)
         );
     }
 
@@ -197,7 +197,7 @@ contract MRTest is Gov2Test {
         assertEq(address(agnello), merchantRepublic.doge());
     }
 
-    function testTwoProposalsSimultVote() public {
+    function testTwoProposalsInOneMerchantRepublicSimultVote() public {
         initCommoners();
         createProposalTarget();
         // we warp 10 days into the future as our commoners just got
@@ -263,7 +263,7 @@ contract MRTest is Gov2Test {
             guildCouncil.proposalIdToVoteCallTimestamp(id2)
         );
         assertEq(
-            uint256(merchantRepublic.state(id1)),
+            uint256(merchantRepublic.state(id2)),
             uint256(MerchantRepublic.ProposalState.PendingCommonersVoteStart)
         );
         emit log_named_uint("Vote start: ", block.timestamp);

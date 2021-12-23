@@ -11,7 +11,7 @@ contract ProposalTarget {
     }
 
     function setFlag() public {
-        flag = false;
+        flag = !flag;
     }
 
     function setAnotherFlag() public {
