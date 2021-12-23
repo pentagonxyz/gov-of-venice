@@ -121,7 +121,7 @@ contract  Guild is ReentrancyGuard {
 
     uint256 immutable BASE_UNIT= FixedPointMathLib.WAD;
 
-    uint256 public constant proposalQuorum = 50;
+    uint256 public constant proposalQuorum = 25;
 
     ///
     uint256 public constant guildMasterQuorum = 74;
@@ -413,7 +413,6 @@ contract  Guild is ReentrancyGuard {
 
 // ---------- Cast Votes ---------------
 
-// TODO: Add return bool value to easily see if vote continues or stopped
 
     function castVoteForProposal(uint48 proposalId, uint8 support, address guildCouncilAddress)
         external
