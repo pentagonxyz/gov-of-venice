@@ -12,6 +12,11 @@ TODO:
     - Add timeout for guild master functions. Pause timeout if vote starts. If GM changes, clear queue.
     - Add support for mulitple ERC20 implementations.
     - Add support for multiple constitutions or remove them altogether (prob best).
+    - setVotingPeriod: It should go through all guild councils to let thme know of the change.
+    - Remove the Guild Master address argument from votng. Since it can only vote for 1, it's not needed.
+    - The same for banishment
+    - Remove guildMasterVoteResult()
+    - remove the return value from modifygravitas()
 */
 
 /// @title Merchant Republic Guild
@@ -64,7 +69,7 @@ contract  Guild is ReentrancyGuard {
 
     uint48 constant minimumFoundingMembers = 1;
 
-    TokensI private tokens;
+    IERC20 private tokens;
 
     GuildBook private guildBook;
 
@@ -100,7 +105,7 @@ contract  Guild is ReentrancyGuard {
             guildMembersAddressList.push(member);
             addressToGravitas[member] = newGravitasThreshold;
         }
-        tokens = TokensI(tokensAddress);
+        tokens = IERC20(tokensAddress);
         constitution = constitutionAddress;
         guildMasterAddress = foundingMembers[0];
     }
@@ -120,21 +125,32 @@ contract  Guild is ReentrancyGuard {
     /// @param newGuildMaster The new Guild Master.
     event GuildMasterChanged(address newGuildMaster);
 
+    /// @notice Accounting for when every member starts it's apprentiship to the guild.
     mapping(address => uint48) private apprentishipStart;
 
+    /// @notice In order for a commoner (msg.sender) to join the guild as a guild member, they have to do
+    /// their apprentiship first. This adds an artificial timeout so that guild votes are harder to
+    /// be gamed.
     function  startApprentiship()
         external
     {
         require(addressToGravitas[msg.sender] >= guildBook.gravitasThreshold, "Guild::joinGuild::gravitas_too_low");
         apprentishipStart[msg.sender] = uint48(block.timestamp);
     }
+
+    /// @notice Adds the commoner (msg.sender) to the guild. The commoner must have first
+    /// finished their apprentiship and must belong to a merchant republic where the guild
+    /// participates.
+    /// @return member The GuildMember struct that holds all the information about the member.
     function joinGuild()
             external
             returns(GuildMember memory)
         {
-            require(apprentishipStart[msg.sender] != 0 && apprentishipStart[msg.sender] + guildBook.timeOutPeriod < uint48(block.timestamp),
+            require(apprentishipStart[msg.sender] != 0 && apprentishipStart[msg.sender]
+                    + guildBook.timeOutPeriod < uint48(block.timestamp),
                     "Guild::joinGuild::user_has_not_done_apprentiship");
-            require(guildMembersAddressList.length + 1 <= guildBook.maxGuildMembers, "Guild::joinGuild::max_guild_members_reached");
+            require(guildMembersAddressList.length + 1 <= guildBook.maxGuildMembers,
+                    "Guild::joinGuild::max_guild_members_reached");
             guildMembersAddressList.push(msg.sender);
             GuildMember storage member = addressToGuildMember[msg.sender];
             member.joinTimestamp = block.timestamp.safeCastTo96();
@@ -143,11 +159,13 @@ contract  Guild is ReentrancyGuard {
             addressToGuildMember[msg.sender] = member;
             return member;
         }
-
+    /// @notice Checks if the provided address is a guild member.
+    /// @param commoner The address to be checked.
+    /// @return isMember Boolean True or False value on whether the provided address is a member.
     function isGuildMember(address commoner)
         external
         view
-        returns(bool)
+        returns(bool isMember)
     {
         if (addressToGuildMember[commoner].joinTimestamp == 0){
             return false;
@@ -156,10 +174,11 @@ contract  Guild is ReentrancyGuard {
             return true;
         }
     }
-
+    /// @notice Called by the guildMasterElect to accept the Guild Master nomination.
+    /// @return success Boolean on whether the nomination acceptance was a success.
     function guildMasterAcceptanceCeremony()
         external
-        returns (bool)
+        returns (bool success)
     {
         require(msg.sender == guildMasterElect && msg.sender != address(0),
                 "Guild::guildMasterAcceptanceCeremony::wrong_guild_master_elect");
@@ -167,15 +186,17 @@ contract  Guild is ReentrancyGuard {
         return true;
     }
 
+    /// @notice Called when a guild member is voted to be removed from the guild.
+    /// @notice guildMemberAddress The guild member to be removed from the guild.
+    /// @dev The function implements an algorithm that ensures the addressToGuildMember array is does not have
+    /// any empty values. It copies the last element of the array to the positition of the element that we remove
+    /// and deletes the last element.
     function _banishGuildMember(address guildMemberAddress)
         private
     {
         uint32 index = addressToGuildMember[guildMemberAddress].guildMembersAddressListIndex;
         // delete the GuildMember Struct for the banished guild member
         delete addressToGuildMember[guildMemberAddress];
-        // Remove the banished guild member from the list of the guild members.
-        // Take the last element of the list, put it in place of the removed and remove
-        // the last element of the list.
         address movedAddress = guildMembersAddressList[guildMembersAddressList.length - 1];
         guildMembersAddressList[index] =  movedAddress;
         delete guildMembersAddressList[guildMembersAddressList.length - 1];
@@ -183,7 +204,7 @@ contract  Guild is ReentrancyGuard {
         // If the guild member is GuildMaster, then the guild is headless.
         // In order to function properly, the guild members must initiate a vote to
         // appoint a new guild master.
-        if (guildMemberAddress == guildMaster){
+        if (guildMemberAddress == guildMasterAddress){
             guildMasterAddress = address(0);
         }
         emit GuildMemberBanished(guildMemberAddress);
@@ -197,19 +218,32 @@ contract  Guild is ReentrancyGuard {
     /// to the Guild.
     /// @param guildCouncil The Guild Council that was added.
     /// @param guildId The Guild ID of the Guild that was given by that specific Guild Council.
-    event GuildCouncilSet(address guildCouncil, uint48 guildid);
+    event GuildCouncilSet(address guildCouncil, uint48 guildId);
     /// @notice Emitted when a parameter of the Guild changes.
     /// @param what The Guild parameter that was changed.
     /// @param oldParameter The old value of the parameter.
     /// @param newParameter The new value of the parameter.
     event GuildParameterChanged(bytes32 what, uint256 oldParameter, uint256 newParameter);
 
+    /// @notice The guild has a distinct guild Id for every different guild council. This guild id
+    /// is given by the guild council to distinct different guilds.
     mapping(address => uint48) private guildCouncilAddressToGuildId;
 
+    /// @notice The reward that members will receive for calling the slashForCash function. They are
+    /// rewarded because they offer a service to the Guild. Read more in the function.
     uint256 public slashForCashReward;
 
+    /// @notice The amount of gravitas that guild members lose when they do something that
+    /// doesn't serve the guild. The guild members are slashed for very specific reasons that are known
+    /// a priori.
     uint256 public guildMemberSlash;
 
+    /// @notice Registers a new guildCouncil to the guild. It needs to be executed after the guild has been registered
+    /// in the guild council, as the guild Id is generated during that process.
+    /// @param guildCouncilAddress The address of the guild council.
+    /// @param silverGravitasWeight A percentage that shows how much weight should the silver of that particular
+    /// merchant republic should have on gravitas calculation. It's a number that expresses percentage, so 50 means 50%.
+    /// @param guildId The guild Id of the guild for the particular guild council
     function setGuildCouncil(address guildCouncilAddress , uint256 silverGravitasWeight, uint48 guildId)
         external
         onlyGuildMaster
@@ -218,6 +252,12 @@ contract  Guild is ReentrancyGuard {
         guildCouncilAddressToGuildId[guildCouncilAddress] = guildId;
         emit GuildCouncilSet(guildCouncilAddress, guildId);
     }
+    /// @notice Invite more guilds to the current proposal vote. It's executed by the guild master if they believe that
+    /// particular guild should participate in the vote but was not invited in the proposal.
+    /// @param guildsId An array of guild Id to be invited to participate in the vote.
+    /// @param proposalId The id of the proposal.
+    /// @param guildCouncilAddress The address of the guild council of the merchant republic where the proposal is being
+    /// voted in.
     function inviteGuildsToProposal(uint48[] calldata guildsId, uint48 proposalId, address guildCouncilAddress)
         external
         onlyGuildMaster
@@ -226,6 +266,9 @@ contract  Guild is ReentrancyGuard {
         return IGuildCouncil(guildCouncilAddress)._callGuildsToVote(guildsId, proposalId);
     }
 
+    /// @notice Changes the gravitas threshold. The amountof gravitas a commoner must have, in relation to this
+    /// particular guild, required to join the guild.
+    /// @param newThreshold The new threshold.
     function changeGravitasThreshold(uint256 newThreshold)
         external
         onlyGuildMaster
@@ -234,14 +277,19 @@ contract  Guild is ReentrancyGuard {
         gravitasThreshold = newThreshold;
     }
 
-    function changememberRewardPerSecond(uint48 newmemberRewardPerSecond)
+    /// @notice Changes the reward per second that guild members receive for participating in the guild.
+    /// @param newMemberRewardPerSecond The new Reward per second.
+    function changeMemberRewardPerSecond(uint48 newMemberRewardPerSecond)
         external
         onlyGuildMaster
     {
-        emit GuildParameterChanged("memberRewardPerSecond", memberRewardPerSecond, newmemberRewardPerSecond);
-        memberRewardPerSecond = newmemberRewardPerSecond;
+        emit GuildParameterChanged("memberRewardPerSecond", memberRewardPerSecond, newMemberRewardPerSecond);
+        memberRewardPerSecond = newMemberRewardPerSecond;
     }
 
+    /// @notice Changes the Guild Master reward multiplier. The Guild Master receives a multiple of the
+    /// guild member reward to compensate for the added responsibilities and related gas costs.
+    /// @param newGuildMasterRewardMultiplier  The new Reward multiplier.
     function changeGuildMasterMultiplier(uint8 newGuildMasterRewardMultiplier)
         external
         onlyGuildMaster
@@ -250,8 +298,11 @@ contract  Guild is ReentrancyGuard {
                                    guildMasterRewardMultiplier, newGuildMasterRewardMultiplier);
         guildMasterRewardMultiplier = newGuildMasterRewardMultiplier;
     }
-    // if newMax < currentCount, then no new members can join the guild
-    // until currentCount < newMax
+
+    /// @notice Changes the maximum number of guild members that the guild will accept. If the
+    /// maximum is set to a number smaller than the current number of guild members, no new members
+    /// will be able to join the guild until the guild reaches a number lower than the max.
+    /// @param newMaxGuildMembers The new maximum numbero of guild members.
     function changeMaxGuildMembers(uint256 newMaxGuildMembers)
         external
        onlyGuildMaster
@@ -260,6 +311,8 @@ contract  Guild is ReentrancyGuard {
         maxGuildMembers = newMaxGuildMembers;
     }
 
+    /// @notice Changes the amount that is slashed from guild members.
+    /// @param  slash The new slash amount.
     function changeGuildMemberSlash(uint256  slash)
         external
         onlyGuildMaster
@@ -267,7 +320,8 @@ contract  Guild is ReentrancyGuard {
         emit GuildParameterChanged("guildMemberSlash", guildMemberSlash, slash);
         guildMemberSlash = slash;
     }
-
+    /// @notice Changes the reward for invoking the SlashForCash function.
+    /// @param newReward The new reward for running slashForCash.
     function changeSlashForCashReward(uint256 newReward)
         external
         onlyGuildMaster
@@ -276,6 +330,9 @@ contract  Guild is ReentrancyGuard {
         slashForCashReward = newReward;
     }
 
+    /// @notice Changes the voting period for the guild. The voting period is the maximum time that guild members
+    /// have to vote. This applies to all votes in the guild (Guild Master, Banishment, Proposal).
+    /// @param newVotingPeriod The new voting period.
     function changeVotingPeriod(uint48 newVotingPeriod, address guildCouncilAddress)
         external
         onlyGuildMaster
@@ -283,7 +340,8 @@ contract  Guild is ReentrancyGuard {
     {
         emit GuildParameterChanged("votingPeriod", guildBook.votingPeriod, newVotingPeriod);
         guildBook.votingPeriod = newVotingPeriod;
-        return IGuildCouncil(guildCouncilAddress).setMiminumGuildVotingPeriod(newVotingPeriod, guildCouncilAddressToGuildId[guildCouncilAddress]);
+        return IGuildCouncil(guildCouncilAddress).setMiminumGuildVotingPeriod(newVotingPeriod,
+                                                                              guildCouncilAddressToGuildId[guildCouncilAddress]);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -311,8 +369,10 @@ contract  Guild is ReentrancyGuard {
 
     uint96 lastSlash;
 
-    // first come, first served naive solution. Could degenerate
-    // into a gas battle in the MEV domain.
+    /// @notice Slash all the guild members tha didn't participate in the proposal vote. Can be invoked by anyone and
+    /// msg.sender receives an award for helping the guild punish bad behaviour.
+    /// @param guildCouncil The guild counciil of the merchant republic for which the proposal was voted.
+    /// @param proposalId The proposal id of the vote.
     function slashForCash(address guildCouncil, uint48 proposalId)
         external
         returns(uint256 removedMembers)
@@ -343,19 +403,23 @@ contract  Guild is ReentrancyGuard {
     /// @param guildId The id of the guild for that particular merchant Republic.
     /// @param proposalId The id of the proposal.
     event GuildInvitedToProposalVote(uint256 indexed guildId, uint48 indexed proposalId);
+
     /// @notice Emitted when a new vote is started to elect a Guild Master.
     /// @param guildMember The member who started the vote.
     /// @param guildMaster The member who is being put to vote in order to become the new
     /// Guild Master.
     event GuildMasterVote(address indexed guildMember, address indexed guildMaster);
+
     /// @notice Emitted when a new vote is started to remove(banish) a Guild Member from the Guild.
     /// @param guildMember The member who started the vote.
     /// @param banished The member who is being put to vote in order to be removed from the Guild.
-    event BanishMemberVote(address indexed guildmember, address indexed banished);
+    event BanishMemberVote(address indexed guildMember, address indexed banished);
+
     /// @notice Emitted when a Guid Master vote is concluded.
     /// @param guildMasterElect The Guild Member who was put to vote.
     /// @param result The result of the vote. True for success, False for failure.
     event GuildMasterVoteResult(address guildMasterElect, bool result);
+
     /// @notice Struct that contains all the necessery information for a vote of any kind.
     /// @param aye Counter for the votes in favour of the vote.
     /// @param nay Counter for the votes against the vote.
@@ -365,7 +429,6 @@ contract  Guild is ReentrancyGuard {
     /// @param active Whether the vote is still active.
     /// @param lastTimestamp The block.timestamp of the last time a Guild Member voted.
     /// @param If the vote concerns a proposal, the ID is stored here.
-
     struct Vote {
         uint48 aye;
         uint48 nay;
@@ -377,28 +440,37 @@ contract  Guild is ReentrancyGuard {
         uint256 id;
     }
 
+    /// @notice The latest guild master vote struct. We store information about only the last vote.
     Vote guildMasterVote;
-
+    /// @notice The latest banishment vote struct. We store information about only the last vote.
     Vote banishmentVote;
 
+    /// @notice Every proposal vote is stored with the key being the guildCouncilAddress and the id of the proposal.
     mapping(address => mapping(uint48 => Vote)) guildCouncilAddressToProposalVotes;
 
+    /// @notice Quorum required for a proposal vote to succeed or fail.
     uint256 public constant proposalQuorum = 25;
 
-    ///
+    /// @notice Quorum required for a guild master vote to succeed or fail.
     uint256 public constant guildMasterQuorum = 74;
 
-    ///
+    /// @notice Quorum required for a banishment vote to succeed or fail.
     uint256 public constant banishmentQuorum = 74;
 
+    /// @notice boolean that signals if a banishment vote is active.
     bool private activeBanishmentVote;
 
+    /// @notice boolean that signals if a guild master vote is active.
     bool private activeGuildMasterVote;
 
+    /// @notice The address of the guild master.
     address public guildMasterAddress;
 
+    /// @notice The address of the guild master elect.
     address public guildMasterElect;
 
+    /// @notice Start a new guild master vote.
+    /// @param member The guild member that is going to be voted as the next guild master.
     function startGuildmasterVote(address member)
         external
         onlyGuildMember
@@ -414,6 +486,8 @@ contract  Guild is ReentrancyGuard {
         return true;
     }
 
+    /// @notice Start a new vote to banish a guild member from the guild.
+    /// @param member The guild member that is going to be voted to be banished.
     function startBanishmentVote(address member)
         external
         onlyGuildMember
@@ -429,6 +503,8 @@ contract  Guild is ReentrancyGuard {
         return true;
     }
 
+    /// @notice Start a new vote for a proposal. This function can be called only from a registered guild council.
+    /// @param proposalId The proposal id of the proposal
     function guildVoteRequest(uint48 proposalId)
         external
         onlyGuildCouncil
@@ -446,6 +522,36 @@ contract  Guild is ReentrancyGuard {
                         CAST VOTES
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Emitted when a new vote for a proposal is cast.
+    /// @param guildMember The guild member who casted the vote.
+    /// @param support A number that indicates the vote. 0 for aye, 0 for nay.
+    /// @param proposalId The id of the proposal.
+    /// @param guildCouncil The address of the guild council that called the guild  to vote.
+    event ProposalVoteCast(address guildMember, uint8 support, uint48 proposalId, address guildCouncil);
+
+    /// @notice Emitted when a new vote to banish a member is cast.
+    /// @param guildMember The guild member who casted the vote.
+    /// @param support A number that indicates the vote. 0 for aye, 0 for nay.
+    /// @param targetAddress The guild member to be banished.
+    event BanishmentVoteCast(address guildMember, uint8 support, address targetAddress);
+
+    /// @notice Emitted when a new vote to vote a guild master is cast.
+    /// @param guildMember The guild member who casted the vote.
+    /// @param support A number that indicates the vote. 0 for aye, 0 for nay.
+    /// @param targetAddress The guild member to be voted for new guild master.
+    event GuildMasterVoteCast(address guildMember, uint8 support, address targetAddress);
+
+    /// @notice Cast a vote for a proposal. The guild member can either vote for or against a proposal.
+    /// @dev Voting follows a different paradigm  than of that in merchant republic (and governance Bravo).
+    /// The state of the vote is not determined at the start of the function, but rather at the end of it. That means
+    /// that the vote will be resolved at the same transaction that casts a vote over the Quorum. It will conclude the
+    /// vote in the smart contract and call the guild council to let it know of it's result. Of course this is means
+    /// that the last voter will have extra gas costs in relation to the others, as it will pay for the extra action of
+    /// concluding the vote and calling the guild council smart contract.
+    /// @param proposalId The id of the proposal.
+    /// @param support It can either be 1 to vote "in favor" of the proposal or 0 to vote "against".
+    /// @param guildCouncilAddress The guildCouncil of the merchant republic which asked the guild to vote on the
+    /// proposal.
     function castVoteForProposal(uint48 proposalId, uint8 support, address guildCouncilAddress)
         external
         onlyGuildMember
@@ -477,11 +583,19 @@ contract  Guild is ReentrancyGuard {
             guildCouncil._guildVerdict(false, proposalId, guildCouncilAddressToGuildId[guildCouncilAddress]);
             voteEnd = true;
         }
-        emit ProposalVote(msg.sender, proposalId);
         return voteEnd;
     }
 
-
+    /// @notice Cast a vote for a new Guild Master. If the vote concludes and the Guild Master is voted against, then
+    /// the guild member who started the vote gets slashed. This is done to avoid spamming the guild with votes that
+    /// nobody wants. Ideally, the guild members would coordinate and align on the social layer, using the blockchain
+    /// as the final "rubber stamp" step.
+    /// @dev Voting follows a different paradigm  than of that in merchant republic (and governance Bravo).
+    /// The state of the vote is not determined at the start of the function, but rather at the end of it. That means
+    /// that the vote will be resolved at the same transaction that casts a vote over the Quorum. Of course this is means
+    /// that the last voter will have extra gas costs in relation to the others, as it will pay for the extra action of
+    /// concluding the vote.
+    /// @param support It can either be 1 to vote "in favor" of the proposal or 0 to vote "against".
     function castVoteForGuildMaster(uint8 support, address votedAddress)
         external
         onlyGuildMember
@@ -517,10 +631,20 @@ contract  Guild is ReentrancyGuard {
         else {
             cont = true;
         }
-        emit GuildMasterVote(msg.sender, guildMaster);
+        emit GuildMasterVote(msg.sender, guildMasterAddress);
         return cont;
     }
-
+    /// @notice Cast a vote to banish a guild member. If the vote concludes and the guild member's banishment
+    /// is voted against, then the guild member who started the vote gets slashed.
+    /// This is done to avoid spamming the guild with votes that nobody wants.
+    /// Ideally, the guild members would coordinate and align on the social layer, using the blockchain
+    /// as the final "rubber stamp" step.
+    /// @dev Voting follows a different paradigm  than of that in merchant republic (and governance Bravo).
+    /// The state of the vote is not determined at the start of the function, but rather at the end of it. That means
+    /// that the vote will be resolved at the same transaction that casts a vote over the Quorum. Of course this is means
+    /// that the last voter will have extra gas costs in relation to the others, as it will pay for the extra action of
+    /// concluding the vote.
+    /// @param support It can either be 1 to vote "in favor" of the proposal or 0 to vote "against".
     function castVoteForBanishment(uint8 support, address memberToBanish)
         external
         onlyGuildMember
@@ -557,7 +681,7 @@ contract  Guild is ReentrancyGuard {
         else {
             cont = true;
         }
-        emit BanishMemberVote(msg.sender, guildMaster);
+        emit BanishMemberVote(msg.sender, guildMasterAddress);
         return cont;
     }
 
@@ -572,10 +696,18 @@ contract  Guild is ReentrancyGuard {
 
 
     /*///////////////////////////////////////////////////////////////
-                        CAST VOTES
+                       GUILD MEMBER REWARDS
     //////////////////////////////////////////////////////////////*/
 
 
+    /// @notice Stores the multiplier for the reward of the guild master. The guild master is expected to have a
+    ///  multiplier > 1, as they are responsible for a number of activities that require on-chain transactions
+    /// and thus have gas costs.
+    uint8 public guildMasterRewardMultiplier = 2;
+
+    /// @notice As a guild Member (msg.sender), claim the reward you have accumulated since the last time you
+    /// claimed a reward. If you have never joined, you claim since your joined. By claiming, the guild transfers
+    /// erc20 tokens equal to the amount you claim.
     function claimReward()
         external
         nonReentrant
@@ -588,7 +720,13 @@ contract  Guild is ReentrancyGuard {
         tokens.transfer( msg.sender, reward.fmul(mul, BASE_UNIT));
     }
 
-
+    /// @notice Calculate the reward for a particular guild member.
+    /// reward = timeReward * gravitasReward * guildMasterBonus, where:
+    /// timeReward = (elapsed_seconds * reward_per_second) ^ 2.
+    /// gravitasReward = gravitas_weight * guild_member_gravitas.
+    /// guildMasterBonus = The bonus modifier depending if guild member or guild master.
+    /// The function has a bias towards time versus gravitas to incentivize long term relationships.
+    /// @param member The address of the guild member for which the functions calculates the reward.
     function calculateMemberReward(address member)
         public
         view
@@ -611,8 +749,9 @@ contract  Guild is ReentrancyGuard {
 
     }
 
-    /// It is called if a member doesn't vote for X amount of times
-    /// If gravitas < threshold, it is automatically removed from the guild
+    /// @notice slash a guild member, reducing their gravitas.
+    /// If the guild member reaches gravitas lower than the threshold, then it's removed from the guild.
+    /// @param guildMemberAddress The address of the guild member to be slashed.
     function _slashGuildMember(address guildMemberAddress)
         private
     {
@@ -627,6 +766,7 @@ contract  Guild is ReentrancyGuard {
                        GETTER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Get the guild book, which consists of basic info about the guild.
     function requestGuildBook()
         external
         view
@@ -634,7 +774,7 @@ contract  Guild is ReentrancyGuard {
     {
         return guildBook;
     }
-
+    /// @notice Get a list that contains the addresses of all current guild members.
     function inquireAddressList()
         external
         view
@@ -642,12 +782,29 @@ contract  Guild is ReentrancyGuard {
     {
         return guildMembersAddressList;
     }
-
+    /// @notice Get the info about a particular vote. If it's a proposal vote, then the vote is determined
+    /// by the guild council and id passed as arguments. If it's a banishment or guild master vote, then it returns
+    /// the latest vote.
+    /// @param what Number that indicates the kind of vote that we are interested in:
+    /// 0 -> Proposal Vote
+    /// 1 -> Guild Master Vote
+    /// 2 -> Banishment Vote
+    /// @param guildCouncil The address of the guild council. Required for proposal vote,
+    /// otherwise it's not taken into condideration.
+    /// @param id The id of the proposal. Required for proposal vote, otherwise it's not taken into condideration.
+    /// @return aye The number of votes in favor.
+    /// @return nay The number of vote against.
+    /// @return count The number of casted votes.
+    /// @return startTimestamp The timestamp when the vote started.
+    /// @return active Boolean that shows if the vote is active.
+    /// @return sponsor The sponsor of the vote.
+    /// @return targetAddress The target address of the proposal. Relevant if banishment or guild master vote.
+    /// @return proposalId The id of the proposal. Relevant if proposal vote.
     function getVoteInfo(uint8 what, address guildCouncil, uint48 id)
         external
-        returns(uint48, uint48, uint48,
-                uint88, bool, address, address,
-                uint256)
+        returns(uint48 aye, uint48 nay, uint48 count,
+                uint88 startTimestamp, bool active, address sponsor,
+                address targetAddress, uint256 proposalId)
     {
         Vote storage vote;
         if (what == 0){
@@ -662,9 +819,9 @@ contract  Guild is ReentrancyGuard {
         else {
             revert("Guild::getVoteInfo::wrong_option_id");
         }
-        uint48 aye = vote.aye;
-        uint48 nay = vote.nay;
-        uint48 count = aye + nay;
+        aye = vote.aye;
+        nay = vote.nay;
+        count = aye + nay;
         return (aye, nay, count, vote.startTimestamp,
                 vote.active, vote.sponsor, vote.targetAddress, vote.id);
     }
@@ -709,10 +866,21 @@ contract  Guild is ReentrancyGuard {
     /// be amended.
     uint48 public memberRewardPerSecond = 10;
 
+    /// @notice Stores the weight of silver for gravitas calculation. It can be different for every guild council, as
+    /// different merchant republics can have different monetary policies and thus different "number" of circulating
+    /// tokens. As silver is directly derived from the tokens of a commoner, the guild needs to accomodate for that.
     mapping(address => uint256) private guildCouncilToSilverGravitasRatio;
 
-    uint8 public guildMasterRewardMultiplier = 2;
-
+    /// @notice It is called by the Guild Council when a commoner of that merchant republic sends silver to another
+    /// commoner, for this particular guild. The receiver commoner gets gravitas based on:
+    /// a) the amount of silver they received
+    /// b) the gravitas of the sender, in relation to this particular guild
+    /// @dev This function is called by the guild council because the commoner shouldn't have to interact with the
+    /// guild. They interact with the merchant republic, which in turn calls the guild council and finally the guild
+    /// council calls the guild.
+    /// @param sender The address of the commoner who sends the silver.
+    /// @param receiver The address of the commoner who receives the silver.
+    /// @param silverAmount The amount of silver that is sent.
     function informGuildOnSilverPayment(address sender, address receiver, uint256 silverAmount)
         external
         onlyGuildCouncil
@@ -722,7 +890,10 @@ contract  Guild is ReentrancyGuard {
         uint256 memberGravitas = _modifyGravitas(receiver, gravitas);
         return memberGravitas;
     }
-
+    /// @notice Calculates the gravitas that will be created as a result of a commoner sending silver.
+    /// @param commonerAddress The address of the commoner who sends the silver.
+    /// @param silverAmount The amount of silver that is being sent.
+    /// @param guildCouncil The address of the guild council of the merchant republic to which the sender belongs.
     function calculateGravitas(address commonerAddress, uint256 silverAmount, address guildCouncil)
         public
         returns (uint256 gravitas)
@@ -731,7 +902,9 @@ contract  Guild is ReentrancyGuard {
         return  (silverAmount*guildCouncilToSilverGravitasRatio[guildCouncil] +
                 addressToGravitas[commonerAddress]*senderGravitasWeight) / 100;
     }
-
+    /// @notice Modify the gravitas of a particular member.
+    /// @param guildMember The address of the guild member.
+    /// @param newGravitas The new gravitas of the guild member.
     function _modifyGravitas(address guildMember, uint256 newGravitas)
         private
         returns (uint256 newGuildMemberGravitas)
@@ -741,6 +914,8 @@ contract  Guild is ReentrancyGuard {
         return newGravitas;
     }
 
+    /// @notice Get the amount of gravitas of a guild member.
+    /// @param member The address of the guild member.
     function getGravitas(address member)
         external
         view
