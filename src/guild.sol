@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.10;
 
 
 import {ReentrancyGuard} from "solmate/utils/ReentrancyGuard.sol";
@@ -92,7 +92,15 @@ contract  Guild is ReentrancyGuard {
     }
 
 
-    /// @notice Struct of a vote
+    /// @notice Struct that contains all the necessery information for a vote of any kind.
+    /// @param aye Counter for the votes in favour of the vote.
+    /// @param nay Counter for the votes against the vote.
+    /// @param sponsor The Guild Member (or Guild Council) that initiated the vote.
+    /// @param startTimestamp The block.timestamp when the vote started.
+    /// @param targetAddress If the proposal concerns another Guild Member, it is stored here.
+    /// @param active Whether the vote is still active.
+    /// @param lastTimestamp The block.timestamp of the last time a Guild Member voted.
+    /// @param If the vote concerns a proposal, the ID is stored here.
     struct Vote {
         uint48 aye;
         uint48 nay;
@@ -108,15 +116,27 @@ contract  Guild is ReentrancyGuard {
 
     GuildBook guildBook;
 
-    ///
+    /// @notice The amount of gravitas a commoner must have, in relation to the Guild, in order to join it.
+    /// @dev This field is relevant only if the Guild is trustless. In a gated Guild, it could be irrelevant.
     uint256 public gravitasThreshold;
 
+    /// @notice The amount of gravitas each commoner, from any Merchant Republic, has in relation to this Guild.
+    /// @dev All addresses are implicitly initialised at 0. They will be explicitly initialized at the first time
+    /// gravitas is added to a commoner.
     mapping(address => uint48) addressToGravitas;
 
+    /// @notice How much weight the gravitas of the sender of silver has in relation for the gravitas calculation
+    /// of the receiver.
+    /// @dev The formula divides this number by 100, so 50 is 50%.
     uint256 constant senderGravitasWeight =  50;
 
+    /// @notice How much weight the amount of silver sent has in relation for the gravitas calculation of the receiver.
+    /// @dev The formula divides this number by 100, so 10 is 10%.
     uint256 public constant gravitasWeight=10;
 
+    /// @notice How many tokens do the Guild Members receive for being part of the Guild.
+    /// @dev The number is in absolute, so depending on the amount of decimals the tokens has, this should
+    /// be amended.
     uint256 public constant MEMBER_REWARD_PER_SECOND = 10;
 
     mapping(address => GuildMember) public addressToGuildMember;
