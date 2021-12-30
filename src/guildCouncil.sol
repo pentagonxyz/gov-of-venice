@@ -6,6 +6,12 @@ import "./IGuild.sol";
 import "./IConstitution.sol";
 import "./ITokens.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+/*
+TODO:
+    - When a guild calls another guild to vote, guid council should check that the guild
+    has not been called again to vote.
+    - remove the tokens
+*/
 
 contract GuildCouncil is ReentrancyGuard {
 
@@ -50,7 +56,7 @@ contract GuildCouncil is ReentrancyGuard {
 
     MerchantRepublicI merchantRepublic;
 
-    TokensI tokens;
+    IERC20 tokens;
 
     constructor(address merchantRepublicAddr, address constitutionAddr, address tokensAddress)
     {
@@ -58,7 +64,7 @@ contract GuildCouncil is ReentrancyGuard {
         constitutionAddress = constitutionAddr;
         merchantRepublic = MerchantRepublicI(merchantRepublicAddress);
         constitution = ConstitutionI(constitutionAddress);
-        tokens = TokensI(tokensAddress);
+        tokens = IERC20(tokensAddress);
     }
 
     // This function assumes that the Guild is not a black box, but incorporated in the GuildCouncil

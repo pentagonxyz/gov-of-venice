@@ -4,6 +4,7 @@ pragma solidity ^0.8.10;
 import "./ITokens.sol";
 import "./IConstitution.sol";
 import "./IGuildCouncil.sol";
+
 import "./IMerchantRepublic.sol";
 
 contract MerchantRepublic {
@@ -196,7 +197,7 @@ contract MerchantRepublic {
 
     ConstitutionI constitution;
 
-    TokensI tokens;
+    IERC20 tokens;
 
     address public doge;
 
@@ -217,7 +218,7 @@ contract MerchantRepublic {
     {
         require(msg.sender == doge, "MerchantRepublic::initialize: doge only");
         constitution = ConstitutionI(constitutionAddress);
-        tokens = TokensI(tokensAddress);
+        tokens = IERC20(tokensAddress);
         votingPeriod = votingPeriod_;
         votingDelay = votingDelay_;
         proposalThreshold = proposalThreshold_;
