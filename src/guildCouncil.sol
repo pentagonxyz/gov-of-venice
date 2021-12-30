@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.10;
 
-import "./ImerchantRepublic.sol";
-import "./Iguild.sol";
-import "./Iconstitution.sol";
-import "./Itokens.sol";
+import "./IMerchantRepublic.sol";
+import "./IGuild.sol";
+import "./IConstitution.sol";
+import "./ITokens.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract GuildCouncil is ReentrancyGuard {

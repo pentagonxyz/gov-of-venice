@@ -5,8 +5,8 @@ pragma solidity ^0.8.10;
 import {ReentrancyGuard} from "solmate/utils/ReentrancyGuard.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
-import {_guildVerdict, _callGuildsToVote, setMinimumGuildVotingPeriod} from "./IguildCouncil.sol";
-import {transfer, balanceOf} from "./Itokens.sol";
+import {IGuildCouncil} from "./IGuildCouncil.sol";
+import {IERC20} from "./ITokens.sol";
 
 /// @title Merchant Republic Guild
 /// @author Odysseas Lamtzidis (odyslam.eth)

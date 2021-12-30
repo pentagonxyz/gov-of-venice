@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.10;
 
-import "./Itokens.sol";
-import "./Iconstitution.sol";
-import "./IguildCouncil.sol";
-import "./ImerchantRepublic.sol";
+import "./ITokens.sol";
+import "./IConstitution.sol";
+import "./IGuildCouncil.sol";
+import "./IMerchantRepublic.sol";
 
 contract MerchantRepublic {
 
