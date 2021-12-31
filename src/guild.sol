@@ -826,8 +826,6 @@ contract  Guild is ReentrancyGuard {
                 vote.active, vote.sponsor, vote.targetAddress, vote.id);
     }
 
-
-
     /*///////////////////////////////////////////////////////////////
                         MEMBER GRAVITAS ACCOUNTING
     //////////////////////////////////////////////////////////////*/
