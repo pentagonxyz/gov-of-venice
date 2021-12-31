@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.10;
 
-import "./IMerchantRepublic.sol";
-import "./IGuild.sol";
-import "./IConstitution.sol";
+import {IMerchantRepublic} from "./IMerchantRepublic.sol";
+import {IGuild} from "./IGuild.sol";
+import {IConstitution} from "./IConstitution.sol";
 import "./ITokens.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 /*
@@ -11,6 +11,10 @@ TODO:
     - When a guild calls another guild to vote, guid council should check that the guild
     has not been called again to vote.
     - remove the tokens
+    - replce oz with solmate
+    - ability to remove guild
+    - remove securitycouncil and use guildIdToAddress
+    - guildVerdict, the first require is moot as you can check in the second [msg.sender][id]
 */
 
 contract GuildCouncil is ReentrancyGuard {
@@ -34,6 +38,7 @@ contract GuildCouncil is ReentrancyGuard {
 
     mapping(uint48 => address) guildIdToAddress;
 
+    /// @notice counts the total number of guilds registered with the guild council
     uint48 private guildCounter;
 
     uint48 private removedGuildCounter;
@@ -71,6 +76,10 @@ contract GuildCouncil is ReentrancyGuard {
     // smart contracta.
     // The alternative is to deplo the Guild and simply invoke this function to register its' address
 
+    /*///////////////////////////////////////////////////////////////
+                            SETUP FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     function establishGuild(address guildAddress, uint48 minDecisionTime)
         external
         onlyConstitution
@@ -86,6 +95,14 @@ contract GuildCouncil is ReentrancyGuard {
         return guildCounter-1;
     }
 
+    function setMerchantRepublic(address oldMerchantRepublic, address newMerchantRepublic)
+        external
+        onlyConstitution
+    {
+        require(oldMerchantRepublic == merchantRepublicAddress,
+                "GuildCouncil::SetMerchantRepublic::wrong_old_address");
+        merchantRepublicAddress = newMerchantRepublic;
+    }
     function requestGuildId()
         external
         onlyGuild
@@ -94,32 +111,21 @@ contract GuildCouncil is ReentrancyGuard {
         return securityCouncil[msg.sender];
     }
 
-
-    function _guildVerdict(bool guildAgreement, uint48 proposalId, uint48 guildId)
-        public
+    function setMiminumGuildVotingPeriod(uint48 minDecisionTime, uint48 guildId)
+        external
+        onlyGuild
         returns(bool)
     {
-        require(msg.sender == guildIdToAddress[guildId], "guildCouncil::guildVerdict::incorrect_address");
-        require(guildIdToActiveProposalId[guildId][proposalId],
-                "guildCouncil::guildVerdict::incorrect_active_guild_vote");
-        emit GuildDecision(msg.sender,  proposalId, guildAgreement);
-        if(guildAgreement == false){
-            activeGuildVotesCounter[proposalId] = 0;
-        }
-        else if (activeGuildVotesCounter[proposalId] != 0) {
-            activeGuildVotesCounter[proposalId]--;
-        }
-        if (activeGuildVotesCounter[proposalId] == 0 ){
-            merchantRepublic.guildsVerdict(proposalId, guildAgreement);
-        }
+        require(guildIdToAddress[guildId] == msg.sender, "GuildCouncil::setMinDecisionTime::wrong_address");
+        guildToMinVotingPeriod[guildId];
         return true;
-
     }
-    function forceDecision(uint48 proposalId)
-        external
-    {
-        require(block.timestamp - proposalIdToVoteCallTimestamp[proposalId] > proposalMaxDecisionWaitLimit[proposalId],  "guildCouncil::forceDecision::decision_still_in_time_limit");
-        merchantRepublic.guildsVerdict(proposalId, defaultGuildDecision);
+
+    /*///////////////////////////////////////////////////////////////
+                           PROPOSAL LIFECYCLE
+    //////////////////////////////////////////////////////////////*/
+
+
     }
     function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId, uint48 maxDecisionTime)
        external
@@ -180,6 +186,38 @@ contract GuildCouncil is ReentrancyGuard {
         return success;
     }
 
+    function _guildVerdict(bool guildAgreement, uint48 proposalId, uint48 guildId)
+        public
+        returns(bool)
+    {
+        require(msg.sender == guildIdToAddress[guildId], "guildCouncil::guildVerdict::incorrect_address");
+        require(guildIdToActiveProposalId[guildId][proposalId],
+                "guildCouncil::guildVerdict::incorrect_active_guild_vote");
+        emit GuildDecision(msg.sender,  proposalId, guildAgreement);
+        if(guildAgreement == false){
+            activeGuildVotesCounter[proposalId] = 0;
+        }
+        else if (activeGuildVotesCounter[proposalId] != 0) {
+            activeGuildVotesCounter[proposalId]--;
+        }
+        if (activeGuildVotesCounter[proposalId] == 0 ){
+            merchantRepublic.guildsVerdict(proposalId, guildAgreement);
+        }
+        return true;
+
+    }
+
+    function forceDecision(uint48 proposalId)
+        external
+    {
+        require(block.timestamp - proposalIdToVoteCallTimestamp[proposalId] > proposalMaxDecisionWaitLimit[proposalId],
+                "guildCouncil::forceDecision::decision_still_in_time_limit");
+        merchantRepublic.guildsVerdict(proposalId, defaultGuildDecision);
+
+    /*///////////////////////////////////////////////////////////////
+                           GETTER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     function availableGuilds()
         external
         view
@@ -207,10 +245,10 @@ contract GuildCouncil is ReentrancyGuard {
         return guild.requestGuildBook();
     }
 
-   // Returns the new gravitas of the receiver
-   // perhaps this functionality should be pushed inside the guild and
-   // guild council functions only as a proxy
-   // between the merchant republic and guild
+    /*///////////////////////////////////////////////////////////////
+                           PROXY FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     function sendSilver(address sender, address receiver, uint48 guildId, uint256 silverAmount)
         external
         onlyMerchantRepublic
@@ -220,24 +258,9 @@ contract GuildCouncil is ReentrancyGuard {
         return guild.informGuildOnSilverPayment(sender, receiver, silverAmount);
     }
 
-    function setMiminumGuildVotingPeriod(uint48 minDecisionTime, uint48 guildId)
-        external
-        onlyGuild
-        returns(bool)
-    {
-        require(guildIdToAddress[guildId] == msg.sender, "GuildCouncil::setMinDecisionTime::wrong_address");
-        guildToMinVotingPeriod[guildId];
-        return true;
-    }
-
-    function setMerchantRepublic(address oldMerchantRepublic, address newMerchantRepublic)
-        external
-        onlyConstitution
-    {
-        require(oldMerchantRepublic == merchantRepublicAddress,
-                "GuildCouncil::SetMerchantRepublic::wrong_old_address");
-        merchantRepublicAddress = newMerchantRepublic;
-    }
+    /*///////////////////////////////////////////////////////////////
+                          MODIFIERS
+    //////////////////////////////////////////////////////////////*/
 
     modifier onlyGuild() {
         require(securityCouncil[msg.sender] !=0, "GuildCouncil::SecurityCouncil::only_guild");
