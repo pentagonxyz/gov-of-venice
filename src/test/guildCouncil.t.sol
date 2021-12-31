@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.9;
 
-import "./utils/gov2Test.sol";
-import "../Iguild.sol";
+import {Gov2Test} from "./utils/gov2Test.sol";
+import {IGuild} from "../IGuild.sol";
 
 contract GCTest is Gov2Test {
     function testGuildInformation() public {
