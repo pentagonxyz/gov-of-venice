@@ -110,10 +110,8 @@ contract MerchantRepublic {
     /// @param startTimestamp The time when voting begins for commoners.
     /// @param endTimestamp The time when voting ends for commoners.
     /// @param description Description for the vote
-    /// @param guildIds The ids of the guilds that are called to vote on the proposal.
     event ProposalCreated(uint id, address proposer, address[] targets, uint[] values, string[] signatures,
-                          bytes[] calldatas, uint startTimestamp, uint endTimestamp, string description,
-                          uint48[] guildIds);
+                          bytes[] calldatas, uint startTimestamp, uint endTimestamp, string description);
 
     /// @notice An event emitted when a vote has been cast on a proposal
     /// @param voter The address which casted a vote
@@ -330,18 +328,22 @@ contract MerchantRepublic {
         }
         }
         createProposal(targets, values, signatures, calldatas, guildsId);
-        announceProposal(targets, values, signatures, calldatas, description, guildsId);
+        announceProposal(targets, values, signatures, calldatas, description);
 
         return  proposalCount;
     }
     /// @notice Part of propose(), braken into multiple functions to avoid the `stack too deep` error.
     function announceProposal(address[] calldata targets, uint[] calldata values,
                               string[] calldata signatures, bytes[] calldata calldatas,
-                              string calldata description, uint48[] calldata guildsId) private
+                              string calldata description) private
     {
+        // We omit the guildsId array in order to avoid a "stack too deep" error. The list of guilds that are
+        // called to vote on the proposal is emitted when "callGuildsToVote" is executed from "createProposal".
+        // All these functions are called in the same transaction, so in the end we have all the important info
+        // emitted at the same time, albeit with different events.
         emit ProposalCreated(proposalCount, msg.sender, targets, values, signatures,
                              calldatas,  block.timestamp + votingDelay, block.timestamp + votingDelay + votingPeriod,
-                             description, guildsId);
+                             description);
     }
     /// @notice Part of propose(), braken into multiple functions to avoid the `stack too deep` error.
     function createProposal(address[] calldata targets, uint[] calldata values,
