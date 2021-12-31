@@ -183,8 +183,8 @@ contract Commoner is DSTestPlus{
         Guild(guilds[guild]).changeGravitasThreshold(par);
     }
 
-    function changeMemberRewardPerEpoch(uint guild, uint48 par) public  {
-        Guild(guilds[guild]).changeMemberRewardPerEpoch(par);
+    function changeMemberRewardPerSecond(uint guild, uint48 par) public  {
+        Guild(guilds[guild]).changeMemberRewardPerSecond(par);
     }
 
     function changeGuildMasterMultiplier(uint guild, uint8 par) public  {
