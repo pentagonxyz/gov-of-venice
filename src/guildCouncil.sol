@@ -19,39 +19,18 @@ TODO:
 
 contract GuildCouncil is ReentrancyGuard {
 
+
+    /*///////////////////////////////////////////////////////////////
+                           GUILD COUNCIL CONFIGURATION
+    //////////////////////////////////////////////////////////////*/
+
     event GuildEstablished(uint48 guildId, address guildAddress);
-    event GuildDecision(address indexed guildAddress, uint48 indexed proposalId, bool guildAgreement);
-    event SilverSent(uint48 indexed guildId, address indexed recipientCommoner,
-                     address indexed senderCommoner, uint256 silverAmmount);
-
-    mapping(uint48 => mapping(uint48 => bool)) public guildIdToActiveProposalId;
-
-    mapping(uint256 => uint256) public proposalMaxDecisionWaitLimit;
-
-    mapping(uint256 => uint256) public proposalIdToVoteCallTimestamp;
 
     mapping(address => uint48) securityCouncil;
 
-    mapping(uint48 => uint256) public activeGuildVotesCounter;
-
-    bool guildsAgreeToProposal;
-
     mapping(uint48 => address) guildIdToAddress;
 
-    /// @notice counts the total number of guilds registered with the guild council
     uint48 private guildCounter;
-
-    uint48 private removedGuildCounter;
-
-    uint8 constant minimumInitialGuildMembers = 3;
-
-    uint48 constant GUILD_COUNCIL_MAX_ALLOWED_DECISION_TIME = 30 days;
-
-    mapping(uint48 => uint48) guildToMinVotingPeriod;
-
-    bool constant defaultGuildDecision = true;
-
-    uint48 constant minimumFoundingMembers = 3;
 
     address public merchantRepublicAddress;
 
@@ -63,6 +42,10 @@ contract GuildCouncil is ReentrancyGuard {
 
     IERC20 tokens;
 
+    mapping(uint48 => uint48) guildToMinVotingPeriod;
+
+    mapping(uint256 => uint256) public proposalMaxDecisionWaitLimit;
+
     constructor(address merchantRepublicAddr, address constitutionAddr, address tokensAddress)
     {
         merchantRepublicAddress = merchantRepublicAddr;
@@ -72,21 +55,14 @@ contract GuildCouncil is ReentrancyGuard {
         tokens = IERC20(tokensAddress);
     }
 
-    // This function assumes that the Guild is not a black box, but incorporated in the GuildCouncil
-    // smart contracta.
-    // The alternative is to deplo the Guild and simply invoke this function to register its' address
-
-    /*///////////////////////////////////////////////////////////////
-                            SETUP FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
     function establishGuild(address guildAddress, uint48 minDecisionTime)
         external
         onlyConstitution
         returns(uint48 id)
     {
         require( guildAddress != address(0), "guildCouncil::establishGuild::wrong_address");
-        require(minDecisionTime <= GUILD_COUNCIL_MAX_ALLOWED_DECISION_TIME, "guildCouncil::establishGuild::minDecisionTime_too_high");
+        require(minDecisionTime <= GUILD_COUNCIL_MAX_ALLOWED_DECISION_TIME,
+                "guildCouncil::establishGuild::minDecisionTime_too_high");
         guildIdToAddress[guildCounter] = guildAddress;
         guildToMinVotingPeriod[guildCounter] = minDecisionTime;
         securityCouncil[guildAddress] = guildCounter;
@@ -103,13 +79,7 @@ contract GuildCouncil is ReentrancyGuard {
                 "GuildCouncil::SetMerchantRepublic::wrong_old_address");
         merchantRepublicAddress = newMerchantRepublic;
     }
-    function requestGuildId()
-        external
-        onlyGuild
-        returns(uint48)
-    {
-        return securityCouncil[msg.sender];
-    }
+
 
     function setMiminumGuildVotingPeriod(uint48 minDecisionTime, uint48 guildId)
         external
@@ -125,6 +95,17 @@ contract GuildCouncil is ReentrancyGuard {
                            PROPOSAL LIFECYCLE
     //////////////////////////////////////////////////////////////*/
 
+    event GuildDecision(address indexed guildAddress, uint48 indexed proposalId, bool guildAgreement);
+
+    uint48 constant GUILD_COUNCIL_MAX_ALLOWED_DECISION_TIME = 30 days;
+
+    bool constant defaultGuildDecision = true;
+
+    mapping(uint48 => mapping(uint48 => bool)) public guildIdToActiveProposalId;
+
+    mapping(uint256 => uint256) public proposalIdToVoteCallTimestamp;
+
+    mapping(uint48 => uint256) public activeGuildVotesCounter;
 
     }
     function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId, uint48 maxDecisionTime)
@@ -218,6 +199,14 @@ contract GuildCouncil is ReentrancyGuard {
                            GETTER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    function requestGuildId()
+        external
+        onlyGuild
+        returns(uint48)
+    {
+        return securityCouncil[msg.sender];
+    }
+
     function availableGuilds()
         external
         view
@@ -248,6 +237,9 @@ contract GuildCouncil is ReentrancyGuard {
     /*///////////////////////////////////////////////////////////////
                            PROXY FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    event SilverSent(uint48 indexed guildId, address indexed recipientCommoner,
+                     address indexed senderCommoner, uint256 silverAmmount);
 
     function sendSilver(address sender, address receiver, uint48 guildId, uint256 silverAmount)
         external
