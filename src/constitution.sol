@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.10;
 
-/*
-TODO:
-    - Remove acceptConstitution()
-*/
-
 contract Constitution {
     /// @notice Emitted when a merchant republic accepts the constitution.
     /// @param newMerchantRepublic The address of the new merchant republic.
@@ -69,7 +64,13 @@ contract Constitution {
         founder = msg.sender;
     }
 
-    function signTheConstitution(address merchantRepublicAddress, uint delay_)
+    /// @notice Called by the founder in order to setup the constitution and inform it of the address of the
+    /// merchant republic.
+    /// @dev It is called only once, as the founder it switched to the address of the merchant republic with the first
+    /// invocation of the function.
+    /// @param merchantRepublicAddress The address of the merchant republic.
+    /// @param delay_ The delay that will be required between queueing a transaction and executing it.
+    function signTheConstitution(address merchantRepublicAddress, uint256 delay_)
         external
     {
         require(msg.sender == founder, "Constitution::constructor::wrong_address");
@@ -80,16 +81,18 @@ contract Constitution {
         founder = merchantRepublic;
         delay = delay_;
     }
-
-    function setDelay(uint delay_) public {
+    /// @notice Change the delay between the transactions. It can only be called by constitution itself, which means
+    /// that it can only be called as part of a proposal by the merchant republic.
+    /// @param delay_ The new delay for between the transactions.
+    function setDelay(uint256 delay_) public {
         require(msg.sender == address(this), "Constitution::setDelay: Call must come from Constitution.");
         require(delay_ >= MINIMUM_DELAY, "Constitution::setDelay: Delay must exceed minimum delay.");
         require(delay_ <= MAXIMUM_DELAY, "Constitution::setDelay: Delay must not exceed maximum delay.");
         delay = delay_;
-
         emit NewDelay(delay);
     }
-
+    /// @notice Called by the merchant republic to signal that it acknowledges this constitution as the smart contract
+    /// to execute the transactions that are defined by the proposals.
     function acceptConstitution()
         external
     {
@@ -100,6 +103,8 @@ contract Constitution {
         emit NewMerchantRepublic(merchantRepublic);
     }
 
+    /// @notice Change the merchant republic address. It can only be called by constitution itself, which means
+    /// that it can only be called as part of a proposal by the merchant republic.
     function setPendingMerchantRepublic(address pendingMerchantRepublicAddress) public {
         require(msg.sender == address(this), "Constitution::setPendingDoge: Call must come from Constitution.");
         pendingMerchantRepublic = pendingMerchantRepublicAddress;
