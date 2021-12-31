@@ -6,12 +6,6 @@ import {IConstitution} from "./IConstitution.sol";
 import {IGuildCouncil} from "./IGuildCouncil.sol";
 import {IMerchantRepublic} from "./IMerchantRepublic.sol";
 
-/*
-TODO:
-    - check th eaccept cosntituion
-    - setSilverSeason should have an explciti cooldown
-*/
-
 contract MerchantRepublic {
 
     /*///////////////////////////////////////////////////////////////
@@ -314,7 +308,8 @@ contract MerchantRepublic {
         require(initialProposalId != 0, "MerchantRepublic::propose: The MerchantRepublic has not convened yet");
         require(tokens.getPastVotes(msg.sender, block.timestamp - 1) > proposalThreshold,
                 "MerchantRepublic::propose: proposer votes below proposal threshold");
-        require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length,
+        require(targets.length == values.length && targets.length == signatures.length &&
+                targets.length == calldatas.length,
                 "MerchantRepublic::propose: proposal function information parity mismatch");
         require(targets.length != 0, "MerchantRepublic::propose: must provide ctions");
         require(targets.length <= proposalMaxOperations(), "MerchantRepublic::propose: too many actions");
@@ -323,9 +318,9 @@ contract MerchantRepublic {
         if (latestProposalId != 0) {
           ProposalState proposersLatestProposalState = state(latestProposalId);
           require(proposersLatestProposalState != ProposalState.PendingCommonersVote,
-                  "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending commoner's vote");
+        "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending commoner's vote");
           require(proposersLatestProposalState != ProposalState.PendingGuildsVote,
-                  "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending guilds vote");
+        "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending guilds vote");
         }
         }
         createProposal(targets, values, signatures, calldatas, guildsId, defaultGuildsMaxWait);
@@ -345,7 +340,8 @@ contract MerchantRepublic {
         require(initialProposalId != 0, "MerchantRepublic::propose: The MerchantRepublic has not convened yet");
         require(tokens.getPastVotes(msg.sender, block.timestamp - 1) > proposalThreshold,
                 "MerchantRepublic::propose: proposer votes below proposal threshold");
-        require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length,
+        require(targets.length == values.length && targets.length == signatures.length &&
+                targets.length == calldatas.length,
                 "MerchantRepublic::propose: proposal function information parity mismatch");
         require(targets.length != 0, "MerchantRepublic::propose: must provide ctions");
         require(targets.length <= proposalMaxOperations(), "MerchantRepublic::propose: too many actions");
@@ -354,9 +350,9 @@ contract MerchantRepublic {
         if (latestProposalId != 0) {
           ProposalState proposersLatestProposalState = state(latestProposalId);
           require(proposersLatestProposalState != ProposalState.PendingCommonersVote,
-                  "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending commoner's vote");
+    "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending commoner's vote");
           require(proposersLatestProposalState != ProposalState.PendingGuildsVote,
-                  "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending guilds vote");
+    "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending guilds vote");
         }
         }
         createProposal(targets, values, signatures, calldatas, guildsId, maxDecisionTime);
@@ -552,6 +548,14 @@ contract MerchantRepublic {
                         MERCHANT REPUBLIC MANAGEMENT
     //////////////////////////////////////////////////////////////*/
 
+    /*
+   -----------------------------------------------------------------------------------------------------
+   The DOGE was an elected lord and head of state in several Italian city-states, notably Venice and Genoa.
+   Source: https://en.wikipedia.org/wiki/Doge
+   DOGE === ADMIN
+   -----------------------------------------------------------------------------------------------------
+    */
+
     /// @notice Emitted when the voting delay is set.
     event VotingDelaySet(uint oldVotingDelay, uint newVotingDelay);
 
@@ -570,6 +574,11 @@ contract MerchantRepublic {
     /// @notice Emitted when the constitution address changes.
     /// @param constitution The address of the new constitution.
     event ConstitutionChanged(address constitution);
+
+    /// @notice Emitted when the constitution changes the silver season period of the merchant republic.
+    /// @param oldSilverSeasonPeriod The old silver season period.
+    /// @param newSilverSeasonPeriod The new silver season period.
+    event SilverSeasonPeriodSet(uint256 oldSilverSeasonPeriod, uint256 newSilverSeasonPeriod);
 
     /// @notice The address of the doge (admin).
     address public doge;
@@ -600,12 +609,21 @@ contract MerchantRepublic {
      /// @dev newProposalThreshold must be greater than the hardcoded min.
      /// @param newProposalThreshold new proposal threshold.
     function _setProposalThreshold(uint newProposalThreshold) external {
-        require(msg.sender == doge, "Bravo::_setProposalThreshold: doge only");
+        require(msg.sender == doge, "MerchantRepublic::_setProposalThreshold: doge only");
         require(newProposalThreshold >= MIN_PROPOSAL_THRESHOLD,
                 "MerchantRepublic::_setProposalThreshold: new threshold below min");
         uint oldProposalThreshold = proposalThreshold;
         proposalThreshold = newProposalThreshold;
         emit ProposalThresholdSet(oldProposalThreshold, proposalThreshold);
+    }
+
+    /// @notice Function for setting the silver season period. Can only be called from the constitution, meaning as
+    /// part of a proposal.
+    /// @param silverSeason The new period that needs to elapse between two silver seasons.
+    function _setSilverSeasonPeriod(uint256 silverSeason) external {
+        require(msg.sender == address(constitution), "MerchantRepublic::setSilverSeasonPeriod::only_constitution");
+        emit SilverSeasonPeriodSet(silverSeasonPeriod, silverSeason);
+        silverSeasonPeriod = silverSeason;
     }
 
     /// @notice Begins transfer of doge rights. The newPendingDoge must call `_acceptDoge` to finalize the transfer.
@@ -660,7 +678,6 @@ contract MerchantRepublic {
         constitution = newConstitution;
         emit ConstitutionChanged(address(constitution));
     }
-
 
     /*///////////////////////////////////////////////////////////////
                                 STATE
@@ -723,6 +740,9 @@ contract MerchantRepublic {
     /// @notice Maps commoner's address to their silver balance.
     mapping(address => uint256) addressToSilver;
 
+    /// @notice The period that a silver season last.
+    uint256 private silverSeasonPeriod;
+
     /// @notice Returns the siver balance of the msg.sender.
     function silverBalance()
         external
@@ -742,6 +762,8 @@ contract MerchantRepublic {
         returns (bool)
     {
         require(msg.sender == doge, "merchantRepublic::setSilverSeason::wrong_address");
+        require(block.timestamp > silverIssuanceSeason + silverSeasonPeriod,
+                "merchantRepublic::setSilverSeason::silver_season_still_active");
         silverIssuanceSeason = block.timestamp;
         emit NewSilverSeason(silverIssuanceSeason);
         return true;
