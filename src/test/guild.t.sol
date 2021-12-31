@@ -44,7 +44,7 @@ contract GuildCommonersTest is Gov2Test {
         Guild.GuildMember memory ag = agnello.joinGuild(2);
         uint96 lastClaim = ag.lastClaimTimestamp;
         uint96 join = ag.joinTimestamp;
-        uint48 index = ag.addressListIndex;
+        uint48 index = ag.guildMembersAddressListIndex;
         assertEq(lastClaim, block.timestamp);
         assertEq(join, block.timestamp);
         assertEq(index, 1);
@@ -314,14 +314,14 @@ contract GuildMembersTest is Gov2Test {
         Guild guild = facelessGuild;
         Commoner com = Commoner(gm);
         com.changeGravitasThreshold(3, 100);
-        com.changeMemberRewardPerEpoch(3, 100);
+        com.changeMemberRewardPerSecond(3, 100);
         //If Guild Master pass parameter over 255(max uint8), it reverts
         com.changeGuildMasterMultiplier(3, 100);
         com.changeMaxGuildMembers(3, 100);
         com.changeGuildMemberSlash(3, 100);
         com.changeSlashForCashReward(3, 100);
         assertEq(100, guild.gravitasThreshold());
-        assertEq(100, guild.memberRewardPerEpoch());
+        assertEq(100, guild.memberRewardPerSecond());
         assertEq(100, guild.guildMasterRewardMultiplier());
         assertEq(100, guild.guildMemberSlash());
         assertEq(100, guild.slashForCashReward());
@@ -335,7 +335,7 @@ contract GuildMembersTest is Gov2Test {
         } catch Error(string memory error) {
             assertEq(error, "guild::onlyGuildMaster::wrong_address");
         }
-        try member.changeMemberRewardPerEpoch(3, 100) {
+        try member.changeMemberRewardPerSecond(3, 100) {
             fail();
         } catch Error(string memory error) {
             assertEq(error, "guild::onlyGuildMaster::wrong_address");
