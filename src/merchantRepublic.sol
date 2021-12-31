@@ -5,6 +5,7 @@ import {IERC20} from "./ITokens.sol";
 import {IConstitution} from "./IConstitution.sol";
 import {IGuildCouncil} from "./IGuildCouncil.sol";
 import {IMerchantRepublic} from "./IMerchantRepublic.sol";
+
 /*
 TODO:
     - Add check to initialise the merchant republic only once
@@ -29,7 +30,8 @@ contract MerchantRepublic {
     /// @notice The minimum setable proposal threshold
     uint public constant MIN_PROPOSAL_THRESHOLD = 50000e18; // 50,000  Tokens
 
-    /// @notice The number of votes in support of a proposal required in order for a quorum to be reached and for a vote to succeed
+    /// @notice The number of votes in support of a proposal required in order
+    /// for a quorum to be reached and for a vote to succeed.
     function quorumVotes() public pure returns (uint) { return 400000e18; } // 400,000 = 4% of Tokens
 
     /// @notice The maximum number of actions that can be included in a proposal
@@ -247,7 +249,8 @@ contract MerchantRepublic {
     string public constant name = "Merchant Republic";
 
     /// @notice The EIP-712 typehash for the contract's domain.
-    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+    bytes32 public constant DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
 
     /// @notice The EIP-712 typehash for the ballot struct used by the contract.
     bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint48 proposalId,uint8 support)");
@@ -635,7 +638,8 @@ contract MerchantRepublic {
     /// in order to verify the state of the proposal and whether a function may or may not be executed.
     /// @param proposalId The id of the proposal.
     function state(uint48 proposalId) public view returns (ProposalState) {
-        require(proposalCount >= proposalId && proposalId >= initialProposalId, "MerchantRepublic::state: invalid proposal id");
+        require(proposalCount >= proposalId && proposalId >= initialProposalId,
+                "MerchantRepublic::state: invalid proposal id");
         Proposal storage proposal = proposals[proposalId];
         if (proposal.canceled) {
             return ProposalState.Canceled;
