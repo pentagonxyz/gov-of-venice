@@ -8,9 +8,6 @@ import {IMerchantRepublic} from "./IMerchantRepublic.sol";
 
 /*
 TODO:
-    - Add check to initialise the merchant republic only once
-    - remove the "get times" function
-    - Add max decision time on propose
     - check th eaccept cosntituion
     - setSilverSeason should have an explciti cooldown
 */
@@ -18,7 +15,7 @@ TODO:
 contract MerchantRepublic {
 
     /*///////////////////////////////////////////////////////////////
-                        PROPOSAL LIFECYCLE
+                       MERCHANT REPUBLIC SETUP
     //////////////////////////////////////////////////////////////*/
 
     IGuildCouncil guildCouncil;
@@ -37,6 +34,9 @@ contract MerchantRepublic {
     /// @notice The maximum number of actions that can be included in a proposal
     function proposalMaxOperations() public pure returns (uint) { return 10; } // 10 actions
 
+    /// @notice Boolean on whether the merchant republic has been initialized.
+    bool private founded;
+
     /// @param firstDoge The address of the first doge (admin) of the merchant republic.
     constructor(address firstDoge){
         doge = firstDoge;
@@ -51,19 +51,20 @@ contract MerchantRepublic {
     /// @param proposalThreshold_ The number of available votes a commoner needs to have in order to be able to submit
     /// a new proposal.
     function initialize(address constitutionAddress, address tokensAddress,
-                        address guildCouncilAddress, uint48 guildsMaxVotingPeriod_, uint votingPeriod_,
+                        address guildCouncilAddress, uint48 defaultGuildsMaxWait_, uint votingPeriod_,
                         uint votingDelay_, uint proposalThreshold_)
         public
     {
         require(msg.sender == doge, "MerchantRepublic::initialize: doge only");
+        require(!founded, "MerchantRepublic::initialize::merchant_republic_is_founded");
         constitution = IConstitution(constitutionAddress);
         tokens = IERC20(tokensAddress);
         votingPeriod = votingPeriod_;
         votingDelay = votingDelay_;
         proposalThreshold = proposalThreshold_;
-        guildsMaxVotingPeriod = guildsMaxVotingPeriod_;
+        defaultGuildsMaxWait = defaultGuildsMaxWait_;
         guildCouncil =  IGuildCouncil(guildCouncilAddress);
-
+        founded = true;
     }
 
     /// @notice Initiate the MerchantRepublic contract.
@@ -155,7 +156,7 @@ contract MerchantRepublic {
     uint256 public votingPeriod;
 
     /// @notice The max voting period that guilds have to vote on a proposal.
-    uint48 public guildsMaxVotingPeriod;
+    uint48 public defaultGuildsMaxWait;
 
     /// @notice The number of votes required in order for a voter to become a proposer.
     uint public proposalThreshold;
@@ -305,7 +306,7 @@ contract MerchantRepublic {
     /// @param description Description for the vote
     /// @param guildsId The ids of the guilds that are called to vote on the proposal.
     function propose(address[] calldata targets, uint[] calldata values, string[] calldata signatures,
-                     bytes[] calldata calldatas, string calldata description, uint48[] calldata guildsId)
+                     bytes[] calldata calldatas, string memory description, uint48[] calldata guildsId)
             external
             returns (uint48)
     {
@@ -327,7 +328,38 @@ contract MerchantRepublic {
                   "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending guilds vote");
         }
         }
-        createProposal(targets, values, signatures, calldatas, guildsId);
+        createProposal(targets, values, signatures, calldatas, guildsId, defaultGuildsMaxWait);
+        announceProposal(targets, values, signatures, calldatas, description);
+
+        return  proposalCount;
+    }
+
+
+     function propose(address[] calldata targets, uint[] calldata values, string[] calldata signatures,
+                     bytes[] calldata calldatas, uint48[] calldata guildsId,  string memory description,
+                     uint48 maxDecisionTime)
+            external
+            returns (uint48)
+    {
+        {
+        require(initialProposalId != 0, "MerchantRepublic::propose: The MerchantRepublic has not convened yet");
+        require(tokens.getPastVotes(msg.sender, block.timestamp - 1) > proposalThreshold,
+                "MerchantRepublic::propose: proposer votes below proposal threshold");
+        require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length,
+                "MerchantRepublic::propose: proposal function information parity mismatch");
+        require(targets.length != 0, "MerchantRepublic::propose: must provide ctions");
+        require(targets.length <= proposalMaxOperations(), "MerchantRepublic::propose: too many actions");
+        require(guildsId.length !=0, "MerchantRepublic::propose::no_guilds_defined");
+        uint48 latestProposalId = latestProposalIds[msg.sender];
+        if (latestProposalId != 0) {
+          ProposalState proposersLatestProposalState = state(latestProposalId);
+          require(proposersLatestProposalState != ProposalState.PendingCommonersVote,
+                  "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending commoner's vote");
+          require(proposersLatestProposalState != ProposalState.PendingGuildsVote,
+                  "MerchantRepublic::propose: one live proposal per proposer, found a proposal that is pending guilds vote");
+        }
+        }
+        createProposal(targets, values, signatures, calldatas, guildsId, maxDecisionTime);
         announceProposal(targets, values, signatures, calldatas, description);
 
         return  proposalCount;
@@ -335,7 +367,7 @@ contract MerchantRepublic {
     /// @notice Part of propose(), braken into multiple functions to avoid the `stack too deep` error.
     function announceProposal(address[] calldata targets, uint[] calldata values,
                               string[] calldata signatures, bytes[] calldata calldatas,
-                              string calldata description) private
+                              string memory description) private
     {
         // We omit the guildsId array in order to avoid a "stack too deep" error. The list of guilds that are
         // called to vote on the proposal is emitted when "callGuildsToVote" is executed from "createProposal".
@@ -348,7 +380,7 @@ contract MerchantRepublic {
     /// @notice Part of propose(), braken into multiple functions to avoid the `stack too deep` error.
     function createProposal(address[] calldata targets, uint[] calldata values,
                             string[] calldata signatures, bytes[] calldata calldatas,
-                            uint48[] calldata guildsId)
+                            uint48[] calldata guildsId, uint48 guildsMaxWait)
                 private
     {
         proposalCount++;
@@ -371,7 +403,7 @@ contract MerchantRepublic {
         });
         proposals[proposalCount] = newProposal;
         latestProposalIds[msg.sender] = proposalCount;
-        callGuildsToVote(guildsId, proposalCount);
+        callGuildsToVote(guildsId, proposalCount, guildsMaxWait);
     }
     /// @notice Cancel a submitted proposal.
     /// @param proposalId The id of the proposal.
@@ -418,12 +450,12 @@ contract MerchantRepublic {
     /// are called via calling guild council first.
     /// @param guildsId The id of the guilds to be called. An array.
     /// @param proposalId The id of the proposal.
-    function callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId)
+    function callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId, uint48 guildsMaxWait)
         internal
         returns(bool)
     {
         emit ProposalSubmittedToGuilds(proposalId, guildsId);
-        return guildCouncil._callGuildsToVote(guildsId, proposalId, guildsMaxVotingPeriod);
+        return guildCouncil._callGuildsToVote(guildsId, proposalId, guildsMaxWait);
     }
 
     /// @notice Helper function to determined the chainId.
@@ -441,7 +473,6 @@ contract MerchantRepublic {
                             GETTER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-
     /// @notice Get the actions that are part of a proposal.
     /// @param proposalId The id of the proposal.
     function getActions(uint48 proposalId) external view returns (address[] memory targets,
@@ -458,14 +489,9 @@ contract MerchantRepublic {
         return receipts[proposalId][voter];
     }
 
-    function getTimes(uint48 id) external view returns(uint, uint){
-        return (proposals[id].startTimestamp, proposals[id].endTimestamp);
-    }
-
     /*///////////////////////////////////////////////////////////////
                            CAST VOTE
     //////////////////////////////////////////////////////////////*/
-
 
    /// @notice Cast a vote for a proposal.
    /// @param proposalId The id of the proposal to vote on.
@@ -621,6 +647,10 @@ contract MerchantRepublic {
         emit NewPendingDoge(oldPendingDoge, pendingDoge);
     }
 
+    /// @notice Accept an address as the constitution contract of the merchant republic. The constitution is the
+    /// smart contract that executes all the transactions of the proposals. This function will execute a function
+    /// on the constitution smart contract that signals the acceptance and conclude the setup of the relationship.
+    /// @param newConstitutionAddress The address of the new constitution smart contract.
     function _acceptConstitution(address newConstitutionAddress)
         external
     {
