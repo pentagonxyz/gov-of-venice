@@ -315,16 +315,35 @@ contract GuildMembersTest is Gov2Test {
         Commoner com = Commoner(gm);
         com.changeGravitasThreshold(3, 100);
         com.changeMemberRewardPerSecond(3, 100);
+        hevm.warp(block.timestamp + 7 days);
+        com.changeMemberRewardPerSecond(3, 100);
         //If Guild Master pass parameter over 255(max uint8), it reverts
+        com.changeGuildMasterMultiplier(3, 100);
+        hevm.warp(block.timestamp + 7 days);
         com.changeGuildMasterMultiplier(3, 100);
         com.changeMaxGuildMembers(3, 100);
         com.changeGuildMemberSlash(3, 100);
+        com.changeSlashForCashReward(3, 100);
+        hevm.warp(block.timestamp + 7 days);
         com.changeSlashForCashReward(3, 100);
         assertEq(100, guild.gravitasThreshold());
         assertEq(100, guild.memberRewardPerSecond());
         assertEq(100, guild.guildMasterRewardMultiplier());
         assertEq(100, guild.guildMemberSlash());
         assertEq(100, guild.slashForCashReward());
+    }
+
+    function testGuildMasterParameterDelay() public {
+        address gm = testGuidMasterVoteAyeSuccess();
+        Guild guild = facelessGuild;
+        Commoner com = Commoner(gm);
+        com.changeGuildMasterMultiplier(3, 100);
+        assertEq(2, guild.guildMasterRewardMultiplier());
+        try com.changeGuildMasterMultiplier(3, 100) {
+            fail();
+        } catch Error(string memory error) {
+            assertEq(error, "Guild::changeGuildMasterMultiplier::delay_has_not_passed");
+    }
     }
 
     function testGuildMemberCannotChangeParameter() public {
