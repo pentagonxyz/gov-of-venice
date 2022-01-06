@@ -4,13 +4,9 @@ pragma solidity ^0.8.10;
 import {IMerchantRepublic} from "./IMerchantRepublic.sol";
 import {IGuild} from "./IGuild.sol";
 import {IConstitution} from "./IConstitution.sol";
-import "./ITokens.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 /*
 TODO:
-    - When a guild calls another guild to vote, guid council should check that the guild
-    has not been called again to vote.
-    - remove the tokens
     - replce oz with solmate
     - ability to remove guild
     - remove securitycouncil and use guildIdToAddress
@@ -50,8 +46,6 @@ contract GuildCouncil is ReentrancyGuard {
     //@ notice The instance of the merchant republic.
     IMerchantRepublic merchantRepublic;
 
-    IERC20 tokens;
-
     /// @notice Maps a guild id to the mimum voting period that the guild has defined that it needs to vote on
     /// proposals.
     mapping(uint48 => uint48) guildToMinVotingPeriod;
@@ -60,13 +54,12 @@ contract GuildCouncil is ReentrancyGuard {
     /// on it.
     mapping(uint256 => uint256) public proposalMaxDecisionWaitLimit;
 
-    constructor(address merchantRepublicAddr, address constitutionAddr, address tokensAddress)
+    constructor(address merchantRepublicAddr, address constitutionAddr)
     {
         merchantRepublicAddress = merchantRepublicAddr;
         constitutionAddress = constitutionAddr;
         merchantRepublic = IMerchantRepublic(merchantRepublicAddress);
         constitution = IConstitution(constitutionAddress);
-        tokens = IERC20(tokensAddress);
     }
 
     /// @notice Called by the constitution, via the gov process, in order to register a new guild to the
@@ -153,8 +146,8 @@ contract GuildCouncil is ReentrancyGuard {
     /// time bound set by the guilds. This is required so that guilds are not forced to rush a decision.
     /// @param guildsId Array of all the IDs of the guilds to be called to vote.
     /// @param proposalId The id of the proposal.
-    /// @param maxDecisionTime The upper time limit that the guilds have to vote on the proposal, in seconds.
-    function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId, uint48 maxDecisionTime)
+    /// @param DecisionWaitLimit The upper time limit that the guilds have to vote on the proposal, in seconds.
+    function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId, uint48 DecisionWaitLimit)
        external
        onlyMerchantRepublic
        returns(bool)
@@ -163,12 +156,10 @@ contract GuildCouncil is ReentrancyGuard {
         proposalIdToVoteCallTimestamp[proposalId] = block.timestamp;
         for(uint48 i; i< guildsId.length; i++){
             address guildAddress = guildIdToAddress[guildsId[i]];
-            if (guildAddress == address(0)){
-                revert("GuildCouncil::_callGuildsToVote::guild_address_is_zero");
-            }
-            else if(maxDecisionTime <= guildToMinVotingPeriod[guildsId[i]]){
-                revert("GuildCouncil::_callGuildsToVote::maxDecisionTime too low");
-            }
+            require(DecisionWaitLimit >= guildToMinVotingPeriod[guildsId[i]],
+                    "GuildCouncil::_callGuildsToVote::maxDecisionTime_too_low");
+            require(!guildIdToActiveProposalId[guildsId[i]][proposalId],
+                    "GuildCouncil::_callGuildsToVote::guild_has_already_voted");
             IGuild guild = IGuild(guildAddress);
             if (guild.inquireAddressList().length != 0) {
                 guildIdToActiveProposalId[guildsId[i]][proposalId] = true;
@@ -196,12 +187,10 @@ contract GuildCouncil is ReentrancyGuard {
         bool success = false;
         for(uint48 i; i< guildsId.length; i++){
             address guildAddress = guildIdToAddress[guildsId[i]];
-            if (guildAddress == address(0)){
-                revert("GuildCouncil::_callGuildsToVote::guild_address_is_zero");
-            }
-            else if(proposalMaxDecisionWaitLimit[proposalId] < guildToMinVotingPeriod[guildsId[i]]){
-                revert("GuildCouncil::_callGuildsToVote::maxDecisionTime too low");
-            }
+            require(!guildIdToActiveProposalId[guildsId[i]][proposalId],
+                    "GuildCouncil::_callGuildsToVote::guild_has_already_voted");
+            require(proposalMaxDecisionWaitLimit[proposalId] >= guildToMinVotingPeriod[guildsId[i]],
+                    "GuildCouncil::_callGuildsToVote::maxDecisionTime too low");
             IGuild guild = IGuild(guildAddress);
             if (guild.inquireAddressList().length != 0) {
                 guildIdToActiveProposalId[guildsId[i]][proposalId] = true;
