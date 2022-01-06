@@ -9,9 +9,6 @@ import {IERC20} from "./ITokens.sol";
 
 /*
 TODO:
-    - Add timeout for guild master functions. Pause timeout if vote starts. If GM changes, clear queue.
-    - Add support for mulitple ERC20 implementations.
-    - Add support for multiple constitutions or remove them altogether (prob best).
     - setVotingPeriod: It should go through all guild councils to let thme know of the change.
     - Remove the Guild Master address argument from votng. Since it can only vote for 1, it's not needed.
     - The same for banishment
@@ -42,9 +39,7 @@ contract  Guild is ReentrancyGuard {
 
     uint8 public constant guildMemberRewardMultiplier = 1;
 
-    /*//////////////////////////////////////////////////////////////*/
 
-    address constitution;
 
     /*///////////////////////////////////////////////////////////////
                         CONSTRUCTOR
@@ -91,7 +86,7 @@ contract  Guild is ReentrancyGuard {
         uint64 votingPeriod;
     }
     constructor(bytes32 guildName, address[] memory foundingMembers, uint32 newGravitasThreshold, uint32 timeOutPeriod,
-                uint32 newMaxGuildMembers, uint32 newVotingPeriod, address tokensAddress, address constitutionAddress)
+                uint32 newMaxGuildMembers, uint32 newVotingPeriod, address tokensAddress)
     {
         require(guildName.length != 0, "guild::constructor::empty_guild_name");
         require(foundingMembers.length >= minimumFoundingMembers, "guild::constructor::minimum_founding_members");
@@ -106,7 +101,6 @@ contract  Guild is ReentrancyGuard {
             addressToGravitas[member] = newGravitasThreshold;
         }
         tokens = IERC20(tokensAddress);
-        constitution = constitutionAddress;
         guildMasterAddress = foundingMembers[0];
     }
 
@@ -225,6 +219,12 @@ contract  Guild is ReentrancyGuard {
     /// @param newParameter The new value of the parameter.
     event GuildParameterChanged(bytes32 what, uint256 oldParameter, uint256 newParameter);
 
+    /// @notice Emitted when specific parameters are set and the timer starts. The changes can not be implemented
+    // before a guildMasterDelay passes.
+    /// @param what The Guild parameter for which the timer started.
+    /// @param pendingParameter The value of the pendingParameter, the value that *will* be set when the timer passes.
+    event GuildParameterTimerSet(bytes32 what, uint256 pendingParameter);
+
     /// @notice The guild has a distinct guild Id for every different guild council. This guild id
     /// is given by the guild council to distinct different guilds.
     mapping(address => uint48) private guildCouncilAddressToGuildId;
@@ -238,17 +238,40 @@ contract  Guild is ReentrancyGuard {
     /// a priori.
     uint256 public guildMemberSlash;
 
-    uint48 public pendingSlashforCashReward;
-    uint48 public pendingGuildMasterRewardMultiplier;
+    /// @notice Pending value of the guild parameter. The guild master will initially start the timer and set
+    /// the pending value to the new value and when the timer passes and the guild master can invoke the
+    /// function again, the guild parameter will change to the value of the pending parameter.
+    uint256 public pendingSlashForCashReward;
+    /// @notice Pending value of the guild parameter. The guild master will initially start the timer and set
+    /// the pending value to the new value and when the timer passes and the guild master can invoke the
+    /// function again, the guild parameter will change to the value of the pending parameter.
+    uint8 public pendingGuildMasterRewardMultiplier;
+    /// @notice Pending value of the guild parameter. The guild master will initially start the timer and set
+    /// the pending value to the new value and when the timer passes and the guild master can invoke the
+    /// function again, the guild parameter will change to the value of the pending parameter.
     uint48 public pendingMemberRewardPerSecond;
+    /// @notice Pending value of the guild parameter. The guild master will initially start the timer and set
+    /// the pending value to the new value and when the timer passes and the guild master can invoke the
+    /// function again, the guild parameter will change to the value of the pending parameter.
     uint48 public pendingVotingPeriod;
 
+    /// @notice The block.timestamp when the pending guild parameter was set. In order for the guild parameter to be
+    /// set, the relevant function must be called again after guildMasterDelay seconds.
     uint48 private slashForCashRewardTimer;
+    /// @notice The block.timestamp when the pending guild parameter was set. In order for the guild parameter to be
+    /// set, the relevant function must be called again after guildMasterDelay seconds.
     uint48 private guildMasterRewardMultiplierTimer;
+    /// @notice The block.timestamp when the pending guild parameter was set. In order for the guild parameter to be
+    /// set, the relevant function must be called again after guildMasterDelay seconds.
     uint48 private memberRewardPerSecondTimer;
+    /// @notice The block.timestamp when the pending guild parameter was set. In order for the guild parameter to be
+    /// set, the relevant function must be called again after guildMasterDelay seconds.
     uint48 private votingPeriodTimer;
 
-    uint256 private guildMasterDelay = 7 days;
+    /// @notice The delay between the two invocations of certain functions that changes some parameter of the guild.
+    /// The first invocation will set a timer and the second will set the value. The second invocation must be called
+    /// after guildMasterDelay seconds has passed.
+    uint256 private guildMasterDelay = 6.5 days;
 
     /// @notice Registers a new guildCouncil to the guild. It needs to be executed after the guild has been registered
     /// in the guild council, as the guild Id is generated during that process.
@@ -295,14 +318,18 @@ contract  Guild is ReentrancyGuard {
         external
         onlyGuildMaster
     {
-        if(memberRewardPerSecondTimer < block.timestamp){
-            memberRewardPerSecondTimer = block.timestap;
+        if(memberRewardPerSecondTimer == 0){
+            memberRewardPerSecondTimer = uint48(block.timestamp);
             pendingMemberRewardPerSecond = newMemberRewardPerSecond;
             emit GuildParameterTimerSet("memberRewardPerSecond", newMemberRewardPerSecond);
         }
-        else if(memberRewardPerSecondTimer + guildMasterDelay > block.timestamp){
+        else if(memberRewardPerSecondTimer + guildMasterDelay < uint48(block.timestamp)){
             emit GuildParameterChanged("memberRewardPerSecond", memberRewardPerSecond, newMemberRewardPerSecond);
             memberRewardPerSecond = pendingMemberRewardPerSecond;
+            memberRewardPerSecondTimer = 0;
+        }
+        else {
+            revert("Guild::changeMemberRewardPerSecond::delay_has_not_passed");
         }
     }
 
@@ -313,15 +340,19 @@ contract  Guild is ReentrancyGuard {
         external
         onlyGuildMaster
     {
-        if(guildMasterRewardMultiplierTimer < block.timestamp){
-            guildMasterRewardMultiplierTimer = block.timestap;
+        if(guildMasterRewardMultiplierTimer == 0){
+            guildMasterRewardMultiplierTimer = uint48(block.timestamp);
             pendingGuildMasterRewardMultiplier = newGuildMasterRewardMultiplier;
-            emit GuildParameterTimeSet("guildMasterRewardMultiplier", newGuildMasterRewardMultiplier);
+            emit GuildParameterTimerSet("guildMasterRewardMultiplier", newGuildMasterRewardMultiplier);
         }
-        else if(guildMasterRewardMultiplierTimer + guildMasterDelay > block.timestamp){
+        else if(guildMasterRewardMultiplierTimer + guildMasterDelay < uint48(block.timestamp)){
             emit GuildParameterChanged("guildMasterRewardMultiplier",
                                        guildMasterRewardMultiplier, newGuildMasterRewardMultiplier);
-            guildMasterRewardmultiplier = pendingGuildMasterRewardMultiplier;
+            guildMasterRewardMultiplier = pendingGuildMasterRewardMultiplier;
+            pendingGuildMasterRewardMultiplier = 0;
+        }
+        else {
+            revert("Guild::changeGuildMasterMultiplier::delay_has_not_passed");
         }
     }
 
@@ -334,12 +365,12 @@ contract  Guild is ReentrancyGuard {
        onlyGuildMaster
     {
         emit GuildParameterChanged("maxGuildMembers", maxGuildMembers, newMaxGuildMembers);
-        maxGuildMembers = newmaxguildMembers;
+        maxGuildMembers = newMaxGuildMembers;
     }
 
     /// @notice Changes the amount that is slashed from guild members.
     /// @param  slash The new slash amount.
-    function changeGuildMemberslash(uint256  slash)
+    function changeGuildMemberSlash(uint256 slash)
         external
         onlyGuildMaster
     {
@@ -347,19 +378,23 @@ contract  Guild is ReentrancyGuard {
         guildMemberSlash = slash;
     }
     /// @notice Changes the reward for invoking the SlashForCash function.
-    /// @param newReward The new reward for running slashForCash.
-    function changeSlashForCashreward(uint256 newSlashReward)
+    /// @param newSlashReward The new reward for running slashForCash.
+    function changeSlashForCashReward(uint256 newSlashReward)
         external
         onlyGuildMaster
     {
-        if(slashForCashRewardTimer < block.timestamp){
-            slashForCashRewardTimer = block.timestap;
-            pendingSlashReward= newSlashReward;
-            emit GuildParameterTimeSet("slashForCashReward", newSlashReward);
+        if(slashForCashRewardTimer == 0){
+            slashForCashRewardTimer = uint48(block.timestamp);
+            pendingSlashForCashReward= newSlashReward;
+            emit GuildParameterTimerSet("slashForCashReward", newSlashReward);
         }
-        else if(slashForCashRewardTimer + guildMasterDelay > block.timestamp){
-            emit GuildParameterChanged("slashForCashReward", slashForCashReward, newReward);
-            slashForCashReward = pendingSlashReward;
+        else if(slashForCashRewardTimer + guildMasterDelay < uint48(block.timestamp)){
+            emit GuildParameterChanged("slashForCashReward", slashForCashReward, newSlashReward);
+            slashForCashReward = pendingSlashForCashReward;
+            slashForCashRewardTimer = 0;
+        }
+        else {
+            revert("Guild::changeGuildMemberSlash::delay_has_not_passed");
         }
     }
 
@@ -371,34 +406,67 @@ contract  Guild is ReentrancyGuard {
         onlyGuildMaster
         returns(bool)
     {
-        if(votingPeriodTimer < block.timestamp){
-            votingPeriodTimer = block.timestap;
+        if(votingPeriodTimer == 0){
+            votingPeriodTimer = uint48(block.timestamp);
             pendingVotingPeriod = newVotingPeriod;
-            emit GuildParameterTimeSet("votingPeriod", newVotingPeriod);
+            emit GuildParameterTimerSet("votingPeriod", newVotingPeriod);
         }
-        else if(votingPeriodTimer + guildMasterDelay > block.timestamp){
+        else if(votingPeriodTimer + guildMasterDelay < uint48(block.timestamp)){
             emit GuildParameterChanged("votingPeriod", guildBook.votingPeriod, newVotingPeriod);
             guildBook.votingPeriod = pendingVotingPeriod;
+            votingPeriodTimer = 0;
+        }else {
+            revert("Guild::changeVotingPeriod::delay_has_not_passed");
         }
+
     }
 
     /*///////////////////////////////////////////////////////////////
                        GUILD ACCOUNTING
     //////////////////////////////////////////////////////////////*/
 
+   /// @notice The timestamp when the guild master initiated the withdraw of funds from the guid. guildMasterDelay
+   /// seconds must pass in order for the guild master to be able to withdraw.
+   uint256 withdrawTimer;
+   /// @notice The amount that will be withdrawn when the guild master calls withdraw again, after guildMasterDelay
+   /// seconds.
+   uint256 pendingAmount;
+   /// @notice The recipient of the funds that will be withdrawn when the guild master calls withdraw again, after
+   /// guildmasterDelay seconds.
+   address pendingReceiver;
+
+    /// @notice Returns the amount of ERC20 tokens the guild currently has.
+    /// @return tokens The amount of ERC20 tokens.
     function getBudget()
         view
         public
-        returns(uint256)
+        returns(uint256 tokens)
     {
        return tokens.balanceOf(address(this));
     }
 
+    /// @notice Withdraw ERC20 tokens from the guild. In order for the action to be executed, the function must be
+    /// called twice, with guildMasterDelay seconds elapsed time between the two invocations. The receiver and the
+    /// amount is set at the first invocation of the function. The second invocation can not change them even if they
+    /// are passed as arguments.
+    /// @param receiver The address that will receive the funds.
+    /// @param amount The amount that will be transfered.
     function withdraw(address receiver, uint256 amount)
         external
-        onlyConstitution
+        onlyGuildMaster
     {
-        tokens.transfer(receiver, amount);
+        if(withdrawTimer == 0){
+            withdrawTimer = block.timestamp;
+            pendingReceiver = receiver;
+            pendingAmount = amount;
+        }
+        else if(withdrawTimer + guildMasterDelay < block.timestamp){
+            withdrawTimer = 0;
+            tokens.transfer(pendingReceiver, pendingAmount);
+        }
+        else {
+            revert("Guild::withdraw::delay_has_not_passed");
+        }
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -979,11 +1047,6 @@ contract  Guild is ReentrancyGuard {
 
     modifier onlyGuildMember() {
         require(addressToGuildMember[msg.sender].joinTimestamp != 0, "Guild::onlyGuildMember::wrong_address");
-        _;
-    }
-
-    modifier onlyConstitution(){
-        require(msg.sender == constitution, "Guild::withdraw::wrong_address");
         _;
     }
 
