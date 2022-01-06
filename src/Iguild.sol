@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.10;
 
-
 interface IGuild{
     function calculateGravitas(address commonerAddress, uint256 silverAmount)
         external

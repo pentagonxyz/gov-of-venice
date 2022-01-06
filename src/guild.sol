@@ -432,15 +432,15 @@ contract  Guild is ReentrancyGuard {
    /// seconds.
    uint256 pendingAmount;
    /// @notice The recipient of the funds that will be withdrawn when the guild master calls withdraw again, after
-   /// guildmasterDelay seconds.
+   /// guildMasterDelay seconds.
    address pendingReceiver;
 
     /// @notice Returns the amount of ERC20 tokens the guild currently has.
-    /// @return tokens The amount of ERC20 tokens.
+    /// @return budget The amount of ERC20 tokens.
     function getBudget()
         view
         public
-        returns(uint256 tokens)
+        returns(uint256 budget)
     {
        return tokens.balanceOf(address(this));
     }
@@ -569,22 +569,22 @@ contract  Guild is ReentrancyGuard {
     /// @notice boolean that signals if a guild master vote is active.
     bool private activeGuildMasterVote;
 
-    /// @notice The address of the guild master.
+    /// @notice the address of the guild master.
     address public guildMasterAddress;
 
-    /// @notice The address of the guild master elect.
+    /// @notice the address of the guild master elect.
     address public guildMasterElect;
 
-    /// @notice Start a new guild master vote.
-    /// @param member The guild member that is going to be voted as the next guild master.
-    function startGuildmasterVote(address member)
+    /// @notice start a new guild master vote.
+    /// @param member the guild member that is going to be voted as the next guild master.
+    function startGuildMasterVote(address member)
         external
         onlyGuildMember
         returns (bool)
     {
-        require(guildMasterVote.active == false, "Guild::startGuildMaster::active_vote");
+        require(guildMasterVote.active == false, "guild::startguildMaster::active_vote");
         guildMasterVote.sponsor = msg.sender;
-        guildMasterVote.startTimestamp = uint48(block.timestamp);
+        guildMasterVote.startTimestamp= uint48(block.timestamp);
         guildMasterVote.active = true;
         guildMasterVote.nay = 0;
         guildMasterVote.aye = 0;
@@ -702,7 +702,7 @@ contract  Guild is ReentrancyGuard {
     /// that the last voter will have extra gas costs in relation to the others, as it will pay for the extra action of
     /// concluding the vote.
     /// @param support It can either be 1 to vote "in favor" of the proposal or 0 to vote "against".
-    function castVoteForGuildMaster(uint8 support, address votedAddress)
+    function castVoteForGuildMaster(uint8 support)
         external
         onlyGuildMember
         returns(bool)
@@ -713,7 +713,6 @@ contract  Guild is ReentrancyGuard {
                 "Guild::castVoteForGuildMaster::account_already_voted");
         require(uint48(block.timestamp) - guildMasterVote.startTimestamp <= guildBook.votingPeriod,
                 "Guild::castVoteForGuildMaster::_voting_period_ended");
-        require(votedAddress == guildMasterVote.targetAddress, "Guild::casteVoteForGuildMaster::wrong_voted_address");
         if (support == 1){
             guildMasterVote.aye += 1;
         }
@@ -724,12 +723,12 @@ contract  Guild is ReentrancyGuard {
         guildMasterVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
         if(guildMasterVote.aye > (guildMembersAddressList.length * guildMasterQuorum / 100)){
             guildMasterVote.active = false;
-            guildMasterVoteResult(votedAddress, true);
+            guildMasterVoteResult(guildMasterVote.targetAddress, true);
             cont = false;
         }
         else if (guildMasterVote.nay > (guildMembersAddressList.length * guildMasterQuorum / 100)) {
             guildMasterVote.active = false;
-            guildMasterVoteResult(votedAddress, false);
+            guildMasterVoteResult(guildMasterVote.targetAddress, false);
             address sponsor = guildMasterVote.sponsor;
             _modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
             cont = false;
@@ -751,7 +750,7 @@ contract  Guild is ReentrancyGuard {
     /// that the last voter will have extra gas costs in relation to the others, as it will pay for the extra action of
     /// concluding the vote.
     /// @param support It can either be 1 to vote "in favor" of the proposal or 0 to vote "against".
-    function castVoteForBanishment(uint8 support, address memberToBanish)
+    function castVoteForBanishment(uint8 support)
         external
         onlyGuildMember
         returns (bool)
@@ -762,8 +761,6 @@ contract  Guild is ReentrancyGuard {
                 "Guild::vastVoteForBanishmnet::account_already_voted");
         require(uint48(block.timestamp) - banishmentVote.startTimestamp <= guildBook.votingPeriod,
                 "Guild::castVoteForBanishment::_voting_period_ended");
-        require(memberToBanish == banishmentVote.targetAddress,
-                "Guild::castVoteForBanishment::wrong_voted_address");
         if (support == 1){
             banishmentVote.aye++;
         }
@@ -774,7 +771,7 @@ contract  Guild is ReentrancyGuard {
         banishmentVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
         if(banishmentVote.aye > (guildMembersAddressList.length * banishmentQuorum / 100)){
             banishmentVote.active = false;
-            _banishGuildMember(memberToBanish);
+            _banishGuildMember(banishmentVote.targetAddress);
             cont = false;
 
         }

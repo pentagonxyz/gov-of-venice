@@ -109,7 +109,7 @@ contract GuildMembersTest is Gov2Test {
         uint256 start = block.timestamp;
         hevm.warp(block.timestamp + 1);
         for (uint256 i = 0; i < facelessMen.length; i++) {
-            if (!facelessMen[i].castVoteForGuildMaster(1, gm, 3)) {
+            if (!facelessMen[i].castVoteForGuildMaster(1, 3)) {
                 break;
             }
         }
@@ -143,7 +143,7 @@ contract GuildMembersTest is Gov2Test {
         hevm.warp(block.timestamp + 1);
         uint256 originalGravitas = facelessMen[0].getGravitas(3);
         for (uint256 i = 0; i < facelessMen.length; i++) {
-            if (!facelessMen[i].castVoteForGuildMaster(0, gm, 3)) {
+            if (!facelessMen[i].castVoteForGuildMaster(0, 3)) {
                 break;
             }
         }
@@ -177,7 +177,7 @@ contract GuildMembersTest is Gov2Test {
         facelessMen[0].startGuildmasterVote(gm, 3);
         uint256 start = block.timestamp;
         hevm.warp(block.timestamp + 50 days);
-        try facelessMen[1].castVoteForGuildMaster(0, gm, 3) {
+        try facelessMen[1].castVoteForGuildMaster(0, 3) {
             fail();
         } catch Error(string memory error) {
             assertEq(
@@ -193,31 +193,13 @@ contract GuildMembersTest is Gov2Test {
         facelessMen[0].startGuildmasterVote(gm, 3);
         uint256 start = block.timestamp;
         hevm.warp(block.timestamp + 1 days);
-        facelessMen[1].castVoteForGuildMaster(0, gm, 3);
-        try facelessMen[1].castVoteForGuildMaster(0, gm, 3) {
+        facelessMen[1].castVoteForGuildMaster(0, 3);
+        try facelessMen[1].castVoteForGuildMaster(0, 3) {
             fail();
         } catch Error(string memory error) {
             assertEq(
                 error,
                 "Guild::castVoteForGuildMaster::account_already_voted"
-            );
-        }
-    }
-
-    function testGuildMasterVoteWrongAddress() public {
-        initMembers();
-        address gm = address(facelessMen[1]);
-        facelessMen[0].startGuildmasterVote(gm, 3);
-        uint256 start = block.timestamp;
-        hevm.warp(block.timestamp + 1 days);
-        try
-            facelessMen[1].castVoteForGuildMaster(0, address(facelessMen[3]), 3)
-        {
-            fail();
-        } catch Error(string memory error) {
-            assertEq(
-                error,
-                "Guild::casteVoteForGuildMaster::wrong_voted_address"
             );
         }
     }
@@ -230,7 +212,7 @@ contract GuildMembersTest is Gov2Test {
         uint256 start = block.timestamp;
         hevm.warp(block.timestamp + 1);
         for (uint256 i = 0; i < facelessMen.length; i++) {
-            if (!facelessMen[i].castVoteForBanishment(1, address(target), 3)) {
+            if (!facelessMen[i].castVoteForBanishment(1, 3)) {
                 break;
             }
         }
@@ -263,7 +245,7 @@ contract GuildMembersTest is Gov2Test {
         hevm.warp(block.timestamp + 1);
         uint256 originalGravitas = sponsor.getGravitas(3);
         for (uint256 i = 0; i < facelessMen.length; i++) {
-            if (!facelessMen[i].castVoteForBanishment(0, address(target), 3)) {
+            if (!facelessMen[i].castVoteForBanishment(0, 3)) {
                 break;
             }
         }
@@ -545,6 +527,7 @@ contract GuildMembersTest is Gov2Test {
         hevm.warp(voteEndDay);
         emit log_named_uint("Proposal Queued: ", block.timestamp);
         assertEq(
+
             uint256(merchantRepublic.state(id)),
             uint256(MerchantRepublic.ProposalState.Succeeded)
         );
