@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Unlicense
+// SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.10;
 
 import {ReentrancyGuard} from "solmate/utils/ReentrancyGuard.sol";
@@ -9,14 +9,7 @@ import {IERC20} from "./ITokens.sol";
 
 /*
 TODO:
-    - Add timeout for guild master functions. Pause timeout if vote starts. If GM changes, clear queue.
-    - Add support for mulitple ERC20 implementations.
-    - Add support for multiple constitutions or remove them altogether (prob best).
     - setVotingPeriod: It should go through all guild councils to let thme know of the change.
-    - Remove the Guild Master address argument from votng. Since it can only vote for 1, it's not needed.
-    - The same for banishment
-    - Remove guildMasterVoteResult()
-    - remove the return value from modifygravitas()
 */
 
 /// @title Merchant Republic Guild
@@ -42,9 +35,7 @@ contract  Guild is ReentrancyGuard {
 
     uint8 public constant guildMemberRewardMultiplier = 1;
 
-    /*//////////////////////////////////////////////////////////////*/
 
-    address constitution;
 
     /*///////////////////////////////////////////////////////////////
                         CONSTRUCTOR
@@ -91,7 +82,7 @@ contract  Guild is ReentrancyGuard {
         uint64 votingPeriod;
     }
     constructor(bytes32 guildName, address[] memory foundingMembers, uint32 newGravitasThreshold, uint32 timeOutPeriod,
-                uint32 newMaxGuildMembers, uint32 newVotingPeriod, address tokensAddress, address constitutionAddress)
+                uint32 newMaxGuildMembers, uint32 newVotingPeriod, address tokensAddress)
     {
         require(guildName.length != 0, "guild::constructor::empty_guild_name");
         require(foundingMembers.length >= minimumFoundingMembers, "guild::constructor::minimum_founding_members");
@@ -106,7 +97,6 @@ contract  Guild is ReentrancyGuard {
             addressToGravitas[member] = newGravitasThreshold;
         }
         tokens = IERC20(tokensAddress);
-        constitution = constitutionAddress;
         guildMasterAddress = foundingMembers[0];
     }
 
@@ -211,7 +201,7 @@ contract  Guild is ReentrancyGuard {
     }
 
     /*///////////////////////////////////////////////////////////////
-                        GUILD MANAGEMENT
+                        GUILD MASTER MANAGEMENT
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Emitted when a new Guild Council (and thus a new Merchant Republic) is added
@@ -225,6 +215,12 @@ contract  Guild is ReentrancyGuard {
     /// @param newParameter The new value of the parameter.
     event GuildParameterChanged(bytes32 what, uint256 oldParameter, uint256 newParameter);
 
+    /// @notice Emitted when specific parameters are set and the timer starts. The changes can not be implemented
+    // before a guildMasterDelay passes.
+    /// @param what The Guild parameter for which the timer started.
+    /// @param pendingParameter The value of the pendingParameter, the value that *will* be set when the timer passes.
+    event GuildParameterTimerSet(bytes32 what, uint256 pendingParameter);
+
     /// @notice The guild has a distinct guild Id for every different guild council. This guild id
     /// is given by the guild council to distinct different guilds.
     mapping(address => uint48) private guildCouncilAddressToGuildId;
@@ -237,6 +233,41 @@ contract  Guild is ReentrancyGuard {
     /// doesn't serve the guild. The guild members are slashed for very specific reasons that are known
     /// a priori.
     uint256 public guildMemberSlash;
+
+    /// @notice Pending value of the guild parameter. The guild master will initially start the timer and set
+    /// the pending value to the new value and when the timer passes and the guild master can invoke the
+    /// function again, the guild parameter will change to the value of the pending parameter.
+    uint256 public pendingSlashForCashReward;
+    /// @notice Pending value of the guild parameter. The guild master will initially start the timer and set
+    /// the pending value to the new value and when the timer passes and the guild master can invoke the
+    /// function again, the guild parameter will change to the value of the pending parameter.
+    uint8 public pendingGuildMasterRewardMultiplier;
+    /// @notice Pending value of the guild parameter. The guild master will initially start the timer and set
+    /// the pending value to the new value and when the timer passes and the guild master can invoke the
+    /// function again, the guild parameter will change to the value of the pending parameter.
+    uint48 public pendingMemberRewardPerSecond;
+    /// @notice Pending value of the guild parameter. The guild master will initially start the timer and set
+    /// the pending value to the new value and when the timer passes and the guild master can invoke the
+    /// function again, the guild parameter will change to the value of the pending parameter.
+    uint48 public pendingVotingPeriod;
+
+    /// @notice The block.timestamp when the pending guild parameter was set. In order for the guild parameter to be
+    /// set, the relevant function must be called again after guildMasterDelay seconds.
+    uint48 private slashForCashRewardTimer;
+    /// @notice The block.timestamp when the pending guild parameter was set. In order for the guild parameter to be
+    /// set, the relevant function must be called again after guildMasterDelay seconds.
+    uint48 private guildMasterRewardMultiplierTimer;
+    /// @notice The block.timestamp when the pending guild parameter was set. In order for the guild parameter to be
+    /// set, the relevant function must be called again after guildMasterDelay seconds.
+    uint48 private memberRewardPerSecondTimer;
+    /// @notice The block.timestamp when the pending guild parameter was set. In order for the guild parameter to be
+    /// set, the relevant function must be called again after guildMasterDelay seconds.
+    uint48 private votingPeriodTimer;
+
+    /// @notice The delay between the two invocations of certain functions that changes some parameter of the guild.
+    /// The first invocation will set a timer and the second will set the value. The second invocation must be called
+    /// after guildMasterDelay seconds has passed.
+    uint256 private guildMasterDelay = 6.5 days;
 
     /// @notice Registers a new guildCouncil to the guild. It needs to be executed after the guild has been registered
     /// in the guild council, as the guild Id is generated during that process.
@@ -283,8 +314,19 @@ contract  Guild is ReentrancyGuard {
         external
         onlyGuildMaster
     {
-        emit GuildParameterChanged("memberRewardPerSecond", memberRewardPerSecond, newMemberRewardPerSecond);
-        memberRewardPerSecond = newMemberRewardPerSecond;
+        if(memberRewardPerSecondTimer == 0){
+            memberRewardPerSecondTimer = uint48(block.timestamp);
+            pendingMemberRewardPerSecond = newMemberRewardPerSecond;
+            emit GuildParameterTimerSet("memberRewardPerSecond", newMemberRewardPerSecond);
+        }
+        else if(memberRewardPerSecondTimer + guildMasterDelay < uint48(block.timestamp)){
+            emit GuildParameterChanged("memberRewardPerSecond", memberRewardPerSecond, newMemberRewardPerSecond);
+            memberRewardPerSecond = pendingMemberRewardPerSecond;
+            memberRewardPerSecondTimer = 0;
+        }
+        else {
+            revert("Guild::changeMemberRewardPerSecond::delay_has_not_passed");
+        }
     }
 
     /// @notice Changes the Guild Master reward multiplier. The Guild Master receives a multiple of the
@@ -294,9 +336,20 @@ contract  Guild is ReentrancyGuard {
         external
         onlyGuildMaster
     {
-        emit GuildParameterChanged("guildMasterRewardMultiplier",
-                                   guildMasterRewardMultiplier, newGuildMasterRewardMultiplier);
-        guildMasterRewardMultiplier = newGuildMasterRewardMultiplier;
+        if(guildMasterRewardMultiplierTimer == 0){
+            guildMasterRewardMultiplierTimer = uint48(block.timestamp);
+            pendingGuildMasterRewardMultiplier = newGuildMasterRewardMultiplier;
+            emit GuildParameterTimerSet("guildMasterRewardMultiplier", newGuildMasterRewardMultiplier);
+        }
+        else if(guildMasterRewardMultiplierTimer + guildMasterDelay < uint48(block.timestamp)){
+            emit GuildParameterChanged("guildMasterRewardMultiplier",
+                                       guildMasterRewardMultiplier, newGuildMasterRewardMultiplier);
+            guildMasterRewardMultiplier = pendingGuildMasterRewardMultiplier;
+            pendingGuildMasterRewardMultiplier = 0;
+        }
+        else {
+            revert("Guild::changeGuildMasterMultiplier::delay_has_not_passed");
+        }
     }
 
     /// @notice Changes the maximum number of guild members that the guild will accept. If the
@@ -313,7 +366,7 @@ contract  Guild is ReentrancyGuard {
 
     /// @notice Changes the amount that is slashed from guild members.
     /// @param  slash The new slash amount.
-    function changeGuildMemberSlash(uint256  slash)
+    function changeGuildMemberSlash(uint256 slash)
         external
         onlyGuildMaster
     {
@@ -321,13 +374,24 @@ contract  Guild is ReentrancyGuard {
         guildMemberSlash = slash;
     }
     /// @notice Changes the reward for invoking the SlashForCash function.
-    /// @param newReward The new reward for running slashForCash.
-    function changeSlashForCashReward(uint256 newReward)
+    /// @param newSlashReward The new reward for running slashForCash.
+    function changeSlashForCashReward(uint256 newSlashReward)
         external
         onlyGuildMaster
     {
-        emit GuildParameterChanged("slashForCashReward", slashForCashReward, newReward);
-        slashForCashReward = newReward;
+        if(slashForCashRewardTimer == 0){
+            slashForCashRewardTimer = uint48(block.timestamp);
+            pendingSlashForCashReward= newSlashReward;
+            emit GuildParameterTimerSet("slashForCashReward", newSlashReward);
+        }
+        else if(slashForCashRewardTimer + guildMasterDelay < uint48(block.timestamp)){
+            emit GuildParameterChanged("slashForCashReward", slashForCashReward, newSlashReward);
+            slashForCashReward = pendingSlashForCashReward;
+            slashForCashRewardTimer = 0;
+        }
+        else {
+            revert("Guild::changeGuildMemberSlash::delay_has_not_passed");
+        }
     }
 
     /// @notice Changes the voting period for the guild. The voting period is the maximum time that guild members
@@ -338,29 +402,67 @@ contract  Guild is ReentrancyGuard {
         onlyGuildMaster
         returns(bool)
     {
-        emit GuildParameterChanged("votingPeriod", guildBook.votingPeriod, newVotingPeriod);
-        guildBook.votingPeriod = newVotingPeriod;
-        return IGuildCouncil(guildCouncilAddress).setMiminumGuildVotingPeriod(newVotingPeriod,
-                                                                              guildCouncilAddressToGuildId[guildCouncilAddress]);
+        if(votingPeriodTimer == 0){
+            votingPeriodTimer = uint48(block.timestamp);
+            pendingVotingPeriod = newVotingPeriod;
+            emit GuildParameterTimerSet("votingPeriod", newVotingPeriod);
+        }
+        else if(votingPeriodTimer + guildMasterDelay < uint48(block.timestamp)){
+            emit GuildParameterChanged("votingPeriod", guildBook.votingPeriod, newVotingPeriod);
+            guildBook.votingPeriod = pendingVotingPeriod;
+            votingPeriodTimer = 0;
+        }else {
+            revert("Guild::changeVotingPeriod::delay_has_not_passed");
+        }
+
     }
 
     /*///////////////////////////////////////////////////////////////
                        GUILD ACCOUNTING
     //////////////////////////////////////////////////////////////*/
 
+   /// @notice The timestamp when the guild master initiated the withdraw of funds from the guid. guildMasterDelay
+   /// seconds must pass in order for the guild master to be able to withdraw.
+   uint256 withdrawTimer;
+   /// @notice The amount that will be withdrawn when the guild master calls withdraw again, after guildMasterDelay
+   /// seconds.
+   uint256 pendingAmount;
+   /// @notice The recipient of the funds that will be withdrawn when the guild master calls withdraw again, after
+   /// guildMasterDelay seconds.
+   address pendingReceiver;
+
+    /// @notice Returns the amount of ERC20 tokens the guild currently has.
+    /// @return budget The amount of ERC20 tokens.
     function getBudget()
         view
         public
-        returns(uint256)
+        returns(uint256 budget)
     {
        return tokens.balanceOf(address(this));
     }
 
+    /// @notice Withdraw ERC20 tokens from the guild. In order for the action to be executed, the function must be
+    /// called twice, with guildMasterDelay seconds elapsed time between the two invocations. The receiver and the
+    /// amount is set at the first invocation of the function. The second invocation can not change them even if they
+    /// are passed as arguments.
+    /// @param receiver The address that will receive the funds.
+    /// @param amount The amount that will be transfered.
     function withdraw(address receiver, uint256 amount)
         external
-        onlyConstitution
+        onlyGuildMaster
     {
-        tokens.transfer(receiver, amount);
+        if(withdrawTimer == 0){
+            withdrawTimer = block.timestamp;
+            pendingReceiver = receiver;
+            pendingAmount = amount;
+        }
+        else if(withdrawTimer + guildMasterDelay < block.timestamp){
+            withdrawTimer = 0;
+            tokens.transfer(pendingReceiver, pendingAmount);
+        }
+        else {
+            revert("Guild::withdraw::delay_has_not_passed");
+        }
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -463,22 +565,22 @@ contract  Guild is ReentrancyGuard {
     /// @notice boolean that signals if a guild master vote is active.
     bool private activeGuildMasterVote;
 
-    /// @notice The address of the guild master.
+    /// @notice the address of the guild master.
     address public guildMasterAddress;
 
-    /// @notice The address of the guild master elect.
+    /// @notice the address of the guild master elect.
     address public guildMasterElect;
 
-    /// @notice Start a new guild master vote.
-    /// @param member The guild member that is going to be voted as the next guild master.
-    function startGuildmasterVote(address member)
+    /// @notice start a new guild master vote.
+    /// @param member the guild member that is going to be voted as the next guild master.
+    function startGuildMasterVote(address member)
         external
         onlyGuildMember
         returns (bool)
     {
-        require(guildMasterVote.active == false, "Guild::startGuildMaster::active_vote");
+        require(guildMasterVote.active == false, "guild::startguildMaster::active_vote");
         guildMasterVote.sponsor = msg.sender;
-        guildMasterVote.startTimestamp = uint48(block.timestamp);
+        guildMasterVote.startTimestamp= uint48(block.timestamp);
         guildMasterVote.active = true;
         guildMasterVote.nay = 0;
         guildMasterVote.aye = 0;
@@ -596,7 +698,7 @@ contract  Guild is ReentrancyGuard {
     /// that the last voter will have extra gas costs in relation to the others, as it will pay for the extra action of
     /// concluding the vote.
     /// @param support It can either be 1 to vote "in favor" of the proposal or 0 to vote "against".
-    function castVoteForGuildMaster(uint8 support, address votedAddress)
+    function castVoteForGuildMaster(uint8 support)
         external
         onlyGuildMember
         returns(bool)
@@ -607,7 +709,6 @@ contract  Guild is ReentrancyGuard {
                 "Guild::castVoteForGuildMaster::account_already_voted");
         require(uint48(block.timestamp) - guildMasterVote.startTimestamp <= guildBook.votingPeriod,
                 "Guild::castVoteForGuildMaster::_voting_period_ended");
-        require(votedAddress == guildMasterVote.targetAddress, "Guild::casteVoteForGuildMaster::wrong_voted_address");
         if (support == 1){
             guildMasterVote.aye += 1;
         }
@@ -618,14 +719,15 @@ contract  Guild is ReentrancyGuard {
         guildMasterVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
         if(guildMasterVote.aye > (guildMembersAddressList.length * guildMasterQuorum / 100)){
             guildMasterVote.active = false;
-            guildMasterVoteResult(votedAddress, true);
+            guildMasterElect = guildMasterVote.targetAddress;
+            emit GuildMasterVoteResult(guildMasterVote.targetAddress, true);
             cont = false;
         }
         else if (guildMasterVote.nay > (guildMembersAddressList.length * guildMasterQuorum / 100)) {
             guildMasterVote.active = false;
-            guildMasterVoteResult(votedAddress, false);
             address sponsor = guildMasterVote.sponsor;
             _modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
+            emit GuildMasterVoteResult(guildMasterVote.targetAddress, false);
             cont = false;
         }
         else {
@@ -645,7 +747,7 @@ contract  Guild is ReentrancyGuard {
     /// that the last voter will have extra gas costs in relation to the others, as it will pay for the extra action of
     /// concluding the vote.
     /// @param support It can either be 1 to vote "in favor" of the proposal or 0 to vote "against".
-    function castVoteForBanishment(uint8 support, address memberToBanish)
+    function castVoteForBanishment(uint8 support)
         external
         onlyGuildMember
         returns (bool)
@@ -656,8 +758,6 @@ contract  Guild is ReentrancyGuard {
                 "Guild::vastVoteForBanishmnet::account_already_voted");
         require(uint48(block.timestamp) - banishmentVote.startTimestamp <= guildBook.votingPeriod,
                 "Guild::castVoteForBanishment::_voting_period_ended");
-        require(memberToBanish == banishmentVote.targetAddress,
-                "Guild::castVoteForBanishment::wrong_voted_address");
         if (support == 1){
             banishmentVote.aye++;
         }
@@ -668,7 +768,7 @@ contract  Guild is ReentrancyGuard {
         banishmentVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
         if(banishmentVote.aye > (guildMembersAddressList.length * banishmentQuorum / 100)){
             banishmentVote.active = false;
-            _banishGuildMember(memberToBanish);
+            _banishGuildMember(banishmentVote.targetAddress);
             cont = false;
 
         }
@@ -685,18 +785,8 @@ contract  Guild is ReentrancyGuard {
         return cont;
     }
 
-    function guildMasterVoteResult(address newGuildMasterElect, bool result)
-        private
-    {
-        if (result == true){
-            guildMasterElect = newGuildMasterElect;
-        }
-        emit GuildMasterVoteResult(newGuildMasterElect, result);
-    }
-
-
     /*///////////////////////////////////////////////////////////////
-                       GUILD MEMBER REWARDS
+                          GUILD MEMBER REWARDS
     //////////////////////////////////////////////////////////////*/
 
 
@@ -885,8 +975,8 @@ contract  Guild is ReentrancyGuard {
         returns (uint256)
     {
         uint256 gravitas = calculateGravitas(sender, silverAmount, msg.sender) + addressToGravitas[receiver];
-        uint256 memberGravitas = _modifyGravitas(receiver, gravitas);
-        return memberGravitas;
+        _modifyGravitas(receiver, gravitas);
+        return gravitas;
     }
     /// @notice Calculates the gravitas that will be created as a result of a commoner sending silver.
     /// @param commonerAddress The address of the commoner who sends the silver.
@@ -909,7 +999,6 @@ contract  Guild is ReentrancyGuard {
     {
         emit GravitasChanged(guildMember, addressToGravitas[guildMember], newGravitas);
         addressToGravitas[guildMember] = uint48(newGravitas);
-        return newGravitas;
     }
 
     /// @notice Get the amount of gravitas of a guild member.
@@ -941,11 +1030,6 @@ contract  Guild is ReentrancyGuard {
 
     modifier onlyGuildMember() {
         require(addressToGuildMember[msg.sender].joinTimestamp != 0, "Guild::onlyGuildMember::wrong_address");
-        _;
-    }
-
-    modifier onlyConstitution(){
-        require(msg.sender == constitution, "Guild::withdraw::wrong_address");
         _;
     }
 

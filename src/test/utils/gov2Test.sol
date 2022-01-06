@@ -48,7 +48,7 @@ contract MockConstitution is Constitution {
 contract MockGuildCouncil is GuildCouncil{
     Guild guild;
     MockERC20 mockDucat;
-    constructor(address mr, address ca, address ta) GuildCouncil(mr, ca, ta){}
+    constructor(address mr, address ca, address ta) GuildCouncil(mr, ca){}
 
     function mockCallGuildProposal(address guildAddress, uint48 proposalId) public {
         guild = Guild(guildAddress);
@@ -133,12 +133,12 @@ contract Commoner is DSTestPlus{
         return Guild(guilds[guild]).isGuildMember(address(this));
     }
 
-    function castVoteForGuildMaster(uint8 support, address gm, uint48 guild) public returns(bool){
-        return Guild(guilds[guild]).castVoteForGuildMaster(support, gm);
+    function castVoteForGuildMaster(uint8 support, uint48 guild) public returns(bool){
+        return Guild(guilds[guild]).castVoteForGuildMaster(support);
     }
 
-    function castVoteForBanishment(uint8 support, address target, uint guild) public returns(bool){
-        return Guild(guilds[guild]).castVoteForBanishment(support, target);
+    function castVoteForBanishment(uint8 support,uint guild) public returns(bool){
+        return Guild(guilds[guild]).castVoteForBanishment(support);
     }
     function guildCastVoteForProposal(uint8 support, uint48 proposalId, uint guild) public returns(bool){
         return Guild(guilds[guild]).castVoteForProposal(proposalId, support, address(gc));
@@ -147,7 +147,7 @@ contract Commoner is DSTestPlus{
         Guild(guilds[guild]).startBanishmentVote(target);
     }
     function startGuildmasterVote(address gm, uint guild) public {
-        Guild(guilds[guild]).startGuildmasterVote(gm);
+        Guild(guilds[guild]).startGuildMasterVote(gm);
     }
     function getVoteInfoGuildMaster(uint48 guild) public
         returns(uint48, uint48, uint48,
@@ -378,9 +378,9 @@ contract Gov2Test is DSTestPlus {
         blacksmithsGT = 50;
         judgesGT = 500;
 
-        locksmiths = new Guild("locksmiths", founding1, locksmithsGT, 14 days, 15, 7 days, address(mockDucat), address(constitution));
-        blacksmiths = new Guild("blacksmiths", founding2, blacksmithsGT, 7 days, 50, 4 days, address(mockDucat), address(constitution));
-        judges = new Guild("judges", founding3, judgesGT, 25 days, 5, 14 days, address(mockDucat), address(constitution));
+        locksmiths = new Guild("locksmiths", founding1, locksmithsGT, 14 days, 15, 7 days, address(mockDucat));
+        blacksmiths = new Guild("blacksmiths", founding2, blacksmithsGT, 7 days, 50, 4 days, address(mockDucat));
+        judges = new Guild("judges", founding3, judgesGT, 25 days, 5, 14 days, address(mockDucat));
 
         // Register the guilds with the GuildCouncil  of every merchant republic
         // The guild might have differrent guildId in different Guild Councils
@@ -499,8 +499,7 @@ contract Gov2Test is DSTestPlus {
             facelessTimeOutPeriod,
             facelessMaxGuildMembers,
             facelessVotingPeriod,
-            address(mockDucat),
-            address(constitution)
+            address(mockDucat)
         );
         uint48 id = constitution.mockEstablishGuild(address(facelessGuild), 2 days);
         facelessMen[0].setGuildCouncil(address(facelessGuild), address(guildCouncil), 10, id);

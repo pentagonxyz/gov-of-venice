@@ -1,23 +1,10 @@
-// SPDX-License-Identifier: Unlicense
+// SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.10;
 
 import {IMerchantRepublic} from "./IMerchantRepublic.sol";
 import {IGuild} from "./IGuild.sol";
 import {IConstitution} from "./IConstitution.sol";
-import "./ITokens.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-/*
-TODO:
-    - When a guild calls another guild to vote, guid council should check that the guild
-    has not been called again to vote.
-    - remove the tokens
-    - replce oz with solmate
-    - ability to remove guild
-    - remove securitycouncil and use guildIdToAddress
-    - guildVerdict, the first require is moot as you can check in the second [msg.sender][id]
-    - setMerchantrepublic, remove moot require check
-    - proposalIdToVoteCallTimestamp change uint256 to uint48
-*/
+import "solmate/utils/ReentrancyGuard.sol";
 
 contract GuildCouncil is ReentrancyGuard {
 
@@ -29,6 +16,11 @@ contract GuildCouncil is ReentrancyGuard {
     /// @param guildId The id of the guild.
     /// @param guildAddress The address of the guild.
     event GuildEstablished(uint48 guildId, address guildAddress);
+
+    /// @notice Emitted when a guild is removed from the guild council.
+    /// @param guildId The id of the guild.
+    /// @param guildAddress The address of the guild.
+    event GuildExterminated(uint48 guildId, address guildAddress);
 
     mapping(address => uint48) securityCouncil;
 
@@ -50,8 +42,6 @@ contract GuildCouncil is ReentrancyGuard {
     //@ notice The instance of the merchant republic.
     IMerchantRepublic merchantRepublic;
 
-    IERC20 tokens;
-
     /// @notice Maps a guild id to the mimum voting period that the guild has defined that it needs to vote on
     /// proposals.
     mapping(uint48 => uint48) guildToMinVotingPeriod;
@@ -60,13 +50,12 @@ contract GuildCouncil is ReentrancyGuard {
     /// on it.
     mapping(uint256 => uint256) public proposalMaxDecisionWaitLimit;
 
-    constructor(address merchantRepublicAddr, address constitutionAddr, address tokensAddress)
+    constructor(address merchantRepublicAddr, address constitutionAddr)
     {
         merchantRepublicAddress = merchantRepublicAddr;
         constitutionAddress = constitutionAddr;
         merchantRepublic = IMerchantRepublic(merchantRepublicAddress);
         constitution = IConstitution(constitutionAddress);
-        tokens = IERC20(tokensAddress);
     }
 
     /// @notice Called by the constitution, via the gov process, in order to register a new guild to the
@@ -92,6 +81,18 @@ contract GuildCouncil is ReentrancyGuard {
         return guildCounter-1;
     }
 
+    function guildExterminatus(address guildAddress, uint48 guildId)
+        external
+        onlyConstitution
+    {
+        require(guildIdToAddress[guildId] == guildAddress,
+                "GuildCouncil::guildExterminatus::wrong_guild_id_or_address");
+        delete guildIdToAddress[guildId];
+        delete guildToMinVotingPeriod[guildId];
+        delete securityCouncil[guildAddress];
+        emit GuildExterminated(guildId, guildAddress);
+    }
+
     /// @notice Registers the merchant republic with the guild council. This facilitates the deployment of a new
     /// merchant republic while keeping the same guild council.
     /// @param newMerchantRepublic The address of the new merchant republic.
@@ -99,8 +100,6 @@ contract GuildCouncil is ReentrancyGuard {
         external
         onlyConstitution
     {
-        require(oldMerchantRepublic == merchantRepublicAddress,
-                "GuildCouncil::SetMerchantRepublic::wrong_old_address");
         merchantRepublicAddress = newMerchantRepublic;
     }
 
@@ -142,7 +141,7 @@ contract GuildCouncil is ReentrancyGuard {
     mapping(uint48 => mapping(uint48 => bool)) public guildIdToActiveProposalId;
 
     /// @notice  Maps the time at which a proposal id was put to vote
-    mapping(uint256 => uint256) public proposalIdToVoteCallTimestamp;
+    mapping(uint48 => uint256) public proposalIdToVoteCallTimestamp;
 
     /// @notice Counts how many guilds are currently voting on a proposal. This is used to evaluate when all the
     /// guilds have returned a decision about a proposal.
@@ -153,8 +152,8 @@ contract GuildCouncil is ReentrancyGuard {
     /// time bound set by the guilds. This is required so that guilds are not forced to rush a decision.
     /// @param guildsId Array of all the IDs of the guilds to be called to vote.
     /// @param proposalId The id of the proposal.
-    /// @param maxDecisionTime The upper time limit that the guilds have to vote on the proposal, in seconds.
-    function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId, uint48 maxDecisionTime)
+    /// @param DecisionWaitLimit The upper time limit that the guilds have to vote on the proposal, in seconds.
+    function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId, uint48 DecisionWaitLimit)
        external
        onlyMerchantRepublic
        returns(bool)
@@ -163,12 +162,10 @@ contract GuildCouncil is ReentrancyGuard {
         proposalIdToVoteCallTimestamp[proposalId] = block.timestamp;
         for(uint48 i; i< guildsId.length; i++){
             address guildAddress = guildIdToAddress[guildsId[i]];
-            if (guildAddress == address(0)){
-                revert("GuildCouncil::_callGuildsToVote::guild_address_is_zero");
-            }
-            else if(maxDecisionTime <= guildToMinVotingPeriod[guildsId[i]]){
-                revert("GuildCouncil::_callGuildsToVote::maxDecisionTime too low");
-            }
+            require(DecisionWaitLimit >= guildToMinVotingPeriod[guildsId[i]],
+                    "GuildCouncil::_callGuildsToVote::maxDecisionTime_too_low");
+            require(!guildIdToActiveProposalId[guildsId[i]][proposalId],
+                    "GuildCouncil::_callGuildsToVote::guild_has_already_voted");
             IGuild guild = IGuild(guildAddress);
             if (guild.inquireAddressList().length != 0) {
                 guildIdToActiveProposalId[guildsId[i]][proposalId] = true;
@@ -196,12 +193,10 @@ contract GuildCouncil is ReentrancyGuard {
         bool success = false;
         for(uint48 i; i< guildsId.length; i++){
             address guildAddress = guildIdToAddress[guildsId[i]];
-            if (guildAddress == address(0)){
-                revert("GuildCouncil::_callGuildsToVote::guild_address_is_zero");
-            }
-            else if(proposalMaxDecisionWaitLimit[proposalId] < guildToMinVotingPeriod[guildsId[i]]){
-                revert("GuildCouncil::_callGuildsToVote::maxDecisionTime too low");
-            }
+            require(!guildIdToActiveProposalId[guildsId[i]][proposalId],
+                    "GuildCouncil::_callGuildsToVote::guild_has_already_voted");
+            require(proposalMaxDecisionWaitLimit[proposalId] >= guildToMinVotingPeriod[guildsId[i]],
+                    "GuildCouncil::_callGuildsToVote::maxDecisionTime too low");
             IGuild guild = IGuild(guildAddress);
             if (guild.inquireAddressList().length != 0) {
                 guildIdToActiveProposalId[guildsId[i]][proposalId] = true;
@@ -226,7 +221,6 @@ contract GuildCouncil is ReentrancyGuard {
         public
         returns(bool)
     {
-        require(msg.sender == guildIdToAddress[guildId], "guildCouncil::guildVerdict::incorrect_address");
         require(guildIdToActiveProposalId[guildId][proposalId],
                 "guildCouncil::guildVerdict::incorrect_active_guild_vote");
         emit GuildDecision(msg.sender,  proposalId, guildAgreement);

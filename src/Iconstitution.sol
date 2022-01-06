@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: Unlicense
+// SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.10;
-
 interface IConstitution {
     function delay() external view returns (uint);
     function GRACE_PERIOD() external view returns (uint);

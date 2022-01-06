@@ -93,11 +93,7 @@ contract MRTest is Gov2Test {
         );
         // Guild Vote
         ursus.guildCastVoteForProposal(support, id, guildId);
-        (uint256 startTimestamp, uint256 endTimestamp) = merchantRepublic
-            .getTimes(id);
         emit log_named_uint("Guild Verdict returned: ", block.timestamp);
-        emit log_named_uint("Vote startTimestamp: ", startTimestamp);
-        emit log_named_uint("Vote endTimestamp: ", endTimestamp);
         // Voting is passed and the guild informs the guild council
         // which in turn returns the guilds verdict to the merchant republic
         // as only a single guild is voting.
