@@ -211,7 +211,7 @@ contract  Guild is ReentrancyGuard {
     }
 
     /*///////////////////////////////////////////////////////////////
-                        GUILD MANAGEMENT
+                        GUILD MASTER MANAGEMENT
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Emitted when a new Guild Council (and thus a new Merchant Republic) is added
@@ -237,6 +237,18 @@ contract  Guild is ReentrancyGuard {
     /// doesn't serve the guild. The guild members are slashed for very specific reasons that are known
     /// a priori.
     uint256 public guildMemberSlash;
+
+    uint48 public pendingSlashforCashReward;
+    uint48 public pendingGuildMasterRewardMultiplier;
+    uint48 public pendingMemberRewardPerSecond;
+    uint48 public pendingVotingPeriod;
+
+    uint48 private slashForCashRewardTimer;
+    uint48 private guildMasterRewardMultiplierTimer;
+    uint48 private memberRewardPerSecondTimer;
+    uint48 private votingPeriodTimer;
+
+    uint256 private guildMasterDelay = 7 days;
 
     /// @notice Registers a new guildCouncil to the guild. It needs to be executed after the guild has been registered
     /// in the guild council, as the guild Id is generated during that process.
@@ -283,8 +295,15 @@ contract  Guild is ReentrancyGuard {
         external
         onlyGuildMaster
     {
-        emit GuildParameterChanged("memberRewardPerSecond", memberRewardPerSecond, newMemberRewardPerSecond);
-        memberRewardPerSecond = newMemberRewardPerSecond;
+        if(memberRewardPerSecondTimer < block.timestamp){
+            memberRewardPerSecondTimer = block.timestap;
+            pendingMemberRewardPerSecond = newMemberRewardPerSecond;
+            emit GuildParameterTimerSet("memberRewardPerSecond", newMemberRewardPerSecond);
+        }
+        else if(memberRewardPerSecondTimer + guildMasterDelay > block.timestamp){
+            emit GuildParameterChanged("memberRewardPerSecond", memberRewardPerSecond, newMemberRewardPerSecond);
+            memberRewardPerSecond = pendingMemberRewardPerSecond;
+        }
     }
 
     /// @notice Changes the Guild Master reward multiplier. The Guild Master receives a multiple of the
@@ -294,9 +313,16 @@ contract  Guild is ReentrancyGuard {
         external
         onlyGuildMaster
     {
-        emit GuildParameterChanged("guildMasterRewardMultiplier",
-                                   guildMasterRewardMultiplier, newGuildMasterRewardMultiplier);
-        guildMasterRewardMultiplier = newGuildMasterRewardMultiplier;
+        if(guildMasterRewardMultiplierTimer < block.timestamp){
+            guildMasterRewardMultiplierTimer = block.timestap;
+            pendingGuildMasterRewardMultiplier = newGuildMasterRewardMultiplier;
+            emit GuildParameterTimeSet("guildMasterRewardMultiplier", newGuildMasterRewardMultiplier);
+        }
+        else if(guildMasterRewardMultiplierTimer + guildMasterDelay > block.timestamp){
+            emit GuildParameterChanged("guildMasterRewardMultiplier",
+                                       guildMasterRewardMultiplier, newGuildMasterRewardMultiplier);
+            guildMasterRewardmultiplier = pendingGuildMasterRewardMultiplier;
+        }
     }
 
     /// @notice Changes the maximum number of guild members that the guild will accept. If the
@@ -308,12 +334,12 @@ contract  Guild is ReentrancyGuard {
        onlyGuildMaster
     {
         emit GuildParameterChanged("maxGuildMembers", maxGuildMembers, newMaxGuildMembers);
-        maxGuildMembers = newMaxGuildMembers;
+        maxGuildMembers = newmaxguildMembers;
     }
 
     /// @notice Changes the amount that is slashed from guild members.
     /// @param  slash The new slash amount.
-    function changeGuildMemberSlash(uint256  slash)
+    function changeGuildMemberslash(uint256  slash)
         external
         onlyGuildMaster
     {
@@ -322,12 +348,19 @@ contract  Guild is ReentrancyGuard {
     }
     /// @notice Changes the reward for invoking the SlashForCash function.
     /// @param newReward The new reward for running slashForCash.
-    function changeSlashForCashReward(uint256 newReward)
+    function changeSlashForCashreward(uint256 newSlashReward)
         external
         onlyGuildMaster
     {
-        emit GuildParameterChanged("slashForCashReward", slashForCashReward, newReward);
-        slashForCashReward = newReward;
+        if(slashForCashRewardTimer < block.timestamp){
+            slashForCashRewardTimer = block.timestap;
+            pendingSlashReward= newSlashReward;
+            emit GuildParameterTimeSet("slashForCashReward", newSlashReward);
+        }
+        else if(slashForCashRewardTimer + guildMasterDelay > block.timestamp){
+            emit GuildParameterChanged("slashForCashReward", slashForCashReward, newReward);
+            slashForCashReward = pendingSlashReward;
+        }
     }
 
     /// @notice Changes the voting period for the guild. The voting period is the maximum time that guild members
@@ -338,10 +371,15 @@ contract  Guild is ReentrancyGuard {
         onlyGuildMaster
         returns(bool)
     {
-        emit GuildParameterChanged("votingPeriod", guildBook.votingPeriod, newVotingPeriod);
-        guildBook.votingPeriod = newVotingPeriod;
-        return IGuildCouncil(guildCouncilAddress).setMiminumGuildVotingPeriod(newVotingPeriod,
-                                                                              guildCouncilAddressToGuildId[guildCouncilAddress]);
+        if(votingPeriodTimer < block.timestamp){
+            votingPeriodTimer = block.timestap;
+            pendingVotingPeriod = newVotingPeriod;
+            emit GuildParameterTimeSet("votingPeriod", newVotingPeriod);
+        }
+        else if(votingPeriodTimer + guildMasterDelay > block.timestamp){
+            emit GuildParameterChanged("votingPeriod", guildBook.votingPeriod, newVotingPeriod);
+            guildBook.votingPeriod = pendingVotingPeriod;
+        }
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -696,7 +734,7 @@ contract  Guild is ReentrancyGuard {
 
 
     /*///////////////////////////////////////////////////////////////
-                       GUILD MEMBER REWARDS
+                          GUILD MEMBER REWARDS
     //////////////////////////////////////////////////////////////*/
 
 
