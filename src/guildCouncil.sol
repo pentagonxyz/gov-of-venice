@@ -4,16 +4,7 @@ pragma solidity ^0.8.10;
 import {IMerchantRepublic} from "./IMerchantRepublic.sol";
 import {IGuild} from "./IGuild.sol";
 import {IConstitution} from "./IConstitution.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-/*
-TODO:
-    - replce oz with solmate
-    - ability to remove guild
-    - remove securitycouncil and use guildIdToAddress
-    - guildVerdict, the first require is moot as you can check in the second [msg.sender][id]
-    - setMerchantrepublic, remove moot require check
-    - proposalIdToVoteCallTimestamp change uint256 to uint48
-*/
+import "solmate/utils/ReentrancyGuard.sol";
 
 contract GuildCouncil is ReentrancyGuard {
 
@@ -25,6 +16,11 @@ contract GuildCouncil is ReentrancyGuard {
     /// @param guildId The id of the guild.
     /// @param guildAddress The address of the guild.
     event GuildEstablished(uint48 guildId, address guildAddress);
+
+    /// @notice Emitted when a guild is removed from the guild council.
+    /// @param guildId The id of the guild.
+    /// @param guildAddress The address of the guild.
+    event GuildExterminated(uint48 guildId, address guildAddress);
 
     mapping(address => uint48) securityCouncil;
 
@@ -85,6 +81,18 @@ contract GuildCouncil is ReentrancyGuard {
         return guildCounter-1;
     }
 
+    function guildExterminatus(address guildAddress, uint48 guildId)
+        external
+        onlyConstitution
+    {
+        require(guildIdToAddress[guildId] == guildAddress,
+                "GuildCouncil::guildExterminatus::wrong_guild_id_or_address");
+        delete guildIdToAddress[guildId];
+        delete guildToMinVotingPeriod[guildId];
+        delete securityCouncil[guildAddress];
+        emit GuildExterminated(guildId, guildAddress);
+    }
+
     /// @notice Registers the merchant republic with the guild council. This facilitates the deployment of a new
     /// merchant republic while keeping the same guild council.
     /// @param newMerchantRepublic The address of the new merchant republic.
@@ -92,8 +100,6 @@ contract GuildCouncil is ReentrancyGuard {
         external
         onlyConstitution
     {
-        require(oldMerchantRepublic == merchantRepublicAddress,
-                "GuildCouncil::SetMerchantRepublic::wrong_old_address");
         merchantRepublicAddress = newMerchantRepublic;
     }
 
@@ -135,7 +141,7 @@ contract GuildCouncil is ReentrancyGuard {
     mapping(uint48 => mapping(uint48 => bool)) public guildIdToActiveProposalId;
 
     /// @notice  Maps the time at which a proposal id was put to vote
-    mapping(uint256 => uint256) public proposalIdToVoteCallTimestamp;
+    mapping(uint48 => uint256) public proposalIdToVoteCallTimestamp;
 
     /// @notice Counts how many guilds are currently voting on a proposal. This is used to evaluate when all the
     /// guilds have returned a decision about a proposal.
@@ -215,7 +221,6 @@ contract GuildCouncil is ReentrancyGuard {
         public
         returns(bool)
     {
-        require(msg.sender == guildIdToAddress[guildId], "guildCouncil::guildVerdict::incorrect_address");
         require(guildIdToActiveProposalId[guildId][proposalId],
                 "guildCouncil::guildVerdict::incorrect_active_guild_vote");
         emit GuildDecision(msg.sender,  proposalId, guildAgreement);

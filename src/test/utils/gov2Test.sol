@@ -48,7 +48,7 @@ contract MockConstitution is Constitution {
 contract MockGuildCouncil is GuildCouncil{
     Guild guild;
     MockERC20 mockDucat;
-    constructor(address mr, address ca, address ta) GuildCouncil(mr, ca, ta){}
+    constructor(address mr, address ca, address ta) GuildCouncil(mr, ca){}
 
     function mockCallGuildProposal(address guildAddress, uint48 proposalId) public {
         guild = Guild(guildAddress);
