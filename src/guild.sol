@@ -10,10 +10,6 @@ import {IERC20} from "./ITokens.sol";
 /*
 TODO:
     - setVotingPeriod: It should go through all guild councils to let thme know of the change.
-    - Remove the Guild Master address argument from votng. Since it can only vote for 1, it's not needed.
-    - The same for banishment
-    - Remove guildMasterVoteResult()
-    - remove the return value from modifygravitas()
 */
 
 /// @title Merchant Republic Guild
@@ -723,14 +719,15 @@ contract  Guild is ReentrancyGuard {
         guildMasterVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
         if(guildMasterVote.aye > (guildMembersAddressList.length * guildMasterQuorum / 100)){
             guildMasterVote.active = false;
-            guildMasterVoteResult(guildMasterVote.targetAddress, true);
+            guildMasterElect = guildMasterVote.targetAddress;
+            emit GuildMasterVoteResult(guildMasterVote.targetAddress, true);
             cont = false;
         }
         else if (guildMasterVote.nay > (guildMembersAddressList.length * guildMasterQuorum / 100)) {
             guildMasterVote.active = false;
-            guildMasterVoteResult(guildMasterVote.targetAddress, false);
             address sponsor = guildMasterVote.sponsor;
             _modifyGravitas(sponsor, addressToGravitas[sponsor] - guildMemberSlash);
+            emit GuildMasterVoteResult(guildMasterVote.targetAddress, false);
             cont = false;
         }
         else {
@@ -787,16 +784,6 @@ contract  Guild is ReentrancyGuard {
         emit BanishMemberVote(msg.sender, guildMasterAddress);
         return cont;
     }
-
-    function guildMasterVoteResult(address newGuildMasterElect, bool result)
-        private
-    {
-        if (result == true){
-            guildMasterElect = newGuildMasterElect;
-        }
-        emit GuildMasterVoteResult(newGuildMasterElect, result);
-    }
-
 
     /*///////////////////////////////////////////////////////////////
                           GUILD MEMBER REWARDS
@@ -988,8 +975,8 @@ contract  Guild is ReentrancyGuard {
         returns (uint256)
     {
         uint256 gravitas = calculateGravitas(sender, silverAmount, msg.sender) + addressToGravitas[receiver];
-        uint256 memberGravitas = _modifyGravitas(receiver, gravitas);
-        return memberGravitas;
+        _modifyGravitas(receiver, gravitas);
+        return gravitas;
     }
     /// @notice Calculates the gravitas that will be created as a result of a commoner sending silver.
     /// @param commonerAddress The address of the commoner who sends the silver.
@@ -1012,7 +999,6 @@ contract  Guild is ReentrancyGuard {
     {
         emit GravitasChanged(guildMember, addressToGravitas[guildMember], newGravitas);
         addressToGravitas[guildMember] = uint48(newGravitas);
-        return newGravitas;
     }
 
     /// @notice Get the amount of gravitas of a guild member.
