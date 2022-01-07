@@ -96,7 +96,7 @@ contract GuildCouncil is ReentrancyGuard {
     /// @notice Registers the merchant republic with the guild council. This facilitates the deployment of a new
     /// merchant republic while keeping the same guild council.
     /// @param newMerchantRepublic The address of the new merchant republic.
-    function setMerchantRepublic(address oldMerchantRepublic, address newMerchantRepublic)
+    function setMerchantRepublic(address newMerchantRepublic)
         external
         onlyConstitution
     {
@@ -116,7 +116,7 @@ contract GuildCouncil is ReentrancyGuard {
         returns(bool)
     {
         require(guildIdToAddress[guildId] == msg.sender, "GuildCouncil::setMinDecisionTime::wrong_address");
-        guildToMinVotingPeriod[guildId];
+        guildToMinVotingPeriod[guildId] = minDecisionTime;
         return true;
     }
 
@@ -254,6 +254,7 @@ contract GuildCouncil is ReentrancyGuard {
     /// @notice Used by guilds to request their Id. If the return value = 0, then the guild has not been registered yet.
     function requestGuildId()
         external
+        view
         onlyGuild
         returns(uint48)
     {
