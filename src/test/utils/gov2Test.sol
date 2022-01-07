@@ -40,7 +40,7 @@ contract MockConstitution is Constitution {
     }
 
     function guildCouncilSetMerchantRepublic(address old, address newAddr) public {
-        guildCouncil.setMerchantRepublic(old, newAddr);
+        guildCouncil.setMerchantRepublic(newAddr);
     }
 
 }
