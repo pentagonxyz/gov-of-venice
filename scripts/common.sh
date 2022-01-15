@@ -2,7 +2,7 @@
 
 set -eo pipefail
 
-if [[ ${DEBUG} ]]; then
+if [[ ${DEBUG} = "true" ]]; then
 	set -x
 fi
 
@@ -58,7 +58,6 @@ EOF
 deploy() {
 	NAME=$1
 	ARGS=${@:2}
-
 	# find file path
 	CONTRACT_PATH=$(find . -name $NAME.sol)
 	CONTRACT_PATH=${CONTRACT_PATH:2}
@@ -77,7 +76,7 @@ deploy() {
 	GAS=$(seth estimate --create "$BYTECODE" "$SIG" $ARGS --rpc-url "$ETH_RPC_URL")
 
 	# deploy
-	ADDRESS=$(dapp create "$NAME" $ARGS -- --gas "$GAS" --rpc-url "$ETH_RPC_URL")
+	ADDRESS=$(dapp create "$CONTRACT_PATH:$NAME" $ARGS -- --gas "$GAS" --rpc-url "$ETH_RPC_URL")
 
 	# save the addrs to the json
 	# TODO: It'd be nice if we could evolve this into a minimal versioning system
@@ -99,7 +98,7 @@ saveContract() {
 }
 
 estimate_gas() {
-	NAME=$1
+    NAME=$1
 	ARGS=${@:2}
 	# select the filename and the contract in it
 	PATTERN=".contracts[\"src/$NAME.sol\"].$NAME"
@@ -157,3 +156,4 @@ contract_size() {
 	length=$(echo "$BYTECODE" | wc -m)
 	echo $(($length / 2))
 }
+
