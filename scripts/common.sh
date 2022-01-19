@@ -77,7 +77,10 @@ deploy() {
 
 	# deploy
 	ADDRESS=$(dapp create "$CONTRACT_PATH:$NAME" $ARGS -- --gas "$GAS" --rpc-url "$ETH_RPC_URL")
-
+    if [ $? = "1" ]; then
+        echo "Failed to deploy contract: $NAME"
+        exit 1
+    fi
 	# save the addrs to the json
 	# TODO: It'd be nice if we could evolve this into a minimal versioning system
 	# e.g. via commit / chainid etc.

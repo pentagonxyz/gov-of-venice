@@ -22,7 +22,7 @@ if [[ $1 = "testnet" ]]; then
   export TEST="testnet"
   export ETH_RPC_URL="127.0.0.1:8545"
   export ETH_FROM=$(seth ls --keystore testnet/8545/keystore | cut -f1)
-  KEYSTORE="--keystore ./testnet/8545/keystore/"
+  export KEYSTORE="--keystore ./testnet/8545/keystore/"
 fi
 
 
@@ -55,6 +55,7 @@ if [ "$TEST" = "true" ]; then
   FOUNDING_TEAM=[$ETH_FROM];
   # The first argumetn is the name of the guild. 'mockGuild' in bytes32 is 0x6d...
   MOCKGUILD=$(deploy Guild "0x6d6f636b4775696c640000000000000000000000000000000000000000000000" "$FOUNDING_TEAM" 500 $(($DAY * 14)) 15 $(($DAY * 7)) "$DUCATS")
+  log "MockGuild deployed at $MOCKGUILD"
 fi
 
 # message Deployment Gas cost
@@ -88,6 +89,7 @@ echo
 echo  "Merchant Republic Contract:        $MERCHANT_REPUBLIC"
 echo  "Constitution:                      $CONSTITUTION"
 echo  "Guild Council Contract:            $GUILD_COUNCIL"
+[ ! -z "MOCKGUILD" ] && echo "MockGuild:                         $MOCKGUILD"
 echo
 
 if [ -z "$TEST" ]; then
@@ -96,23 +98,23 @@ else
 
   message Configuring deployment for testing...
 
-  seth send $KEYSTORE $CONSTITUTION "signTheConstitution(address, uint256)()" $MERCHANT_REPUBLIC 2
+  seth send $KEYSTORE $CONSTITUTION "signTheConstitution(address, uint256)()" $MERCHANT_REPUBLIC 172800
 
   # Initialize the merchant republic with the addresses of the other governance contracts and default values
   # votingPeriod = 7 days, votingDelay = 2 days, proposalThreshold = 10.
 
   seth send $KEYSTORE $MERCHANT_REPUBLIC 'initialize(address, address, address, uint48, uint256, uint256, uint256)()' \
-  $CONSTITUTION $DUCAT $GUILD_COUNCIL $(($DAY * 3)) $(($DAY * 7))$(($DAY * 2)) 10
+  $CONSTITUTION $DUCATS $GUILD_COUNCIL $(($DAY * 3)) $(($DAY * 7)) $(($DAY * 2)) 10
 
   seth send $KEYSTORE $MERCHANT_REPUBLIC '_initiate(address)()' 0
 
   message Check Test Configuration
-  echo "MR_doge"                                 : $(seth call $KEYSTORE $MERCHANT_REPUBLIC 'doge()(address)')"
-  echo "MR_proposal_count"                       : $(seth call $KEYSTORE $MERCHANT_REPUBLIC 'getProposalCount()()')"
-  echo "MR_voting_period"                        : $(seth call $KEYSTORE $MERCHANT_REPUBLIC 'votingPeriod()(uint256)')"
-  echo "MR_voting_delay"                         : $(seth call $KEYSTORE $MERCHANT_REPUBLIC 'proposalThreshold()(uint256)')"
-  echo "MR_max_default_guild_decision_time"      : $(seth call $KEYSTORE $MERCHANT_REPUBLIC 'defaultGuildsMaxWait()(uint48)')"
-  echo "MR_proposal_threshold"                   : $(seth call $KEYSTORE $MERCHANT_REPUBLIC 'getProposalCount()()')"
+  echo "MR_doge                                 : $(seth call $KEYSTORE $MERCHANT_REPUBLIC 'doge()(address)')"
+  echo "MR_proposal_count                       : $(seth call $KEYSTORE $MERCHANT_REPUBLIC 'getProposalCount()(uint256)')"
+  echo "MR_voting_period                        : $(seth call $KEYSTORE $MERCHANT_REPUBLIC 'votingPeriod()(uint256)')"
+  echo "MR_voting_delay                         : $(seth call $KEYSTORE $MERCHANT_REPUBLIC 'votingDelay()(uint256)')"
+  echo "MR_max_default_guild_decision_time      : $(seth call $KEYSTORE $MERCHANT_REPUBLIC 'defaultGuildsMaxWait()(uint48)')"
+  echo "MR_proposal_threshold                   : $(seth call $KEYSTORE $MERCHANT_REPUBLIC 'proposalThreshold()(uint256)')"
 
   message Next steps...
 
@@ -131,10 +133,10 @@ then
 fi
 message Verify Contracts on Etherscan
 if [ -n "$ETHERSCAN_API_KEY" ]; then
-  dapp verify-contract --async 'src/MerchantRepublic.sol:MerchantRepublic' $ETH_FROM
-  dapp verify-contract --async 'src/GuildCouncil.sol:GuildCouncil' $MERCHANT_REPUBLIC $CONSTITUTION)
-  dapp verify-contract --async 'src/Constitution.sol:Constitution' $MERCHANT_REPUBLIC 2
-  [ -z "TEST" ] && dapp verify-contract --async 'src/Guild.sol:Guild' mockGuild $FOUNDING_TEAM" 500 $(($DAY * 14)) 15 $(($DAY * 7)) $DUCATS
+  dapp verify-contract --async 'src/MerchantRepublic.sol:MerchantRepublic' $MERCHANT_REPUBLIC $ETH_FROM
+  dapp verify-contract --async 'src/GuildCouncil.sol:GuildCouncil' $GUILD_COUNCIL $MERCHANT_REPUBLIC $CONSTITUTION
+  dapp verify-contract --async 'src/Constitution.sol:Constitution' $CONSTITUTION $MERCHANT_REPUBLIC 2
+  [ -z "MOCKGUILD" ] && dapp verify-contract --async 'src/Guild.sol:Guild' $MOCKGUILD "mockGuild" $FOUNDING_TEAM" 500 $(($DAY * 14)) 15 $(($DAY * 7)) $DUCATS
 
 else
   echo "No ETHERSCAN_API_KEY for contract verification provided"
