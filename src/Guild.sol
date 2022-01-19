@@ -7,10 +7,6 @@ import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
 import {IGuildCouncil} from "./IGuildCouncil.sol";
 import {IERC20} from "./ITokens.sol";
 
-/*
-TODO:
-    - setVotingPeriod: It should go through all guild councils to let thme know of the change.
-*/
 
 /// @title Merchant Republic Guild
 /// @author Odysseas Lamtzidis (odyslam.eth)
@@ -223,7 +219,7 @@ contract  Guild is ReentrancyGuard {
 
     /// @notice The guild has a distinct guild Id for every different guild council. This guild id
     /// is given by the guild council to distinct different guilds.
-    mapping(address => uint48) private guildCouncilAddressToGuildId;
+    mapping(address => uint48) public guildCouncilAddressToGuildId;
 
     /// @notice The reward that members will receive for calling the slashForCash function. They are
     /// rewarded because they offer a service to the Guild. Read more in the function.
@@ -414,6 +410,15 @@ contract  Guild is ReentrancyGuard {
             revert("Guild::changeVotingPeriod::delay_has_not_passed");
         }
 
+    }
+
+    function changeMinVotingPeriod(address[] calldata guildCouncils, uint48[] calldata guildIds, uint48 minVotingPeriod)
+        external
+        onlyGuildMaster
+    {
+        for(uint i;i<guildCouncils.length;i++){
+            IGuildCouncil(guildCouncils[i]).setMiminumGuildVotingPeriod(minVotingPeriod, guildIds[i]);
+        }
     }
 
     /*///////////////////////////////////////////////////////////////

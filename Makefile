@@ -22,14 +22,22 @@ lint   :; yarn run lint
 
 # Deployment helpers
 deploy :; @./scripts/deploy.sh
+deploy-guild :; @./scripts/deploy-guild.sh
 
 # mainnet
 deploy-mainnet: export ETH_RPC_URL = $(call network,mainnet)
 deploy-mainnet: check-api-key deploy
 
+
+deploy-guild-mainnet: export ETH_RPC_URL = $(call network, mainnet)
+deploy-guild-mainnet: check-api-key deploy-guild
+
 # rinkeby
 deploy-rinkeby: export ETH_RPC_URL = $(call network,rinkeby)
 deploy-rinkeby: check-api-key deploy
+
+deploy-guild-rinkeby: export ETH_RPC_URL = $(call network, mainnet)
+deploy-guild-rinkeby: check-api-key deploy-guild
 
 check-api-key:
 ifndef ALCHEMY_API_KEY
@@ -40,5 +48,5 @@ endif
 # Requires the ALCHEMY_API_KEY env var to be set.
 # The first argument determines the network (mainnet / rinkeby / ropsten / kovan / goerli)
 define network
-	https://eth-$1.alchemyapi.io/v2/${ALCHEMY_API_KEY}
+https://eth-$1.alchemyapi.io/v2/${ALCHEMY_API_KEY}
 endef
