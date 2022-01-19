@@ -6,3 +6,5 @@ yarn-error.log
 out/
 .env
 
+# Forge
+cache/
