@@ -103,7 +103,7 @@ establishGuild(address, uint48)(uint48)' $GUILD_ADDRESS $MIN_DECISION_TIME
 where:
 - `$GUILD_ADDRESS`: The address of the Guild.
 - `$MIN_DECISION_TIME`: The minimum decision time that the Guild sets as requirement for it to join the governance process. It signals the flexibility of the Guild in terms of reaction time.
-- The function returns the `$GUILD_ID` of the GUILD for that particular GUILD_COUNCIL. It's unique for the GUILD_COUNCIL, but the GUILD can have the same ID on many different GUILD_COUNCILS. The ID is also emitted as an event `GuildEstablished`.
+- The function returns the `$GUILD_ID` of the Guild for that particular Guild Council. It's unique for the Guild Council, but the GUILD can have the same ID on many different Guild Council. The ID is also emitted as an event `GuildEstablished`.
 
 The command for the Guild Master to ratify the registration:
 
