@@ -26,6 +26,7 @@ if [[ $1 = "testnet" ]]; then
 fi
 
 
+
 message Deployment Config
 log "Ethereum Chain:           $NC $(seth chain)"
 log "ETH_FROM:                 $NC $ETH_FROM"
@@ -100,8 +101,8 @@ else
 
   seth send $KEYSTORE $CONSTITUTION "signTheConstitution(address, uint256)()" $MERCHANT_REPUBLIC 172800
 
-  # Initialize the merchant republic with the addresses of the other governance contracts and default values
-  # votingPeriod = 7 days, votingDelay = 2 days, proposalThreshold = 10.
+  # Initialize the merchant republic with the addresses of the other governance contracts and default values:
+  # maxDefaultGuildDecisionTime = 3 days, votingPeriod = 7 days, votingDelay = 2 days, proposalThreshold = 10.
 
   seth send $KEYSTORE $MERCHANT_REPUBLIC 'initialize(address, address, address, uint48, uint256, uint256, uint256)()' \
   $CONSTITUTION $DUCATS $GUILD_COUNCIL $(($DAY * 3)) $(($DAY * 7)) $(($DAY * 2)) 10
@@ -116,14 +117,6 @@ else
   echo "MR_max_default_guild_decision_time      : $(seth call $KEYSTORE $MERCHANT_REPUBLIC 'defaultGuildsMaxWait()(uint48)')"
   echo "MR_proposal_threshold                   : $(seth call $KEYSTORE $MERCHANT_REPUBLIC 'proposalThreshold()(uint256)')"
 
-  message Next steps...
-
-  echo "mockGuild has been deployed at ${MOCKGUILD}"
-  echo "In order for the guild to be admitted, the merchant republic execute a proposal to establish the guild."
-  echo "Using seth, we would run: seth send $KEYSTORE $GUILD_COUNCIL 'establishGuild(address, uint48)(uint48)' $MOCKGUILD '$MIN_DECISION_TIME'."
-  echo "seth would return the GUILD_ID of the Guild at ${MOCKGUILD}. This GUILD_ID is unique to the Guild Council at ${GUILD_COUNCIL}."
-  echo "After that, the Guild Master of the guild will need to registers the Guild Council ({$GUILD_COUNCIL}) to the guild."
-  echo "Using seth, they would run: 'seth send $KEYSTORE $MOCKGUILD 'setGuildCouncil(address, uint256, uint48)()' $GUILD_ADDRESS $SILVER_RATIO '$GUILD_ID'."
 fi
 
 read -p "Do you want to verify the smaart contracts on Etherscan? [y/n] " -n 1 -r
