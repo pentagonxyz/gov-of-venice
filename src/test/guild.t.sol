@@ -324,8 +324,11 @@ contract GuildMembersTest is Gov2Test {
         try com.changeGuildMasterMultiplier(3, 100) {
             fail();
         } catch Error(string memory error) {
-            assertEq(error, "Guild::changeGuildMasterMultiplier::delay_has_not_passed");
-    }
+            assertEq(
+                error,
+                "Guild::changeGuildMasterMultiplier::delay_has_not_passed"
+            );
+        }
     }
 
     function testGuildMemberCannotChangeParameter() public {
@@ -527,7 +530,6 @@ contract GuildMembersTest is Gov2Test {
         hevm.warp(voteEndDay);
         emit log_named_uint("Proposal Queued: ", block.timestamp);
         assertEq(
-
             uint256(merchantRepublic.state(id)),
             uint256(MerchantRepublic.ProposalState.Succeeded)
         );

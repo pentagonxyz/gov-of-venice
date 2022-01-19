@@ -393,10 +393,9 @@ contract  Guild is ReentrancyGuard {
     /// @notice Changes the voting period for the guild. The voting period is the maximum time that guild members
     /// have to vote. This applies to all votes in the guild (Guild Master, Banishment, Proposal).
     /// @param newVotingPeriod The new voting period.
-    function changeVotingPeriod(uint48 newVotingPeriod, address guildCouncilAddress)
+    function changeVotingPeriod(uint48 newVotingPeriod)
         external
         onlyGuildMaster
-        returns(bool)
     {
         if(votingPeriodTimer == 0){
             votingPeriodTimer = uint48(block.timestamp);
@@ -484,7 +483,7 @@ contract  Guild is ReentrancyGuard {
         external
         returns(uint256 removedMembers)
     {
-        Vote storage proposalVote = guildCouncilAddressToProposalVotes[msg.sender][proposalId];
+        Vote storage proposalVote = guildCouncilAddressToProposalVotes[guildCouncil][proposalId];
         uint256 voteTime = proposalVote.startTimestamp;
         require(lastSlash < voteTime, "Guild::slashForInnactivity::members_already_slashed");
         uint256 length = guildMembersAddressList.length;
@@ -897,6 +896,7 @@ contract  Guild is ReentrancyGuard {
     /// @return proposalId The id of the proposal. Relevant if proposal vote.
     function getVoteInfo(uint8 what, address guildCouncil, uint48 id)
         external
+        view
         returns(uint48 aye, uint48 nay, uint48 count,
                 uint88 startTimestamp, bool active, address sponsor,
                 address targetAddress, uint256 proposalId)
@@ -989,6 +989,7 @@ contract  Guild is ReentrancyGuard {
     /// @param guildCouncil The address of the guild council of the merchant republic to which the sender belongs.
     function calculateGravitas(address commonerAddress, uint256 silverAmount, address guildCouncil)
         public
+        view
         returns (uint256 gravitas)
     {
         // gravitas = silver_sent + gravitas of the sender * weight
@@ -1000,7 +1001,6 @@ contract  Guild is ReentrancyGuard {
     /// @param newGravitas The new gravitas of the guild member.
     function _modifyGravitas(address guildMember, uint256 newGravitas)
         private
-        returns (uint256 newGuildMemberGravitas)
     {
         emit GravitasChanged(guildMember, addressToGravitas[guildMember], newGravitas);
         addressToGravitas[guildMember] = uint48(newGravitas);

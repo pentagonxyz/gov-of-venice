@@ -158,6 +158,8 @@ contract MerchantRepublic {
     /// @notice The total number of proposals.
     uint48 public proposalCount;
 
+    /// @notice The maximum number of proposals that can be submitted without a guild
+    uint256 private constant MAX_PROPOSALS_NO_GUILD = 5;
     /// @notice The official record of all proposals ever proposed.
     mapping (uint => Proposal) public proposals;
 
@@ -345,7 +347,8 @@ contract MerchantRepublic {
                 "MerchantRepublic::propose: proposal function information parity mismatch");
         require(targets.length != 0, "MerchantRepublic::propose: must provide ctions");
         require(targets.length <= proposalMaxOperations(), "MerchantRepublic::propose: too many actions");
-        require(guildsId.length !=0, "MerchantRepublic::propose::no_guilds_defined");
+        require(guildsId.length !=0 || proposalCount < MAX_PROPOSALS_NO_GUILD,
+                "MerchantRepublic::propose::no_guilds_defined");
         uint48 latestProposalId = latestProposalIds[msg.sender];
         if (latestProposalId != 0) {
           ProposalState proposersLatestProposalState = state(latestProposalId);
@@ -360,7 +363,7 @@ contract MerchantRepublic {
 
         return  proposalCount;
     }
-    /// @notice Part of propose(), braken into multiple functions to avoid the `stack too deep` error.
+    /// @notice Part of propose(), broken into multiple functions to avoid the `stack too deep` error.
     function announceProposal(address[] calldata targets, uint[] calldata values,
                               string[] calldata signatures, bytes[] calldata calldatas,
                               string memory description) private
