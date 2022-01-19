@@ -50,7 +50,7 @@ contract MerchantRepublic {
         public
     {
         require(msg.sender == doge, "MerchantRepublic::initialize: doge only");
-        require(!founded, "MerchantRepublic::initialize::merchant_republic_is_founded");
+        require(!founded, "MerchantRepublic::initialize::merchant_republic_is_already_founded");
         constitution = IConstitution(constitutionAddress);
         tokens = IERC20(tokensAddress);
         votingPeriod = votingPeriod_;

@@ -74,8 +74,8 @@ contract Constitution {
         external
     {
         require(msg.sender == founder, "Constitution::constructor::wrong_address");
-        require(delay_ >= MINIMUM_DELAY, "Constitution::constructor: Delay must exceed minimum delay.");
-        require(delay_ <= MAXIMUM_DELAY, "Constitution::setDelay: Delay must not exceed maximum delay.");
+        require(delay_ >= MINIMUM_DELAY, "Constitution::constructor::delay_must_exceed_minimum_delay");
+        require(delay_ <= MAXIMUM_DELAY, "Constitution::setDelay::delay_must_not_exceed_maxmum_delay");
         merchantRepublic = merchantRepublicAddress;
         // effectively block this function from running a second time
         founder = merchantRepublic;
