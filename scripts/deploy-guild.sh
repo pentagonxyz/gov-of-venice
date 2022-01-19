@@ -16,9 +16,41 @@ message() {
     echo
 }
 
-message Deployment helper for Guild
+message Interactive Guild Deployment
 
-message Deployment Config
+echo "Please type the name of the Guild"
+read
+NAME=$(seth --from-ascii $REPLY | seth --to-bytes32)
+echo "Please type the addresses of the founding team, one after another with a single space between them."
+echo "The first address will be the Guild Master of the Guild."
+read
+FOUNDING_TEAM=[$(echo $REPLY | tr -s '[:blank:]' ',')];
+echo "Please type the maximum number of Guild Members"
+read
+MAX=$REPLY
+echo "Please enter the initial Gravitas threshold that a commoner needs to enter the Guild."
+read
+THRESHOLD=$REPLY
+echo "Please type the number of days needed to elapse for a commoner to officialy enter the guild. It's called the Apprentiship Period."
+read
+TIME_OUT=$(($DAY * $REPLY))
+echo "Please type the number of days for the voting period. This applies to every vote in the guild (Proposal, Banishment, Guild Master)"
+read
+VOTING_PERIOD=$(($DAY * $REPLY))
+echo "Please type the address of the ERC20 tokens contract that will be used to compensate Guild Members. Currently a single ERC20 across the whole guild is supported."
+read
+ERC20=$REPLY
+message Guild Configuration
+echo "Name:                  $(seth --to-ascii $NAME)"
+echo "Founding Team:         $FOUNDING_TEAM"
+echo "Guild Master:          $(echo $FOUNDING_TEAM | cut -c2-43)"
+echo "Maximum Guild Members  $MAX"
+echo "Gravitas Threshold:    $THRESHOLD"
+echo "Apprentiship Duration: $TIME_OUT"
+echo "Voting Period:         $VOTING_PERIOD"
+echo "ERC20 token Address:   $ERC20"
+
+message Deployment Configuration
 echo "Ethereum Chain:           $(cast chain)"
 echo "ETH_FROM:                 $ETH_FROM"
 echo "ETH_RPC_URL:              $ETH_RPC_URL"
@@ -30,18 +62,5 @@ then
     exit 1
 fi
 
-message Interactive Guild configuration
-
-read -p "Please type the name of the Guild" -n 1 -r
-NAME=$(seth --from-ascii $REPLY | seth --to-bytes32)
-read -p "Please type the addresses of the founding team, one after another with a single space between them.\n The first address will be the Guild Master of the Guild." -n 1 -r
-FOUNDING_TEAM=[$(echo ${$REPLY// /,})];
-read -p "Please enter the initial Gravitas threshold that a commoner needs to enter the Guild." -n 1 -r
-THRESHOLD=$REPLY
-read -p "Please type the number of days needed to elapse for a commoner to officialy enter the guild. \n This is so that it's harder to game the proposal voting mechanism." -n 1 -r
-TIME_OUT=$(($DAY * $REPLY))
-read -p "Please type the number of days for the voting period. This applies to every vote in the guild (Proposal, Banishment, Guild Master)" -n 1 -r
-VOTING_PERIOD=$(($DAY * $REPLY))
-read -p "Please type the address of the ERC20 tokens contract that will be used to compensate Guild Members. Currently a single ERC20 across the whole guild is supported." -n 1 -r
-ERC20=$REPLY
-MOCKGUILD=$(deploy Guild "$NAME" "$FOUNDING_TEAM" $THRESHOLD $TIME_OUT $VOTING_PERIOD "$ERC20"
+GUILD=$(deploy Guild "$NAME" "$FOUNDING_TEAM" $THRESHOLD $TIME_OUT $MAX $VOTING_PERIOD "$ERC20")
+log "The Guild $NAME was deployed at $GUILD"
