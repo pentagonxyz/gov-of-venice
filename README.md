@@ -2,15 +2,50 @@
 
 ![image](https://user-images.githubusercontent.com/13405632/144643868-838b1509-81bb-412f-add4-d79ea1966152.png)
 
+Governance of Venice is a new paradigm in DAO governance, attempting to standardise existence of functional groups within DAOs, known as Guilds.
+
+This repository offers a reference implementation as also describes a general architecture for the standardisation of the interfaces and communication between the existing Governance modules and the Guild contracts.
 
 ## Architecture
+
+The main components of the design are:
+- Merchant Republic & Constitution
+- Guild Council
+- Guild(s)
+
+A Governance entity (e.g a DAO) is composed of:
+- 1 Constitution
+- 1 Merchant Republic
+- 1 Guild Council
+- N Guilds
+
+A single Guild can participate in many different Merchant Republic's (N:M relationship).
+
+## Inter-DAO standard
+
+With our work, we want to suggest a simple standard for inter-DAO participation of guilds that function, for all intents and purposes, as little DAOs. As far as the standard is concerned, a Guild is an addres that supports a simple and specific set of interfaces, mainly around sending proposals and receiving verdicts.
+
+The standard is intentionally vague about the type of the Governance protocol and the Guild. It focuses on their intercommunication and how they work as autonomous units. That means that a Guild may elect to function in any way it seem best, from a closely-knit group of people who align over a video call and the Guild is controlled from a single EOA account, to a trustless Guild where Guild Members **vote** on how the Guild should respond.
+
+Thus, we define the following function signatures:
+
+
+
+## Refeference Implementation
 
 Click on the image for high-resolution `.svg` diagram.
 
 [![](assets/gov-of-venice.png)](assets/gov-of-venice.svg)
 
 
-An old approach made new, incentivize people to elevate others of domain expertise and restore rationality to the governance process.
+In short, the constitution and the merchant republic are near-identical forks of the Governance Bravo smart contracts, with the constitution playing the role of the `timelock`.
+
+At it's core, the Merchant Republic governance process is identical to the Governor Bravo, albeit an extra state: `pendingGuildsVote`. Every proposal must first be approved by *some* guilds in order to be voted by token holders. The guilds which are responsible for allowing it to pass (or not) are defined in the very proposal.
+
+The Guild Council functions a simple registry and proxy, meaning that it registers that Guild that participate in the Governance and proxies specific requests from the Merchant Republic to the Guilds.
+
+The Guild reference implementation is truly a small subset of the different designs. It can be absolutely trustless or centralised without losing it's  value as a checking mechanism for the DAO. In the reference implementation, we opted to take a more decentralized approach, where every token holder (commoner in the lingo) can enter the Guild, if they have accumulated enough gravitas.
+
 
 ## Deployment
 
