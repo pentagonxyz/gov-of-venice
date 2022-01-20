@@ -5,7 +5,9 @@
 
 ## Architecture
 
-![](assets/gov-of-venice.svg)
+Click on the image for high-resolution `.svg` diagram.
+
+[![](assets/gov-of-venice.png)](assets/gov-of-venice.svg)
 
 
 An old approach made new, incentivize people to elevate others of domain expertise and restore rationality to the governance process.
