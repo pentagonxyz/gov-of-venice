@@ -8,6 +8,8 @@ Governance of Venice is a new paradigm in DAO governance, attempting to standard
 
 This repository offers a reference implementation as also describes a general architecture for the standardisation of the interfaces and communication between the existing Governance modules and the Guild contracts.
 
+Currently, only minimal testing has been done and we release this alpha version to gauge the interest of users. We expect to increase the unit-test coverage, as also include fuzzing and symbolical testing.
+
 ## Architecture
 
 The main components of the design are:
