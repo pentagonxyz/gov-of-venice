@@ -25,17 +25,61 @@ A single Guild can participate in many different Merchant Republic's (N:M relati
 
 With our work, we want to suggest a simple standard for inter-DAO participation of guilds that function, for all intents and purposes, as little DAOs. As far as the standard is concerned, a Guild is an addres that supports a simple and specific set of interfaces, mainly around sending proposals and receiving verdicts.
 
-The standard is intentionally vague about the type of the Governance protocol and the Guild. It focuses on their intercommunication and how they work as autonomous units. That means that a Guild may elect to function in any way it seem best, from a closely-knit group of people who align over a video call and the Guild is controlled from a single EOA account, to a trustless Guild where Guild Members **vote** on how the Guild should respond.
+The standard is intentionally vague about the type of the Governance protocol and the Guild. It focuses on their intercommunication and how they work as autonomous units. That means that a Guild may elect to function in any way it seem best, from a closely-knit group of people who align over a video call and the Guild is controlled from a single EOA account, to a trustless Guild where Guild Members **vote** on how the Guild should respond. Note that the reference implementation is a much more opinionated design based on this simple concept, so the interfaces defined in the source code are not equivalent to what we define here.
 
-Thus, we define the following function signatures:
+**This is an evolving standard and we foresee to make many changes after initial feedback and even before it finds it's way as an EIP.**
+
+![diagram](assets/gov-of-venice-eip.png)
+
+We define the following interfaces:
+
+### IGuild.sol
+
+```solidity
+function guildVoteRequest(uint48 proposalId) external ;
+```
+Called by a registered Guild Council address to signal to a Guild that it needs to vote on a proposal.
+
+### IGuildCouncil.sol
+
+```solidity
+function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId) external returns(bool);
+```
+Called by a Guild to signal that another Guild in the Merchant Republic should also participate in the Guild's vote.
+
+It returns `true` if at least a Guild was succesfully called to vote.
+
+```solidity
+function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId, uint48 maxDecisionTime) external returns(bool);
+```
+Called by the Merchant Republic to call Guilds to vote on a proposal. The extra argument `minDecisionTime` is passed so that the Merchant Republic signals what's the max voting period that it will allow the Guilds to have for this proposal. The Guild Council will revert the action if one of the Guilds that are defined in the `guildsId` array have set a minimum decision time that is **greater** than the one passed by the Merchant Republic. It's a safety mechanism for the Guild so that it's not forced to take rapid decisions. If the Merchant Republic wants to engage that particular Guild for this particular proposal, it will have to *respect* the minimum time the Guild requires to properly decide on a proposal.
+
+It returns `true` if at least a Guild was called. If no Guilds are called or a Guild with improper `decisionTime` is called, it will revert.
+
+```
+function setMiminumGuildVotingPeriod(uint48 minDecisionTime, uint48 guildId) external returns(bool);
+```
+
+Called by Guilds to set their `minDecisionTime`. It returns `true` if the change is succesful.
+
+```solidity
+function _guildVerdict(bool guildAgreement, uint48 proposalId, uint48 guildId) external returns(bool success);
+```
+
+Called by Guilds after reaching a verdict on a proposal. Returns `true` if the answer is successfully registered by the Guild Council.
 
 
+### Guild Council
 
-## Refeference Implementation
+```
+function _guildVerdict(bool guildAgreement, uint48 proposalId, uint48 guildId) external returns(bool success);
+```
+
+## Reference Implementation
 
 Click on the image for high-resolution `.svg` diagram.
 
-[![](assets/gov-of-venice.png)](assets/gov-of-venice.svg)
+[![](assets/gov-of-venice.png)](https://drive.google.com/file/d/1nsntiu3ojj56GKfLjRN6F50Q3X2UcMy0/view?usp=sharing)
 
 
 In short, the constitution and the merchant republic are near-identical forks of the Governance Bravo smart contracts, with the constitution playing the role of the `timelock`.
@@ -44,8 +88,36 @@ At it's core, the Merchant Republic governance process is identical to the Gover
 
 The Guild Council functions a simple registry and proxy, meaning that it registers that Guild that participate in the Governance and proxies specific requests from the Merchant Republic to the Guilds.
 
-The Guild reference implementation is truly a small subset of the different designs. It can be absolutely trustless or centralised without losing it's  value as a checking mechanism for the DAO. In the reference implementation, we opted to take a more decentralized approach, where every token holder (commoner in the lingo) can enter the Guild, if they have accumulated enough gravitas.
+The Guild  & Merchant Republic reference implementations are truly a small subset of the different designs. It can be absolutely trustless or centralised without losing it's  value as a checking mechanism for the DAO. In the reference implementation, we opted to take a more decentralized approach, where every token holder (commoner in the lingo) can enter the Guild, if they have accumulated enough gravitas.
 
+### Gravitas, Silver and other fancy words
+
+First, some lingo:
+- **Commoners** are token holders that participate in a Merchant Republic governance process, but don't belong to that particular Guild that we are talking about. They may participate in others.
+- **Guild Members** are people who may or may not be commoners (meaning token holders) and they participate in the Guild.
+
+Commoners vote in the Merchant Republic and Guild Members in the Guild. An address may belong to both groups or to  one of them.
+
+Gravitas is an interesting side-experiment in governance. It's not part of the main protocol that we are presenting here, but a mere example of a different way to approach credibility on-chain.
+
+Any user can join a Guild that follows the reference implementation, if they have the appropriate Gravitas. Gravitas is a per-Guild metric that shows how much credibility a commoner has for **that particular Guild**.
+
+Silver is given by the Merchant Republic to all token holders, based on some parameter. In our implementation is a simple 1:1 relationship. That silver can be "sent" from one commoner to another, for a particular Guild. When sending silver, the sender will "lose" the silver that will be converted to Gravitas for the receiver, for that particular Guild.
+
+**Gravitas Formula**:
+```
+gravitas = (silverAmount * silverRatio + senderGravitas * senderGravitasRatio) / 100
+```
+
+Since a Guild may participate in multiple Merchant Republics (with possible different tokenomics) and thus different silver allocations, it doesn't blindly conform to the silver as a metric.
+
+Assuming that the Guild **knows** about the silver mechanism of the Merchant Republic, they can choose a weight to apply on it, having full control on **how much** they want to let it affect the gravitas.
+
+Moreover, they can add a weight for the Gravitas of the sender. This is important because, naturally, the vote of confidence of Guild Members should play a higher role than the vote from those who do not participate in the Guild. Guild Members have naturally higher Gravitas (for this particular Guild) than commoners.
+
+**To recap**, all commoners receive silver that is valid for a silver season (e.g 1 year). They send it to to other commoners to signal their support for a particular commoner for a particular guild. If a commoner accumulates enough Gravitas to pass the threshold, they can invoke the `startApprentiship` function and join the Guild. Any commoner can potentially join any guild that participates in the governance process. A guild may participate in multiple Merchant Republics, thus guild members may belong to different Merchant Republics (DAOs) but still vote as a Guild. This is because the Guild functions as a single functional unit (e.g Auditors), and the expertise of one doesn't change based on whether they have (or not) tokens in a particular DAO.
+
+Remember that there is an apprenticeship period as a timeout so that commoners can't join a Guild right away and game the system by voting on proposals.
 
 ## Deployment
 
