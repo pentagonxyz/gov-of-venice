@@ -197,10 +197,10 @@ To deploy a Guild interactively, run:
 
 ```
 # Deploy on mainnet
-make deploy-mainnet Guild
+make deploy-mainnet-guild
 
 # Deploy on Rinkeby
-make deploy-rinkeby Guild
+make deploy-rinkeby-guild
 ```
 
 ### Register a Guild to the Gov of Venice
