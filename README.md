@@ -182,6 +182,23 @@ In other words, a Guild Master shouldn't make a change in the Guild without havi
 
 Again, we underline that this is just an implementation, and the protocol we are proposing is completely agnostic to the inner workings of a Guild.
 
+## Testing
+
+Gove of Venice was originally developed with Dapptools, but it's Forge compatible.
+
+Going forward, it will start using Forge-specific functionality for testing.
+
+To run tests,  you need to specific an RPC endpoint, so that it uses the latest state. Specifically, it needs a non-zero block number and block timestamp in order for the tests to succeed.
+
+The testing suite is  lacking and we intend to make it more extent in the future.
+
+```
+# Test with dapptools
+make test
+
+# Test with Forge
+forge test --optimize --optimize-runs 10000
+```
 ## Deployment
 
 Gov of Venice uses Daptools for testing and deployment. We have created a few helpful scripts to easily deploy both the Governance Modules and Guilds.
