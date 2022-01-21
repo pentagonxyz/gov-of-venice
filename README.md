@@ -231,3 +231,9 @@ where:
 - `$GUILD_ID`: The id of the Guild for that particular Guild Council.
 
 Now the Guild is deployed and configured to participate in the governance process of the Merchant Republic. Remember, that a Guild can join **any** number of Merchant Republics.
+
+
+## License
+
+AGPL
+
