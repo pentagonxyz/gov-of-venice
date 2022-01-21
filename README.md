@@ -121,6 +121,45 @@ Moreover, they can add a weight for the Gravitas of the sender. This is importan
 
 Remember that there is an apprenticeship period as a timeout so that commoners can't join a Guild right away and game the system by voting on proposals.
 
+### Rewards
+
+The reference implementation suggests that Guild Members should be rewarded for just being part of the Guild, as we can expect to be a much more demanding position than being a simple voter in a DAO.
+
+While, at the "protocol" level, this has to do with inter-Guild functionality and thus it's out-of-scope, we felt it would be important to make a suggestion.
+
+In the guild, we have two types of agents: A Guild Master and a Guild Member. The Guild Master is designed to have more responsibility on the well-being of the guild, thus the reward protocol enables a bonus to be given. This bonus will also offset transaction costs.
+
+The Guild Member receive a reward based on how long they have been in the guild and their gravitas, with more weight given to the former parameter.
+
+**Formula**
+```
+// Guild Member
+claimableReward = timeSinceLastClaim * memberRewardPerSecond ^ 2 * (gravitas * gravitasWeight) * guildMemberMultiplier
+
+// Guild Master
+claimableReward = timeSinceLastClaim * memberRewardPerSecond ^ 2 * (gravitas * gravitasWeight) * guildMasterMultiplier
+```
+
+Since all Guild Members use the same  "reserve" to get their rewards, that being the address of the Guild, we can expect that the Guild organically will remove members who are not contributing.
+
+### Guild's revenues
+
+Guild's accounting has been kept as simple as possible. At the creation of the Guild, an ERC20 contract is passed as argument to be used for the reward system.
+
+The rewards expect the Guild to always have enough balance in that ERC20 contract. It is expected that Guilds will negotiate with Merchant Republics for revenue, without needing to interact with the protocol. If the Merchant Republic stops sending the negotiated amount, the Guild will simply stop voting for proposals.
+
+We expect more complex schemes to rise, such as coding the ability to use [vested ERC20](https://github.com/ZeframLou/vested-erc20) or other protocols such as [Radicle Drips](https://www.drips.network/).
+
+### Slashing
+
+Another feature that nudges Guild Members to the behaviour that we want is a simple slashing mechanism for all Guild Member who didn't vote in a proposal vote.
+
+Any address can invoke the function `slashForCash(address guildCouncil, uint48 proposalId)` and slash all Guild Members that didn't participate in the vote for proposal `proposalId` of the Merchant Republic with Guild Council `guildCouncil`. The address will receive a `slashForCashReward` in ERC20 tokens (the same used for rewards).
+
+The Guild Members are slashed in their Gravitas, which means that if they fall below the Gravitas Threshold for Guild entry, they will be removed of the Guild and thus not able to participate or claim any rewards.
+
+We expect this mechanism to degrade into a gas war for searchers and be used as a MEV opportunity.
+
 ## Deployment
 
 Gov of Venice uses Daptools for testing and deployment. We have created a few helpful scripts to easily deploy both the Governance Modules and Guilds.
