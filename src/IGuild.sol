@@ -8,8 +8,6 @@ interface IGuild{
     function modifyGravitas(address guildMember, uint256 newGravitas)
         external
         returns (uint256 newGuildMemberGravitas);
-    function appendChainOfResponsibility(address guildMember, address commoner)
-        external;
     function guildVoteRequest(uint48 proposalId)
         external;
     function requestGuildBook() external returns(GuildBook memory);
