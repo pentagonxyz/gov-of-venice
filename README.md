@@ -1,5 +1,7 @@
 # Gov of Venice
 
+![ci badge](https://github.com/pentagonxyz/gov-of-venice/actions/workflows/ci.yml/badge.svg)
+
 ![image](https://user-images.githubusercontent.com/13405632/144643868-838b1509-81bb-412f-add4-d79ea1966152.png)
 
 Governance of Venice is a new paradigm in DAO governance, attempting to standardise existence of functional groups within DAOs, known as Guilds.
