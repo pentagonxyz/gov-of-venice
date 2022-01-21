@@ -176,7 +176,7 @@ seth send $MERCHANT_REPUBLIC '_initiate(address)()' $PREVIOUS_MERCHANT_REPUBLIC
 ```
 
 where:
-- `$PREVIOUS_MERCHANT_REPUBLIC`: The address of the previous instance. If it's the first time, simply ass `0`.
+- `$PREVIOUS_MERCHANT_REPUBLIC`: The address of the previous instance. If it's the first time, simply pass `0`.
 
 At this point, the Governance of Venice is deployed and ready to be used.
 
