@@ -71,7 +71,7 @@ Called by Guilds after reaching a verdict on a proposal. Returns `true` if the a
 
 ### Guild Council
 
-```
+```solidity
 function _guildVerdict(bool guildAgreement, uint48 proposalId, uint48 guildId) external returns(bool success);
 ```
 

@@ -4,10 +4,10 @@ pragma solidity ^0.8.9;
 import {DSTestPlus} from "solmate/test/utils/DSTestPlus.sol";
 import {MockERC20} from "./MockERC20.sol";
 import "./Hevm.sol";
-import {Guild} from "../../guild.sol";
-import {GuildCouncil} from "../../guildCouncil.sol";
-import {MerchantRepublic} from "../../merchantRepublic.sol";
-import {Constitution} from "../../constitution.sol";
+import {Guild} from "../../Guild.sol";
+import {GuildCouncil} from "../../GuildCouncil.sol";
+import {MerchantRepublic} from "../../MerchantRepublic.sol";
+import {Constitution} from "../../Constitution.sol";
 import {ProposalTarget} from "./proposalTarget.sol";
 
 contract MockConstitution is Constitution {
