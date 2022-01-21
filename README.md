@@ -117,11 +117,13 @@ Assuming that the Guild **knows** about the silver mechanism of the Merchant Rep
 
 Moreover, they can add a weight for the Gravitas of the sender. This is important because, naturally, the vote of confidence of Guild Members should play a higher role than the vote from those who do not participate in the Guild. Guild Members have naturally higher Gravitas (for this particular Guild) than commoners.
 
-**To recap**, all commoners receive silver that is valid for a silver season (e.g 1 year). They send it to to other commoners to signal their support for a particular commoner for a particular guild. If a commoner accumulates enough Gravitas to pass the threshold, they can invoke the `startApprentiship` function and join the Guild. Any commoner can potentially join any guild that participates in the governance process. A guild may participate in multiple Merchant Republics, thus guild members may belong to different Merchant Republics (DAOs) but still vote as a Guild. This is because the Guild functions as a single functional unit (e.g Auditors), and the expertise of one doesn't change based on whether they have (or not) tokens in a particular DAO.
+**To recap**, all commoners receive silver that is valid for a silver season (e.g 1 year). They send it to to other commoners to signal their support for a particular commoner for a particular guild. If a commoner accumulates enough Gravitas to pass the threshold, they can invoke the `startApprentiship` function and join the Guild. Any commoner can potentially join any guild that participates in the governance process.
+
+A guild may participate in multiple Merchant Republics, thus guild members may belong to different Merchant Republics (DAOs) but still vote as a Guild. This is because the Guild functions as a single functional unit (e.g Auditors), and the expertise of one doesn't change based on whether they have (or not) tokens in a particular DAO.
 
 Remember that there is an apprenticeship period as a timeout so that commoners can't join a Guild right away and game the system by voting on proposals.
 
-### Rewards
+### Guild Rewards
 
 The reference implementation suggests that Guild Members should be rewarded for just being part of the Guild, as we can expect to be a much more demanding position than being a simple voter in a DAO.
 
@@ -159,6 +161,24 @@ Any address can invoke the function `slashForCash(address guildCouncil, uint48 p
 The Guild Members are slashed in their Gravitas, which means that if they fall below the Gravitas Threshold for Guild entry, they will be removed of the Guild and thus not able to participate or claim any rewards.
 
 We expect this mechanism to degrade into a gas war for searchers and be used as a MEV opportunity.
+
+### Guild Voting
+
+Due to the decentralized nature of the Guild's implementation, any member can start a vote to either replace the current Guild Master with a new one, or banish a Guild Member.
+
+To avoid spamming the guild, a Guild Member who brings a vote that doesn't pass will get slashed. We expect Guild Members to first align the Guild and reach consensus through off-chain methods, such as a simple Discourse vote.
+
+On-chain guild voting should work like a rubber stamp of a decision that has already been made at the social layer.
+
+### Guild Master
+
+The Guild Master is designed to have a broader role than of that of a simple admin. Because if their core  importance in changing Guild parameters or calling other Guilds to vote in a proposal, they are rewarded more.
+
+Due to the more decentralized nature of the implementation, all Guild parameters change need at least a week in order to come into effect. A Guild Master needs to invoke the function once and then invoke it again to ratify the change. That gives time to the Guild to see the change and if they disagree, remove the Guild Master.
+
+In other words, a Guild Master shouldn't make a change in the Guild without having the approval of the majority, as they could be removed at any point.
+
+Again, we underline that this is just an implementation, and the protocol we are proposing is completely agnostic to the inner workings of a Guild.
 
 ## Deployment
 
@@ -278,3 +298,7 @@ Now the Guild is deployed and configured to participate in the governance proces
 
 AGPL
 
+
+## Disclaimer
+
+*These smart contracts are being provided as is. No guarantee, representation or warranty is being made, express or implied, as to the safety or correctness of the user interface or the smart contracts. They have not been audited and as such there can be no assurance they will work as intended, and users may experience delays, failures, errors, omissions, loss of transmitted information or loss of funds. Users should proceed with caution and use at their own risk.*
