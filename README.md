@@ -23,7 +23,7 @@ A Governance entity (e.g a DAO) is composed of:
 - 1 Guild Council
 - N Guilds
 
-A single Guild can participate in many different Merchant Republic's (N:M relationship).
+A single Guild can participate in many different Merchant Republics (N:M relationship).
 
 ## Inter-DAO standard
 
@@ -88,7 +88,7 @@ Click on the image for high-resolution `.svg` diagram.
 
 In short, the constitution and the merchant republic are near-identical forks of the Governance Bravo smart contracts, with the constitution playing the role of the `timelock`.
 
-At it's core, the Merchant Republic governance process is identical to the Governor Bravo, albeit an extra state: `pendingGuildsVote`. Every proposal must first be approved by *some* guilds in order to be voted by token holders. The guilds which are responsible for allowing it to pass (or not) are defined in the very proposal.
+At it's core, the Merchant Republic governance process is identical to the Governor Bravo, albeit for an extra state: `pendingGuildsVote`. Every proposal must first be approved by *some* guilds in order to be voted by token holders. The guilds which are responsible for allowing it to pass (or not) are defined in the very proposal.
 
 The Guild Council functions a simple registry and proxy, meaning that it registers that Guild that participate in the Governance and proxies specific requests from the Merchant Republic to the Guilds.
 
