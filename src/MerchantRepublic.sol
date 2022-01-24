@@ -622,11 +622,11 @@ contract MerchantRepublic {
 
     /// @notice Function for setting the silver season period. Can only be called from the constitution, meaning as
     /// part of a proposal.
-    /// @param silverSeason The new period that needs to elapse between two silver seasons.
-    function _setSilverSeasonPeriod(uint256 newSilverSeason) external {
+    /// @param newSilverSeasonPeriod The new period that needs to elapse between two silver seasons.
+    function _setSilverSeasonPeriod(uint256 newSilverSeasonPeriod) external {
         require(msg.sender == address(constitution), "MerchantRepublic::setSilverSeasonPeriod::only_constitution");
-        emit SilverSeasonPeriodSet(silverSeasonPeriod, newSilverSeason);
-        silverSeasonPeriod = newSilverSeason;
+        emit SilverSeasonPeriodSet(silverSeasonPeriod, newSilverSeasonPeriod);
+        silverSeasonPeriod = newSilverSeasonPeriod;
     }
 
     /// @notice Begins transfer of doge rights. The newPendingDoge must call `_acceptDoge` to finalize the transfer.

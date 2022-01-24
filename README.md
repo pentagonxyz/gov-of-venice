@@ -186,6 +186,8 @@ Again, we underline that this is just an implementation, and the protocol we are
 
 Gove of Venice was originally developed with Dapptools, but it's Forge compatible.
 
+Specifically, we use Dapptools in our Deployment scripts, but tests can be run with both Forge and Dapptools.
+
 Going forward, it will start using Forge-specific functionality for testing.
 
 To run tests,  you need to specific an RPC endpoint, so that it uses the latest state. Specifically, it needs a non-zero block number and block timestamp in order for the tests to succeed.
@@ -197,7 +199,7 @@ The testing suite is  lacking and we intend to make it more extent in the future
 make test
 
 # Test with Forge
-forge test --optimize --optimize-runs 10000
+source .dapprc && forge test --optimize --optimize-runs 10000
 ```
 ## Deployment
 
