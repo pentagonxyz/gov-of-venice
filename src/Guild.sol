@@ -489,11 +489,13 @@ contract  Guild is ReentrancyGuard {
         uint256 length = guildMembersAddressList.length;
         lastSlash = block.timestamp.safeCastTo32();
         uint256 counter=0;
-        for(uint256 i=0;i<length;i++){
-            address guildMember = guildMembersAddressList[i];
-            if( proposalVote.lastTimestamp[guildMember] < voteTime){
-                counter++;
-                _slashGuildMember(guildMember);
+        unchecked {
+            for(uint256 i=0;i<length;i++){
+                address guildMember = guildMembersAddressList[i];
+                if( proposalVote.lastTimestamp[guildMember] < voteTime){
+                    counter++;
+                    _slashGuildMember(guildMember);
+                }
             }
         }
         tokens.transfer(msg.sender, slashForCashReward);
