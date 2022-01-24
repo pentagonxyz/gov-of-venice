@@ -605,7 +605,7 @@ contract MerchantRepublic {
         require(msg.sender == doge, "MerchantRepublic::_setVotingPeriod: doge only");
         uint oldVotingPeriod = votingPeriod;
         votingPeriod = newVotingPeriod;
-        emit VotingPeriodSet(oldVotingPeriod, votingPeriod);
+        emit VotingPeriodSet(oldVotingPeriod, newVotingPeriod);
     }
 
      /// @notice Doge function for setting the proposal threshold.
@@ -617,16 +617,16 @@ contract MerchantRepublic {
                 "MerchantRepublic::_setProposalThreshold: new threshold below min");
         uint oldProposalThreshold = proposalThreshold;
         proposalThreshold = newProposalThreshold;
-        emit ProposalThresholdSet(oldProposalThreshold, proposalThreshold);
+        emit ProposalThresholdSet(oldProposalThreshold, newProposalThreshold);
     }
 
     /// @notice Function for setting the silver season period. Can only be called from the constitution, meaning as
     /// part of a proposal.
     /// @param silverSeason The new period that needs to elapse between two silver seasons.
-    function _setSilverSeasonPeriod(uint256 silverSeason) external {
+    function _setSilverSeasonPeriod(uint256 newSilverSeason) external {
         require(msg.sender == address(constitution), "MerchantRepublic::setSilverSeasonPeriod::only_constitution");
-        emit SilverSeasonPeriodSet(silverSeasonPeriod, silverSeason);
-        silverSeasonPeriod = silverSeason;
+        emit SilverSeasonPeriodSet(silverSeasonPeriod, newSilverSeason);
+        silverSeasonPeriod = newSilverSeason;
     }
 
     /// @notice Begins transfer of doge rights. The newPendingDoge must call `_acceptDoge` to finalize the transfer.
