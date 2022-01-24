@@ -651,8 +651,8 @@ contract MerchantRepublic {
      ///  @notice Accepts transfer of doge rights. msg.sender must be pendingDoge.
      ///  @dev Doge function for pending doge to accept role and update doge.
     function _acceptDoge() external {
-        // Check caller is pendingDoge and pendingDoge ≠ address(0)
-        require(msg.sender == pendingDoge && msg.sender != address(0), "MerchantRepublic::_acceptDoge: doge only");
+        // Check that msg.sender is the pending Doge.
+        require(msg.sender == pendingDoge, "MerchantRepublic::_acceptDoge: doge only");
 
         // Save current values for inclusion in log
         address oldDoge = doge;
