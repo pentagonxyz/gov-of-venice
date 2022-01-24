@@ -619,8 +619,6 @@ contract  Guild is ReentrancyGuard {
         returns(bool)
     {
         guildCouncilAddressToProposalVotes[msg.sender][proposalId].active= true;
-        guildCouncilAddressToProposalVotes[msg.sender][proposalId].aye = 0;
-        guildCouncilAddressToProposalVotes[msg.sender][proposalId].nay = 0;
         guildCouncilAddressToProposalVotes[msg.sender][proposalId].id = proposalId;
         guildCouncilAddressToProposalVotes[msg.sender][proposalId].startTimestamp = uint48(block.timestamp);
         return true;
