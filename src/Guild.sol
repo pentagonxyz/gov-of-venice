@@ -493,7 +493,7 @@ contract  Guild is ReentrancyGuard {
             for(uint256 i=0;i<length;i++){
                 address guildMember = guildMembersAddressList[i];
                 if( proposalVote.lastTimestamp[guildMember] < voteTime){
-                    counter++;
+                    counter+=1;
                     _slashGuildMember(guildMember);
                 }
             }
@@ -707,12 +707,12 @@ contract  Guild is ReentrancyGuard {
     function castVoteForGuildMaster(uint8 support)
         external
         onlyGuildMember
-        returns(bool)
+        returns(bool cont)
     {
         require(guildMasterVote.active == true,
                 "Guild::castVoteForGuildMaster::guild_master_vote_not_active");
         require(guildMasterVote.lastTimestamp[msg.sender] < guildMasterVote.startTimestamp,
-                "Guild::castVoteForGuildMaster::account_already_voted");
+                "Guild::castVoteForGuildMaster::account_aly_voted");
         require(uint48(block.timestamp) - guildMasterVote.startTimestamp <= guildBook.votingPeriod,
                 "Guild::castVoteForGuildMaster::_voting_period_ended");
         unchecked {
@@ -723,7 +723,6 @@ contract  Guild is ReentrancyGuard {
                 guildMasterVote.nay += 1;
             }
         }
-        bool cont;
         guildMasterVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
         if(guildMasterVote.aye > (guildMembersAddressList.length * guildMasterQuorum / 100)){
             guildMasterVote.active = false;
@@ -768,10 +767,10 @@ contract  Guild is ReentrancyGuard {
                 "Guild::castVoteForBanishment::_voting_period_ended");
         unchecked {
             if (support == 1){
-                banishmentVote.aye++;
+                banishmentVote.aye +=1;
             }
             else {
-                banishmentVote.nay++;
+                banishmentVote.nay +=1;
             }
         }
         bool cont;

@@ -156,9 +156,8 @@ contract GuildCouncil is ReentrancyGuard {
     function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId, uint48 DecisionWaitLimit)
        external
        onlyMerchantRepublic
-       returns(bool)
+       returns(bool success)
     {
-        bool success = false;
         proposalIdToVoteCallTimestamp[proposalId] = block.timestamp;
         for(uint48 i; i< guildsId.length; i++){
             address guildAddress = guildIdToAddress[guildsId[i]];
