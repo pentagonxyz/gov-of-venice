@@ -417,10 +417,11 @@ contract MerchantRepublic {
                 tokens.getPastVotes(proposal.proposer, block.timestamp- 1) < proposalThreshold,
                 "GovernorBravo::cancel: proposer above threshold");
         proposal.canceled = true;
-        for (uint i = 0; i < proposal.targets.length; i++) {
-            constitution.cancelTransaction(proposal.targets[i], proposal.values[i], proposal.signatures[i],
-                                           proposal.calldatas[i], proposal.eta);
-
+        unchecked {
+            for (uint i = 0; i < proposal.targets.length; i++) {
+                constitution.cancelTransaction(proposal.targets[i], proposal.values[i], proposal.signatures[i],
+                                               proposal.calldatas[i], proposal.eta);
+            }
         }
         emit ProposalCanceled(proposalId);
     }
@@ -595,8 +596,7 @@ contract MerchantRepublic {
         require(msg.sender == doge, "MerchantRepublic::_setVotingDelay: doge only");
         uint oldVotingDelay = votingDelay;
         votingDelay = newVotingDelay;
-
-        emit VotingDelaySet(oldVotingDelay,votingDelay);
+        emit VotingDelaySet(oldVotingDelay,newVotingDelay);
     }
 
      /// @notice Doge function for setting the voting period.
