@@ -670,11 +670,13 @@ contract  Guild is ReentrancyGuard {
                 "Guild::castVoteForProposal::account_already_voted");
         require(uint48(block.timestamp) - proposalVote.startTimestamp <= guildBook.votingPeriod,
                 "Guild::castVoteForProposal::_voting_period_ended");
-        if (support == 1){
-            proposalVote.aye += 1;
-        }
-        else {
-            proposalVote.nay += 1;
+        unchecked {
+            if (support == 1){
+                proposalVote.aye += 1;
+            }
+            else {
+                proposalVote.nay += 1;
+            }
         }
         bool voteEnd;
         IGuildCouncil guildCouncil = IGuildCouncil(guildCouncilAddress);
@@ -713,11 +715,13 @@ contract  Guild is ReentrancyGuard {
                 "Guild::castVoteForGuildMaster::account_already_voted");
         require(uint48(block.timestamp) - guildMasterVote.startTimestamp <= guildBook.votingPeriod,
                 "Guild::castVoteForGuildMaster::_voting_period_ended");
-        if (support == 1){
-            guildMasterVote.aye += 1;
-        }
-        else {
-            guildMasterVote.nay += 1;
+        unchecked {
+            if (support == 1){
+                guildMasterVote.aye += 1;
+            }
+            else {
+                guildMasterVote.nay += 1;
+            }
         }
         bool cont;
         guildMasterVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
@@ -762,11 +766,13 @@ contract  Guild is ReentrancyGuard {
                 "Guild::vastVoteForBanishmnet::account_already_voted");
         require(uint48(block.timestamp) - banishmentVote.startTimestamp <= guildBook.votingPeriod,
                 "Guild::castVoteForBanishment::_voting_period_ended");
-        if (support == 1){
-            banishmentVote.aye++;
-        }
-        else {
-            banishmentVote.nay++;
+        unchecked {
+            if (support == 1){
+                banishmentVote.aye++;
+            }
+            else {
+                banishmentVote.nay++;
+            }
         }
         bool cont;
         banishmentVote.lastTimestamp[msg.sender] = uint48(block.timestamp);
