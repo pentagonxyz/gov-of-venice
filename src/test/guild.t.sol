@@ -56,14 +56,19 @@ contract GuildCommonersTest is Gov2Test {
     }
 
     function testGuildMemberRewardClaim() public {
-        mockDucat.mint(address(constitution), 100000000);
-        emit log_bytes(abi.encodePacked(mockDucat.paused()));
-        constitution.sendBudgetToGuild(1000000, address(locksmiths));
+        mockDucat.mint(address(locksmiths), 100000000);
         hevm.warp(block.timestamp + 10 days);
+        /// Starting balance of Ursus = 10.000
+        assertEq(mockDucat.balanceOf(address(ursus)), 10000);
+        // member reward =
+        assertEq(ursus.calculateMemberReward(0),1728);
         ursus.claimReward(0);
+        // Ursus just claimed their reward, there is no more to claim.
+        assertEq(ursus.calculateMemberReward(0), 0);
+        // Based on base Guild configuration, in 10 days, ursus should get another 10.000 mockDuckats.
         assertEq(
-            ursus.calculateMemberReward(0) + 10000,
-            mockDucat.balanceOf(address(ursus))
+            mockDucat.balanceOf(address(ursus)),
+            11728
         );
     }
 
@@ -71,7 +76,7 @@ contract GuildCommonersTest is Gov2Test {
         testGuildMemberRewardClaim();
         ursus.claimReward(0);
         assertEq(
-            ursus.calculateMemberReward(0) + 10000,
+            ursus.calculateMemberReward(0) + 11728,
             mockDucat.balanceOf(address(ursus))
         );
     }
