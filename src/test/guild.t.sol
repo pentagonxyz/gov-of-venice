@@ -61,15 +61,12 @@ contract GuildCommonersTest is Gov2Test {
         /// Starting balance of Ursus = 10.000
         assertEq(mockDucat.balanceOf(address(ursus)), 10000);
         // member reward =
-        assertEq(ursus.calculateMemberReward(0),1728);
+        assertEq(ursus.calculateMemberReward(0), 1728);
         ursus.claimReward(0);
         // Ursus just claimed their reward, there is no more to claim.
         assertEq(ursus.calculateMemberReward(0), 0);
         // Based on base Guild configuration, in 10 days, ursus should get another 10.000 mockDuckats.
-        assertEq(
-            mockDucat.balanceOf(address(ursus)),
-            11728
-        );
+        assertEq(mockDucat.balanceOf(address(ursus)), 11728);
     }
 
     function testGuildMemberRewardDoubleClaim() public {
