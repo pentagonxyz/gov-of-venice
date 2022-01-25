@@ -1,11 +1,11 @@
-## defaults for _all_ profiles
 [default]
 src = "src"
 out = "out"
 libs = ["lib"]
-solc-version = "8.0.10"
+auto_detect_solc = true
 verbosity = 3
 optimizer = true
 optimizer_runs = 10000
+cache = true
 block_timestamp = 1642183973
 block_number=14005174
