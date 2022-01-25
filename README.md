@@ -27,9 +27,9 @@ A single Guild can participate in many different Merchant Republics (N:M relatio
 
 ## Inter-DAO standard
 
-With our work, we want to suggest a simple standard for inter-DAO participation of guilds that function, for all intents and purposes, as little DAOs. As far as the standard is concerned, a Guild is an addres that supports a simple and specific set of interfaces, mainly around sending proposals and receiving verdicts.
+With our work, we want to suggest a simple standard for inter-DAO participation of guilds that function, for all intents and purposes, as little DAOs. As far as the standard is concerned, a Guild is an address that supports a simple and specific set of interfaces, mainly around sending proposals and receiving verdicts.
 
-The standard is intentionally vague about the type of the Governance protocol and the Guild. It focuses on their intercommunication and how they work as autonomous units. That means that a Guild may elect to function in any way it seem best, from a closely-knit group of people who align over a video call and the Guild is controlled from a single EOA account, to a trustless Guild where Guild Members **vote** on how the Guild should respond. Note that the reference implementation is a much more opinionated design based on this simple concept, so the interfaces defined in the source code are not equivalent to what we define here.
+The standard is intentionally vague about the type of the Governance protocol and the Guild. It focuses on their intercommunication and how they work as autonomous units. That means that a Guild may elect to function in any way it seem best, from a closely-knit group of people who align over a video call and the Guild is controlled from a single EOA account, to a trust-less Guild where Guild Members **vote** on how the Guild should respond. Note that the reference implementation is a much more opinionated design based on this simple concept, so the interfaces defined in the source code are not equivalent to what we define here.
 
 **This is an evolving standard and we foresee to make many changes after initial feedback and even before it finds it's way as an EIP.**
 
@@ -51,7 +51,7 @@ function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId) extern
 ```
 Called by a Guild to signal that another Guild in the Merchant Republic should also participate in the Guild's vote.
 
-It returns `true` if at least a Guild was succesfully called to vote.
+It returns `true` if at least a Guild was successfully called to vote.
 
 ```solidity
 function _callGuildsToVote(uint48[] calldata guildsId, uint48 proposalId, uint48 maxDecisionTime) external returns(bool);
@@ -64,7 +64,7 @@ It returns `true` if at least a Guild was called. If no Guilds are called or a G
 function setMiminumGuildVotingPeriod(uint48 minDecisionTime, uint48 guildId) external returns(bool);
 ```
 
-Called by Guilds to set their `minDecisionTime`. It returns `true` if the change is succesful.
+Called by Guilds to set their `minDecisionTime`. It returns `true` if the change is successful.
 
 ```solidity
 function _guildVerdict(bool guildAgreement, uint48 proposalId, uint48 guildId) external returns(bool success);
@@ -184,7 +184,7 @@ Again, we underline that this is just an implementation, and the protocol we are
 
 ## Testing
 
-Gove of Venice was originally developed with Dapptools, but it's Forge compatible.
+Gove of Venice was originally developed with [Dapptools](https://github.com/dapphub/dapptools), but it's [Forge](https://github.com/gakonst/foundry) compatible.
 
 Specifically, we use Dapptools in our Deployment scripts, but tests can be run with both Forge and Dapptools.
 
@@ -203,9 +203,9 @@ source .dapprc && forge test --optimize --optimize-runs 10000
 ```
 ## Deployment
 
-Gov of Venice uses Daptools for testing and deployment. We have created a few helpful scripts to easily deploy both the Governance Modules and Guilds.
+Gov of Venice uses [Dapptools](https://github.com/dapphub/dapptools) for testing and deployment. We have created a few helpful scripts to easily deploy both the Governance Modules and Guilds.
 
-To deploy on mainnet:
+To deploy on Mainnet:
 ```
 make deploy-mainnet
 ```
@@ -217,7 +217,7 @@ make deploy-rinkeby
 
 If you want to deploy a deployment for testing purposes, do `export TEST=true` before running the deployment makefile command.
 
-The testing deployment includes some hardcoded seth commands that will be used to configure Gov of Venice, so that it's ready to be used for testing purposes.
+The testing deployment includes some hard-coded seth commands that will be used to configure Gov of Venice, so that it's ready to be used for testing purposes.
 
 The testing deployment also includes a mockERC20 that can be used to mint ERC20 tokens for voting purposes.
 
