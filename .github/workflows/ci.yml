@@ -15,4 +15,4 @@ jobs:
           version: nightly
 
       - name: Run Tests
-        run: forge test -optimize --optimize-runs 10000 -vvv
+        run: forge test
