@@ -14,7 +14,7 @@ import {IERC20} from "./ITokens.sol";
 /// of Compound-Bravo based Merchant Republic governance modules. A Guild can belong to many Merchant
 /// Republics and a Merchant Republic can have several Guilds working for it.
 /// Developed under contract for pentagon.xyz.
-contract  Guild is ReentrancyGuard {
+contract Guild is ReentrancyGuard {
 
     /*///////////////////////////////////////////////////////////////
                             LIBRARIES
@@ -241,7 +241,7 @@ contract  Guild is ReentrancyGuard {
     /// @notice Pending value of the guild parameter. The guild master will initially start the timer and set
     /// the pending value to the new value and when the timer passes and the guild master can invoke the
     /// function again, the guild parameter will change to the value of the pending parameter.
-    uint48 public pendingMemberRewardPerSecond;
+    uint256 public pendingMemberRewardPerSecond;
     /// @notice Pending value of the guild parameter. The guild master will initially start the timer and set
     /// the pending value to the new value and when the timer passes and the guild master can invoke the
     /// function again, the guild parameter will change to the value of the pending parameter.
@@ -305,15 +305,16 @@ contract  Guild is ReentrancyGuard {
     }
 
     /// @notice Changes the reward per second that guild members receive for participating in the guild.
-    /// @param newMemberRewardPerSecond The new Reward per second.
-    function changeMemberRewardPerSecond(uint48 newMemberRewardPerSecond)
+    /// @param newMemberRewardPerSecond The new Reward per second. It should be in WAD format, that is a fixed point
+    // number with 18 decimals (1e18).
+    function changeMemberRewardPerSecond(uint256 newMemberRewardPerSecond)
         external
         onlyGuildMaster
     {
         if(memberRewardPerSecondTimer == 0){
             memberRewardPerSecondTimer = uint48(block.timestamp);
             pendingMemberRewardPerSecond = newMemberRewardPerSecond;
-            emit GuildParameterTimerSet("memberRewardPerSecond", newMemberRewardPerSecond);
+            emit GuildParameterTimerSet("memberRewardPerSecond", uint48(newMemberRewardPerSecond));
         }
         else if(memberRewardPerSecondTimer + guildMasterDelay < uint48(block.timestamp)){
             emit GuildParameterChanged("memberRewardPerSecond", memberRewardPerSecond, newMemberRewardPerSecond);
@@ -712,7 +713,7 @@ contract  Guild is ReentrancyGuard {
         require(guildMasterVote.active == true,
                 "Guild::castVoteForGuildMaster::guild_master_vote_not_active");
         require(guildMasterVote.lastTimestamp[msg.sender] < guildMasterVote.startTimestamp,
-                "Guild::castVoteForGuildMaster::account_aly_voted");
+                "Guild::castVoteForGuildMaster::account_already_voted");
         require(uint48(block.timestamp) - guildMasterVote.startTimestamp <= guildBook.votingPeriod,
                 "Guild::castVoteForGuildMaster::_voting_period_ended");
         unchecked {
@@ -812,11 +813,9 @@ contract  Guild is ReentrancyGuard {
         nonReentrant
         onlyGuildMember
     {
-        GuildMember memory member = addressToGuildMember[msg.sender];
         uint256 reward = calculateMemberReward(msg.sender);
-        uint256 mul;
-        member.lastClaimTimestamp = block.timestamp.safeCastTo96();
-        tokens.transfer( msg.sender, reward.fmul(mul, BASE_UNIT));
+        addressToGuildMember[msg.sender].lastClaimTimestamp = block.timestamp.safeCastTo96();
+        tokens.transfer(msg.sender, reward);
     }
 
     /// @notice Calculate the reward for a particular guild member.
@@ -828,24 +827,19 @@ contract  Guild is ReentrancyGuard {
     /// @param member The address of the guild member for which the functions calculates the reward.
     function calculateMemberReward(address member)
         public
-        view
-        returns(uint256)
+        returns(uint256 reward)
     {
-        uint8 guildMasterBonus;
         GuildMember memory guildMember = addressToGuildMember[member];
-        uint256 billableSeconds = block.timestamp - guildMember.lastClaimTimestamp;
-        uint256 timeReward = (billableSeconds.fmul(memberRewardPerSecond, BASE_UNIT)).fpow(2, BASE_UNIT);
-        uint256 gravitasReward = gravitasWeight.fmul(addressToGravitas[member], BASE_UNIT).fdiv(100, BASE_UNIT);
+        uint256 billableSeconds = (block.timestamp - guildMember.lastClaimTimestamp) * BASE_UNIT;
+        uint256 timeReward = billableSeconds.fmul(memberRewardPerSecond,  BASE_UNIT);
+        uint256 gravitasReward = gravitasWeight.fmul(addressToGravitas[member] *
+                                                     BASE_UNIT, BASE_UNIT).fdiv(100 * BASE_UNIT, BASE_UNIT);
         if (member == guildMasterAddress){
-                guildMasterBonus = guildMasterRewardMultiplier;
+            return timeReward.fmul(gravitasReward, BASE_UNIT).fmul(guildMasterRewardMultiplier * BASE_UNIT, BASE_UNIT);
         }
         else {
-            guildMasterBonus =  guildMemberRewardMultiplier;
+            return timeReward.fmul(gravitasReward, BASE_UNIT).fmul(guildMemberRewardMultiplier * BASE_UNIT, BASE_UNIT);
         }
-        uint256 reward = timeReward.fmul(gravitasReward, BASE_UNIT).fmul(guildMasterBonus, BASE_UNIT);
-        return reward;
-
-
     }
 
     /// @notice slash a guild member, reducing their gravitas.
@@ -961,8 +955,8 @@ contract  Guild is ReentrancyGuard {
 
     /// @notice How many tokens do the Guild Members receive for being part of the Guild.
     /// @dev The number is in absolute, so depending on the amount of decimals the tokens has, this should
-    /// be amended.
-    uint48 public memberRewardPerSecond = 10;
+    /// be amended. The number is in WAD (1e18).
+    uint256 public memberRewardPerSecond = 0.0001e18;
 
     /// @notice Stores the weight of silver for gravitas calculation. It can be different for every guild council, as
     /// different merchant republics can have different monetary policies and thus different "number" of circulating
