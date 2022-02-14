@@ -10,6 +10,8 @@ This repository offers a reference implementation as also describes a general ar
 
 Currently, only minimal testing has been done and we release this alpha version to gauge the interest of users. We expect to increase the unit-test coverage, as also include fuzzing and symbolical testing.
 
+Radicle URN: `rad:git:hnrkdarw3855uomr3xea8wrhx1r1sxj9sfe7y`
+
 ## Architecture
 
 The main components of the design are:
@@ -163,7 +165,6 @@ Now the Guild is deployed and configured to participate in the governance proces
 ## License
 
 AGPL
-
 
 ## Disclaimer
 
